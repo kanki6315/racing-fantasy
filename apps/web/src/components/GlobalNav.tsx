@@ -1,4 +1,4 @@
-import { NavLink } from 'react-router-dom'
+import { Link, NavLink } from 'react-router-dom'
 import { Logo } from './Logo'
 import { useAuth, type Me } from '../auth/AuthContext'
 import { useActiveSeason } from '../api/queries'
@@ -70,18 +70,25 @@ export function GlobalNav() {
               <span className="font-mono text-[9px] tracking-[0.06em] text-warn">NOT REGISTERED</span>
             </span>
           )}
-          {/* name/email replaces the avatar on mobile; when not registered the pill takes the slot
-              instead (mobile has no room for both — the registration banner shows the name anyway) */}
-          <div className={`${notRegistered ? 'hidden sm:block' : 'block'} min-w-0 text-right leading-tight`}>
-            <div className="truncate font-sans text-[13px] font-semibold text-ink">
-              {user.name ?? user.registrations[0]?.teamName ?? 'Player'}
+          {/* the identity block is the way into the dashboard. name/email replaces the avatar on
+              mobile; when not registered the pill takes the slot instead (mobile has no room for both
+              — the registration banner shows the name anyway) */}
+          <Link
+            to="/dashboard"
+            aria-label="Go to your dashboard"
+            className="group flex min-w-0 items-center gap-2 sm:gap-3 cursor-pointer"
+          >
+            <div className={`${notRegistered ? 'hidden sm:block' : 'block'} min-w-0 text-right leading-tight`}>
+              <div className="truncate font-sans text-[13px] font-semibold text-ink transition-colors group-hover:text-brand-3">
+                {user.name ?? user.registrations[0]?.teamName ?? 'Player'}
+              </div>
+              <div className="truncate font-mono text-[10px] text-muted">{user.email}</div>
             </div>
-            <div className="truncate font-mono text-[10px] text-muted">{user.email}</div>
-          </div>
-          {/* initials avatar is desktop-only — the name/email replaces it on mobile */}
-          <div className="hidden h-9 w-9 shrink-0 items-center justify-center rounded-full bg-brand font-display text-[14px] font-bold text-ink sm:flex">
-            {initials(user)}
-          </div>
+            {/* initials avatar is desktop-only — the name/email replaces it on mobile */}
+            <div className="hidden h-9 w-9 shrink-0 items-center justify-center rounded-full bg-brand font-display text-[14px] font-bold text-ink ring-2 ring-transparent transition-shadow group-hover:ring-brand-3/40 sm:flex">
+              {initials(user)}
+            </div>
+          </Link>
           <button
             type="button"
             onClick={() => void logout()}
