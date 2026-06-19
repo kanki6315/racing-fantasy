@@ -21,10 +21,14 @@ function initials(me: Me): string {
 const linkClass = (isActive: boolean, accent = false, compact = false) => {
   const idle = accent ? 'text-brand-3/70 hover:text-brand-3' : 'text-muted hover:text-ink-2'
   const active = accent ? 'text-brand-3' : 'text-ink'
-  // Desktop link sits in the tall h-16 bar, so the underline drops to the bar bottom via pb-[20px];
-  // the compact mobile row underlines right under the label.
-  const underline = compact ? 'border-b-2 border-brand pb-1' : 'border-b-2 border-brand pb-[20px]'
-  return `${isActive ? `${active} ${underline}` : `${idle} transition-colors`} shrink-0`
+  // Vertically center the label in the bar (so it lines up with the logo + auth controls) while
+  // keeping the underline a touch above the bar's bottom edge. The border is in BOTH states
+  // (transparent when idle) so the label never shifts when a link becomes active. Desktop: an h-11
+  // box centered in the h-16 bar puts the text mid-bar with the underline ~10px up; the compact
+  // mobile row fills its short height with the underline at the bottom.
+  const box = compact ? 'h-full' : 'h-11'
+  const border = isActive ? 'border-brand' : 'border-transparent'
+  return `${isActive ? active : `${idle} transition-colors`} flex items-center border-b-2 ${border} ${box} shrink-0`
 }
 
 /** Top bar: wordmark + section nav + auth (Google sign-in / dev-login / signed-in identity). */
