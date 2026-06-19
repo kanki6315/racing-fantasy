@@ -33,7 +33,10 @@ public static class RosterEndpoints
                 .FirstOrDefaultAsync(r => r.RegistrationId == registrationId && r.RoundId == roundId);
 
             var locked = roster?.LockedAt is not null || DateTime.UtcNow >= round.QualiStart;
-            return Results.Ok(BuildResponse(registration.Id, roundId, round.SalaryCap, roster, locked));
+            // No event = no release gate (quali lock still applies); otherwise mirror Event.PicksOpen.
+            var picksOpen = round.EventId is not { } evId
+                || await db.Events.Where(e => e.Id == evId).Select(e => e.PicksOpen).FirstAsync();
+            return Results.Ok(BuildResponse(registration.Id, roundId, round.SalaryCap, roster, locked, picksOpen));
         }).Produces<RosterResponse>();
 
         group.MapPut("/{roundId:long}/roster", async (long registrationId, long roundId, PutRosterRequest req, HttpContext http, FantasyDbContext db) =>
@@ -56,6 +59,13 @@ public static class RosterEndpoints
                 return Results.NotFound();
             if (locked)
                 return Results.Json(new RosterErrorResponse("locked", Message: "Picks are locked; qualifying has begun."),
+                    statusCode: StatusCodes.Status409Conflict);
+
+            // Picks open at the event level — the whole weekend is released together (Event.PicksOpen).
+            // A round with no event has no such gate; the quali lock above still applies.
+            if (round.EventId is { } eventId &&
+                !await db.Events.Where(e => e.Id == eventId).Select(e => e.PicksOpen).FirstAsync())
+                return Results.Json(new RosterErrorResponse("not_open", Message: "Picks for this event aren't open yet."),
                     statusCode: StatusCodes.Status409Conflict);
 
             // Normalise submitted picks (MAIN only — IMPACT/bonus drivers retired, ADR-0006).
@@ -146,7 +156,8 @@ public static class RosterEndpoints
             var reloaded = await db.Rosters.Include(r => r.Picks)
                 .Include(r => r.Modifiers).ThenInclude(m => m.TargetPick)
                 .FirstAsync(r => r.RegistrationId == registrationId && r.RoundId == roundId);
-            return Results.Ok(BuildResponse(registrationId, roundId, round.SalaryCap, reloaded, locked: false));
+            // The not_open gate above already passed, so the event is open here.
+            return Results.Ok(BuildResponse(registrationId, roundId, round.SalaryCap, reloaded, locked: false, picksOpen: true));
         })
         .Produces<RosterResponse>()
         .Produces<RosterErrorResponse>(StatusCodes.Status409Conflict)
@@ -170,7 +181,7 @@ public static class RosterEndpoints
         return result is null ? null : (bool)result;
     }
 
-    private static RosterResponse BuildResponse(long registrationId, long roundId, decimal salaryCap, Roster? roster, bool locked)
+    private static RosterResponse BuildResponse(long registrationId, long roundId, decimal salaryCap, Roster? roster, bool locked, bool picksOpen)
     {
         var picks = roster?.Picks ?? new List<Pick>();
         var spent = picks.Sum(p => p.PriceAtLock);
@@ -183,6 +194,7 @@ public static class RosterEndpoints
         return new RosterResponse(
             registrationId, roundId, locked,
             roster?.LockedAt is { } la ? new DateTimeOffset(la, TimeSpan.Zero) : null,
+            picksOpen,
             salaryCap, spent, salaryCap - spent,
             picks.Where(p => p.SlotType == SlotType.Main).Select(Map).ToList(),
             mods);
@@ -197,7 +209,7 @@ public record RosterPickInput(EntityType EntityType, long EntityId);
 public record ModifierInput(string Kind, RosterPickInput? Target, System.Text.Json.JsonElement? Params);
 
 public record RosterResponse(
-    long RegistrationId, long RoundId, bool Locked, DateTimeOffset? LockedAt,
+    long RegistrationId, long RoundId, bool Locked, DateTimeOffset? LockedAt, bool PicksOpen,
     decimal SalaryCap, decimal Spent, decimal Remaining,
     List<RosterPickDto> Main, List<RosterModifierDto> Modifiers);
 
@@ -206,8 +218,8 @@ public record RosterModifierDto(string Kind, EntityRef? Target);
 
 /// <summary>
 /// Unified roster PUT error body (409/422). <see cref="Error"/> is the discriminator
-/// ("locked" | "cap_exceeded" | "unavailable" | "composition" | "modifier"); the other fields are
-/// populated only for the matching case.
+/// ("locked" | "not_open" | "cap_exceeded" | "unavailable" | "composition" | "modifier"); the other
+/// fields are populated only for the matching case.
 /// </summary>
 public record RosterErrorResponse(
     string Error, string? Message = null, decimal? Spent = null, decimal? SalaryCap = null,

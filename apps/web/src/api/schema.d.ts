@@ -2760,7 +2760,9 @@ export interface paths {
         };
         get: {
             parameters: {
-                query?: never;
+                query?: {
+                    roundId?: number;
+                };
                 header?: never;
                 path: {
                     id: number;
@@ -2898,6 +2900,8 @@ export interface components {
             id: number;
             name: string;
             slug: string;
+            /** Format: int32 */
+            order: number;
         };
         ClassDto: {
             /** Format: int64 */
@@ -2930,6 +2934,8 @@ export interface components {
         CreateChampionship: {
             name: string;
             slug: string;
+            /** Format: int32 */
+            order: number;
         };
         CreateClass: {
             /** Format: int64 */
@@ -2954,6 +2960,8 @@ export interface components {
             startsAt: null | string;
             /** Format: date-time */
             endsAt: null | string;
+            /** @default false */
+            picksOpen: boolean;
         };
         CreateLeague: {
             /** Format: int64 */
@@ -3084,6 +3092,7 @@ export interface components {
             startsAt: null | string;
             /** Format: date-time */
             endsAt: null | string;
+            picksOpen: boolean;
             rounds: components["schemas"]["EventRoundDto"][];
         };
         EventRoundDto: {
@@ -3094,6 +3103,8 @@ export interface components {
             /** Format: int64 */
             championshipId: number;
             championshipName: string;
+            /** Format: int32 */
+            championshipOrder: number;
             /** Format: int32 */
             year: number;
             roundName: string;
@@ -3327,6 +3338,7 @@ export interface components {
             locked: boolean;
             /** Format: date-time */
             lockedAt: null | string;
+            picksOpen: boolean;
             /** Format: double */
             salaryCap: number;
             /** Format: double */
@@ -3467,6 +3479,8 @@ export interface components {
         UpdateChampionship: {
             name: string;
             slug: string;
+            /** Format: int32 */
+            order: number;
         };
         UpdateClass: {
             name: string;
@@ -3483,6 +3497,8 @@ export interface components {
             startsAt: null | string;
             /** Format: date-time */
             endsAt: null | string;
+            /** @default false */
+            picksOpen: boolean;
         };
         UpdateRosterModifierRule: {
             /** Format: int32 */

@@ -69,9 +69,14 @@ export function Events() {
                     {ev.circuit ?? '—'} · {fmtDate(ev.startsAt)}
                   </div>
                 </div>
-                <span className="font-mono text-[11px] text-ink-2">
-                  {ev.rounds.length} {ev.rounds.length === 1 ? 'series' : 'series'}
-                </span>
+                <div className="flex items-center gap-2">
+                  {ev.picksOpen && (
+                    <span className="rounded-[2px] bg-brand/15 px-[7px] py-[2px] font-display text-[9px] font-semibold tracking-[0.08em] text-brand-3">
+                      OPEN
+                    </span>
+                  )}
+                  <span className="font-mono text-[11px] text-ink-2">{ev.rounds.length} series</span>
+                </div>
               </ListRow>
             ))
           )}
@@ -87,6 +92,7 @@ function EventForm({ event, onSaved }: { event: EventDto | null; onSaved: (id: n
   const [circuit, setCircuit] = useState(event?.circuit ?? '')
   const [startsAt, setStartsAt] = useState(isoToLocalInput(event?.startsAt))
   const [endsAt, setEndsAt] = useState(isoToLocalInput(event?.endsAt))
+  const [picksOpen, setPicksOpen] = useState(event?.picksOpen ?? false)
   const [error, setError] = useState<string | null>(null)
   const create = useCreateEvent()
   const update = useUpdateEvent()
@@ -99,6 +105,7 @@ function EventForm({ event, onSaved }: { event: EventDto | null; onSaved: (id: n
       circuit: circuit || null,
       startsAt: localInputToIso(startsAt),
       endsAt: localInputToIso(endsAt),
+      picksOpen,
     }
     try {
       if (event) await update.mutateAsync({ id: event.id, body })
@@ -147,6 +154,24 @@ function EventForm({ event, onSaved }: { event: EventDto | null; onSaved: (id: n
             <TextInput type="datetime-local" value={endsAt} onChange={(e) => setEndsAt(e.target.value)} />
           </Field>
         </div>
+
+        <Field label="Picks">
+          <button
+            type="button"
+            role="switch"
+            aria-checked={picksOpen}
+            onClick={() => setPicksOpen((v) => !v)}
+            className={`inline-flex h-8 items-center gap-2 rounded-[3px] border px-3 font-display text-[12px] font-semibold uppercase tracking-[0.04em] transition-colors cursor-pointer ${
+              picksOpen ? 'border-brand/50 bg-brand/10 text-brand-3' : 'border-line-2 text-muted hover:text-ink-2'
+            }`}
+          >
+            <span className={`h-[8px] w-[8px] rounded-full ${picksOpen ? 'bg-brand' : 'bg-line-2'}`} />
+            {picksOpen ? 'Open for picks' : 'Closed'}
+          </button>
+          <p className="mt-1 font-sans text-[11px] text-muted">
+            Releases the pick board for every series this weekend at once. Picks still lock per round at qualifying.
+          </p>
+        </Field>
 
         {event && (
           <div className="border-t border-line pt-4">

@@ -151,7 +151,7 @@ public static class LeagueEndpoints
             return Results.NoContent();
         });
 
-        group.MapGet("/{id:long}/leaderboard", async (long id, HttpContext http, FantasyDbContext db) =>
+        group.MapGet("/{id:long}/leaderboard", async (long id, long? roundId, HttpContext http, FantasyDbContext db) =>
         {
             var league = await db.Leagues.FindAsync(id);
             if (league is null) return Results.NotFound();
@@ -163,7 +163,14 @@ public static class LeagueEndpoints
                 if (reg is null || !memberRegIds.Contains(reg.Id)) return Results.Forbid();
             }
 
+            // Default: season-wide pool (all of the league season's rounds). A roundId narrows the
+            // board to that single round — it must belong to the league's season (else 404).
             var roundIds = await db.Rounds.Where(r => r.SeasonId == league.SeasonId).Select(r => r.Id).ToListAsync();
+            if (roundId is { } rid)
+            {
+                if (!roundIds.Contains(rid)) return Results.NotFound();
+                roundIds = [rid];
+            }
             var rows = (await db.RoundTotals
                     .Where(rt => roundIds.Contains(rt.RoundId) && memberRegIds.Contains(rt.RegistrationId)).ToListAsync())
                 .GroupBy(rt => rt.RegistrationId)
