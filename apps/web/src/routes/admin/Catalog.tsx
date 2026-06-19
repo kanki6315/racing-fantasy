@@ -30,12 +30,22 @@ import {
   useCreateSession,
   useUpdateSession,
   useDeleteSession,
+  useAdminRosterRules,
+  useCreateRosterRule,
+  useUpdateRosterRule,
+  useDeleteRosterRule,
+  useAdminModifierRules,
+  useCreateModifierRule,
+  useUpdateModifierRule,
+  useDeleteModifierRule,
   type Championship,
   type ClassDto,
   type RoundDto,
+  type RosterRuleDto,
+  type RosterModifierRuleDto,
 } from '../../api/adminQueries'
-import { useRosterRules } from '../../api/queries'
 import { classMeta } from '../../lib/classMeta'
+import { MODIFIER_FORMATS, modMeta } from '../../lib/modifierMeta'
 
 const TABS = [
   { id: 'championships', label: 'Championships' },
@@ -577,62 +587,298 @@ function SessionsTab() {
   )
 }
 
-// ===================== Roster Rules (read-only this pass) =====================
+// ===================== Roster Rules (editable) =====================
 function RosterRulesTab() {
-  const { roundId } = useAdmin()
-  const { data: rules, isLoading } = useRosterRules(roundId ?? 0)
-
-  if (!roundId) return <EmptyState>Select a round in the topbar</EmptyState>
-  if (isLoading || !rules) return <EmptyState>Loading roster rules…</EmptyState>
-
+  const { championshipId, seasonId, roundId, round } = useAdmin()
+  if (!seasonId) return <EmptyState>Select a season in the topbar</EmptyState>
   return (
     <div className="grid gap-5">
-      <div className="flex items-center gap-6 rounded-[6px] border border-line bg-surface px-5 py-4">
+      <CompositionEditor
+        championshipId={championshipId}
+        seasonId={seasonId}
+        roundId={roundId}
+        roundName={round?.name}
+      />
+      <BonusFormatsEditor seasonId={seasonId} />
+    </div>
+  )
+}
+
+// ---- Composition: season defaults + per-round overrides ----
+function CompositionEditor({
+  championshipId,
+  seasonId,
+  roundId,
+  roundName,
+}: {
+  championshipId?: number
+  seasonId: number
+  roundId?: number
+  roundName?: string
+}) {
+  const [scope, setScope] = useState<'round' | 'season'>(roundId ? 'round' : 'season')
+  const effScope = roundId ? scope : 'season'
+  const { data: classes = [] } = useAdminClasses(championshipId)
+  const { data: rules = [] } = useAdminRosterRules(seasonId)
+  const { data: sessions = [] } = useAdminSessions(effScope === 'round' ? roundId : undefined)
+
+  const mainRule = (classId: number, rid: number | null) =>
+    rules.find((r) => r.classId === classId && r.slotType === 'Main' && (r.roundId ?? null) === rid)
+
+  return (
+    <div className="rounded-[6px] border border-line bg-surface">
+      <div className="flex flex-wrap items-center justify-between gap-3 border-b border-line px-4 py-3">
         <div>
-          <div className="font-mono text-[9px] tracking-[0.12em] uppercase text-muted-2">Salary Cap</div>
-          <div className="font-mono text-[18px] text-ink">${rules.salaryCap.toFixed(1)}M</div>
-        </div>
-        <div className="font-sans text-[12px] text-muted">
-          Composition resolved for this round (season rules ∩ classes running). Cap is edited per-round under{' '}
-          <span className="text-ink-2">Rounds</span>; full min/max editing lands in a later pass.
-        </div>
-      </div>
-
-      <div className="rounded-[6px] border border-line bg-surface">
-        <div className="grid grid-cols-[2fr_1fr_1fr_1fr] font-mono text-[9px] tracking-[0.12em] uppercase text-muted-2">
-          <div className="border-b border-line px-4 py-2">Class</div>
-          <div className="border-b border-line px-4 py-2">Slot</div>
-          <div className="border-b border-line px-4 py-2">Min</div>
-          <div className="border-b border-line px-4 py-2">Max</div>
-        </div>
-        {rules.classes.map((c) => (
-          <div key={c.classId} className="grid grid-cols-[2fr_1fr_1fr_1fr] items-center">
-            <div className="flex items-center gap-2 border-b border-line px-4 py-3">
-              <ClassSwatch hex={classMeta(c.name, c.color).hex} />
-              <span className="font-display text-[13px] font-semibold uppercase text-ink">{c.name ?? '—'}</span>
-            </div>
-            <div className="border-b border-line px-4 py-3 font-mono text-[12px] text-muted">{c.slot}</div>
-            <div className="border-b border-line px-4 py-3 font-mono text-[12px] text-ink-2">{c.min}</div>
-            <div className="border-b border-line px-4 py-3 font-mono text-[12px] text-ink-2">{c.max}</div>
+          <div className="font-mono text-[10px] tracking-[0.14em] uppercase text-muted-2">Composition</div>
+          <div className="mt-1 font-sans text-[12px] text-muted">
+            Picks required per class.{' '}
+            {effScope === 'round'
+              ? `Overrides apply to ${roundName ?? 'this round'} only; unset classes use the season default.`
+              : 'The season default applies to every round unless a round overrides it.'}
           </div>
-        ))}
-      </div>
-
-      {rules.modifiers.length > 0 && (
-        <div className="rounded-[6px] border border-line bg-surface p-4">
-          <div className="mb-3 font-mono text-[10px] tracking-[0.14em] uppercase text-muted-2">Bonus Modifiers</div>
-          <div className="flex flex-wrap gap-2">
-            {rules.modifiers.map((m) => (
-              <span
-                key={m.kind}
-                className="rounded-[3px] border border-line-2 bg-surface-3 px-3 py-1 font-mono text-[11px] text-ink-2"
+        </div>
+        {roundId && (
+          <div className="flex overflow-hidden rounded-[4px] border border-line-2">
+            {(['round', 'season'] as const).map((s) => (
+              <button
+                key={s}
+                type="button"
+                onClick={() => setScope(s)}
+                className={`px-3 py-[6px] font-mono text-[11px] uppercase tracking-[0.04em] cursor-pointer ${
+                  scope === s ? 'bg-surface-2 text-ink' : 'text-muted hover:text-ink-2'
+                }`}
               >
-                {m.kind} · max {m.maxCount} · {m.appliesTo}
-              </span>
+                {s === 'round' ? roundName ?? 'This round' : 'Season default'}
+              </button>
             ))}
           </div>
+        )}
+      </div>
+
+      {classes.length === 0 ? (
+        <div className="p-4">
+          <EmptyState>No classes for this championship yet</EmptyState>
+        </div>
+      ) : (
+        <>
+          <div className="grid grid-cols-[2fr_5rem_5rem_1fr] border-b border-line px-4 py-2 font-mono text-[9px] tracking-[0.12em] uppercase text-muted-2">
+            <div>Class</div>
+            <div className="text-center">Min</div>
+            <div className="text-center">Max</div>
+            <div />
+          </div>
+          {classes.map((cls) => {
+            const def = mainRule(cls.id, null)
+            const override = effScope === 'round' ? mainRule(cls.id, roundId!) : undefined
+            const editing = effScope === 'season' ? def : override
+            const running = effScope === 'round' && sessions.some((s) => s.classId === cls.id)
+            return (
+              <CompositionRow
+                key={`${cls.id}-${effScope}-${editing?.id ?? 'new'}`}
+                cls={cls}
+                scope={effScope}
+                seasonId={seasonId}
+                roundId={roundId}
+                defaultRule={def}
+                overrideRule={override}
+                running={running}
+                showRunning={effScope === 'round'}
+              />
+            )
+          })}
+        </>
+      )}
+    </div>
+  )
+}
+
+function CompositionRow({
+  cls,
+  scope,
+  seasonId,
+  roundId,
+  defaultRule,
+  overrideRule,
+  running,
+  showRunning,
+}: {
+  cls: ClassDto
+  scope: 'round' | 'season'
+  seasonId: number
+  roundId?: number
+  defaultRule?: RosterRuleDto
+  overrideRule?: RosterRuleDto
+  running: boolean
+  showRunning: boolean
+}) {
+  const create = useCreateRosterRule()
+  const update = useUpdateRosterRule()
+  const del = useDeleteRosterRule()
+
+  const editing = scope === 'season' ? defaultRule : overrideRule
+  const seed = editing ?? (scope === 'round' ? defaultRule : undefined) // round prefills from the default
+  const [min, setMin] = useState(seed ? String(seed.minPicks) : '')
+  const [max, setMax] = useState(seed ? String(seed.maxPicks) : '')
+
+  const minN = Number(min)
+  const maxN = Number(max)
+  const valid =
+    min !== '' && max !== '' && Number.isInteger(minN) && Number.isInteger(maxN) && minN >= 0 && maxN >= minN
+  const dirty = !editing || String(editing.minPicks) !== min || String(editing.maxPicks) !== max
+  const pending = create.isPending || update.isPending || del.isPending
+
+  const save = async () => {
+    if (!valid || !dirty) return
+    if (editing) await update.mutateAsync({ id: editing.id, body: { minPicks: minN, maxPicks: maxN } })
+    else
+      await create.mutateAsync({
+        seasonId,
+        roundId: scope === 'round' ? roundId! : null,
+        classId: cls.id,
+        slotType: 'Main',
+        minPicks: minN,
+        maxPicks: maxN,
+      })
+  }
+
+  return (
+    <div className="grid grid-cols-[2fr_5rem_5rem_1fr] items-center border-b border-line px-4 py-3 last:border-b-0">
+      <div className="flex items-center gap-2">
+        <ClassSwatch hex={classMeta(cls.name, cls.color).hex} />
+        <span className="font-display text-[13px] font-semibold uppercase text-ink">{cls.name}</span>
+        {showRunning && !running && (
+          <span className="font-mono text-[9px] uppercase tracking-[0.08em] text-muted-2">not running</span>
+        )}
+      </div>
+      <div className="px-1">
+        <TextInput value={min} onChange={(e) => setMin(e.target.value)} inputMode="numeric"
+          aria-label={`${cls.name} min`} className="text-center" />
+      </div>
+      <div className="px-1">
+        <TextInput value={max} onChange={(e) => setMax(e.target.value)} inputMode="numeric"
+          aria-label={`${cls.name} max`} className="text-center" />
+      </div>
+      <div className="flex items-center justify-end gap-2">
+        {scope === 'round' &&
+          (overrideRule ? (
+            <span className="rounded-[3px] border border-brand/40 bg-brand/[0.08] px-2 py-[2px] font-mono text-[9px] uppercase tracking-[0.08em] text-brand">
+              override
+            </span>
+          ) : (
+            <span className="font-mono text-[9px] uppercase tracking-[0.08em] text-muted-2">
+              default {defaultRule ? `${defaultRule.minPicks}/${defaultRule.maxPicks}` : '—'}
+            </span>
+          ))}
+        {scope === 'round' && overrideRule && (
+          <GhostButton onClick={() => del.mutateAsync(overrideRule.id)} disabled={pending} className="!px-2">
+            Reset
+          </GhostButton>
+        )}
+        <PrimaryButton onClick={save} disabled={!valid || !dirty || pending} className="!px-3">
+          Save
+        </PrimaryButton>
+      </div>
+    </div>
+  )
+}
+
+// ---- Bonus formats (roster modifiers, season-scoped) ----
+function BonusFormatsEditor({ seasonId }: { seasonId: number }) {
+  const { data: rules = [] } = useAdminModifierRules(seasonId)
+  const create = useCreateModifierRule()
+  const del = useDeleteModifierRule()
+  const update = useUpdateModifierRule()
+
+  const present = new Set(rules.map((r) => r.kind))
+  const available = MODIFIER_FORMATS.filter((f) => !present.has(f.kind))
+  const [kind, setKind] = useState('')
+  const [maxCount, setMaxCount] = useState('1')
+
+  const add = async () => {
+    const fmt = MODIFIER_FORMATS.find((f) => f.kind === kind)
+    const n = Number(maxCount)
+    if (!fmt || !Number.isInteger(n) || n < 1) return
+    await create.mutateAsync({ seasonId, kind: fmt.kind, maxCount: n, appliesTo: fmt.appliesTo })
+    setKind('')
+    setMaxCount('1')
+  }
+
+  return (
+    <div className="rounded-[6px] border border-line bg-surface">
+      <div className="border-b border-line px-4 py-3">
+        <div className="font-mono text-[10px] tracking-[0.14em] uppercase text-muted-2">Bonus Formats</div>
+        <div className="mt-1 font-sans text-[12px] text-muted">
+          Free per-round bonuses players may add to a roster (ADR-0006). Configured per season.
+        </div>
+      </div>
+
+      {rules.length === 0 ? (
+        <div className="p-4">
+          <EmptyState>No bonus formats yet</EmptyState>
+        </div>
+      ) : (
+        rules.map((r) => (
+          <BonusRow key={r.id} rule={r} onSave={(n) => update.mutateAsync({ id: r.id, body: { maxCount: n, appliesTo: r.appliesTo } })}
+            onDelete={() => del.mutateAsync(r.id)} busy={update.isPending || del.isPending} />
+        ))
+      )}
+
+      {available.length > 0 && (
+        <div className="flex flex-wrap items-end gap-3 border-t border-line px-4 py-4">
+          <Field label="Add bonus">
+            <Select value={kind} onChange={(e) => setKind(e.target.value)} className="w-56">
+              <option value="">Select a format…</option>
+              {available.map((f) => (
+                <option key={f.kind} value={f.kind}>
+                  {f.label}
+                </option>
+              ))}
+            </Select>
+          </Field>
+          <Field label="Max / roster">
+            <TextInput value={maxCount} onChange={(e) => setMaxCount(e.target.value)} inputMode="numeric" className="w-20 text-center" />
+          </Field>
+          <PrimaryButton onClick={add} disabled={!kind || create.isPending}>
+            Add
+          </PrimaryButton>
         </div>
       )}
+    </div>
+  )
+}
+
+function BonusRow({
+  rule,
+  onSave,
+  onDelete,
+  busy,
+}: {
+  rule: RosterModifierRuleDto
+  onSave: (maxCount: number) => Promise<unknown>
+  onDelete: () => Promise<unknown>
+  busy: boolean
+}) {
+  const [maxCount, setMaxCount] = useState(String(rule.maxCount))
+  const n = Number(maxCount)
+  const valid = Number.isInteger(n) && n >= 1
+  const dirty = String(rule.maxCount) !== maxCount
+  const meta = modMeta(rule.kind)
+  return (
+    <div className="flex flex-wrap items-center gap-3 border-b border-line px-4 py-3 last:border-b-0">
+      <div className="min-w-[180px] flex-1">
+        <div className="font-display text-[13px] font-semibold uppercase text-ink">{meta.label}</div>
+        <div className="font-mono text-[10px] text-muted-2">{rule.appliesTo}</div>
+      </div>
+      <div className="flex items-center gap-2">
+        <span className="font-mono text-[9px] uppercase tracking-[0.08em] text-muted-2">Max</span>
+        <TextInput value={maxCount} onChange={(e) => setMaxCount(e.target.value)} inputMode="numeric" className="w-16 text-center" />
+        <PrimaryButton onClick={() => valid && dirty && onSave(n)} disabled={!valid || !dirty || busy} className="!px-3">
+          Save
+        </PrimaryButton>
+        <GhostButton onClick={onDelete} disabled={busy} className="!text-danger hover:!border-danger/50 !px-2">
+          Remove
+        </GhostButton>
+      </div>
     </div>
   )
 }

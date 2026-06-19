@@ -17,6 +17,8 @@ export type SessionDto = components['schemas']['SessionDto']
 export type CarEntryDto = components['schemas']['CarEntryDto']
 export type DriverDto = components['schemas']['DriverDto']
 export type EntryDriverDto = components['schemas']['EntryDriverDto']
+export type RosterRuleDto = components['schemas']['RosterRuleDto']
+export type RosterModifierRuleDto = components['schemas']['RosterModifierRuleDto']
 
 const ak = {
   championships: ['admin', 'championships'] as const,
@@ -28,6 +30,8 @@ const ak = {
     ['admin', 'car-entries', seasonId ?? 'all', classId ?? 'all'] as const,
   drivers: (search?: string) => ['admin', 'drivers', search ?? ''] as const,
   entryDrivers: (seasonId?: number) => ['admin', 'entry-drivers', seasonId ?? 'all'] as const,
+  rosterRules: (seasonId?: number) => ['admin', 'roster-rules', seasonId ?? 'all'] as const,
+  modifierRules: (seasonId?: number) => ['admin', 'modifier-rules', seasonId ?? 'all'] as const,
 }
 
 function invalidate(qc: QueryClient, ...prefixes: string[][]) {
@@ -530,5 +534,101 @@ export function useSavePrices(roundId: number) {
       return data!
     },
     onSuccess: () => qc.invalidateQueries({ queryKey: ['prices', roundId] }),
+  })
+}
+
+// ---- Roster rules (composition: season defaults + per-round overrides) ----
+export function useAdminRosterRules(seasonId?: number) {
+  return useQuery({
+    queryKey: ak.rosterRules(seasonId),
+    enabled: seasonId != null,
+    queryFn: async () => {
+      const { data, error } = await api.GET('/roster-rules', { params: { query: { seasonId } } })
+      if (error) throw error
+      return data ?? []
+    },
+  })
+}
+
+export function useCreateRosterRule() {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: async (body: components['schemas']['CreateRosterRule']) => {
+      const { data, error } = await api.POST('/roster-rules', { body })
+      if (error) throw error
+      return data!
+    },
+    onSuccess: () => invalidate(qc, ['admin', 'roster-rules']),
+  })
+}
+
+export function useUpdateRosterRule() {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: async ({ id, body }: { id: number; body: components['schemas']['UpdateRosterRule'] }) => {
+      const { data, error } = await api.PUT('/roster-rules/{id}', { params: { path: { id } }, body })
+      if (error) throw error
+      return data!
+    },
+    onSuccess: () => invalidate(qc, ['admin', 'roster-rules']),
+  })
+}
+
+export function useDeleteRosterRule() {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: async (id: number) => {
+      const { error } = await api.DELETE('/roster-rules/{id}', { params: { path: { id } } })
+      if (error) throw error
+    },
+    onSuccess: () => invalidate(qc, ['admin', 'roster-rules']),
+  })
+}
+
+// ---- Roster modifier rules (bonus formats, season-scoped) ----
+export function useAdminModifierRules(seasonId?: number) {
+  return useQuery({
+    queryKey: ak.modifierRules(seasonId),
+    enabled: seasonId != null,
+    queryFn: async () => {
+      const { data, error } = await api.GET('/roster-modifier-rules', { params: { query: { seasonId } } })
+      if (error) throw error
+      return data ?? []
+    },
+  })
+}
+
+export function useCreateModifierRule() {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: async (body: components['schemas']['CreateRosterModifierRule']) => {
+      const { data, error } = await api.POST('/roster-modifier-rules', { body })
+      if (error) throw error
+      return data!
+    },
+    onSuccess: () => invalidate(qc, ['admin', 'modifier-rules']),
+  })
+}
+
+export function useUpdateModifierRule() {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: async ({ id, body }: { id: number; body: components['schemas']['UpdateRosterModifierRule'] }) => {
+      const { data, error } = await api.PUT('/roster-modifier-rules/{id}', { params: { path: { id } }, body })
+      if (error) throw error
+      return data!
+    },
+    onSuccess: () => invalidate(qc, ['admin', 'modifier-rules']),
+  })
+}
+
+export function useDeleteModifierRule() {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: async (id: number) => {
+      const { error } = await api.DELETE('/roster-modifier-rules/{id}', { params: { path: { id } } })
+      if (error) throw error
+    },
+    onSuccess: () => invalidate(qc, ['admin', 'modifier-rules']),
   })
 }

@@ -16,13 +16,15 @@ public static class RosterRuleEndpoints
             Results.Ok(await db.RosterRules
                 .Where(r => seasonId == null || r.SeasonId == seasonId)
                 .OrderBy(r => r.ClassId).ThenBy(r => r.SlotType)
-                .Select(r => new RosterRuleDto(r.Id, r.SeasonId, r.ClassId, r.SlotType, r.MinPicks, r.MaxPicks))
-                .ToListAsync()));
+                .Select(r => new RosterRuleDto(r.Id, r.SeasonId, r.RoundId, r.ClassId, r.SlotType, r.MinPicks, r.MaxPicks))
+                .ToListAsync()))
+            .Produces<List<RosterRuleDto>>();
 
         group.MapGet("/{id:long}", async (long id, FantasyDbContext db) =>
             await db.RosterRules.FindAsync(id) is { } r
-                ? Results.Ok(new RosterRuleDto(r.Id, r.SeasonId, r.ClassId, r.SlotType, r.MinPicks, r.MaxPicks))
-                : Results.NotFound());
+                ? Results.Ok(new RosterRuleDto(r.Id, r.SeasonId, r.RoundId, r.ClassId, r.SlotType, r.MinPicks, r.MaxPicks))
+                : Results.NotFound())
+            .Produces<RosterRuleDto>();
 
         group.MapPost("/", async (CreateRosterRule dto, FantasyDbContext db) =>
         {
@@ -30,6 +32,9 @@ public static class RosterRuleEndpoints
                 return ApiResults.RefNotFound("seasonId");
             if (dto.ClassId is { } classId && !await db.Classes.AnyAsync(c => c.Id == classId))
                 return ApiResults.RefNotFound("classId");
+            // A round override must point at a round in this season.
+            if (dto.RoundId is { } roundId && !await db.Rounds.AnyAsync(r => r.Id == roundId && r.SeasonId == dto.SeasonId))
+                return ApiResults.RefNotFound("roundId");
             if (dto.MinPicks < 0 || dto.MaxPicks < dto.MinPicks)
                 return Results.ValidationProblem(new Dictionary<string, string[]>
                 {
@@ -39,6 +44,7 @@ public static class RosterRuleEndpoints
             var r = new RosterRule
             {
                 SeasonId = dto.SeasonId,
+                RoundId = dto.RoundId,
                 ClassId = dto.ClassId,
                 SlotType = dto.SlotType,
                 MinPicks = dto.MinPicks,
@@ -47,8 +53,8 @@ public static class RosterRuleEndpoints
             db.Add(r);
             await db.SaveChangesAsync();
             return Results.Created($"/roster-rules/{r.Id}",
-                new RosterRuleDto(r.Id, r.SeasonId, r.ClassId, r.SlotType, r.MinPicks, r.MaxPicks));
-        });
+                new RosterRuleDto(r.Id, r.SeasonId, r.RoundId, r.ClassId, r.SlotType, r.MinPicks, r.MaxPicks));
+        }).Produces<RosterRuleDto>(StatusCodes.Status201Created);
 
         group.MapPut("/{id:long}", async (long id, UpdateRosterRule dto, FantasyDbContext db) =>
         {
@@ -62,8 +68,8 @@ public static class RosterRuleEndpoints
             r.MinPicks = dto.MinPicks;
             r.MaxPicks = dto.MaxPicks;
             await db.SaveChangesAsync();
-            return Results.Ok(new RosterRuleDto(r.Id, r.SeasonId, r.ClassId, r.SlotType, r.MinPicks, r.MaxPicks));
-        });
+            return Results.Ok(new RosterRuleDto(r.Id, r.SeasonId, r.RoundId, r.ClassId, r.SlotType, r.MinPicks, r.MaxPicks));
+        }).Produces<RosterRuleDto>();
 
         group.MapDelete("/{id:long}", async (long id, FantasyDbContext db) =>
         {
@@ -78,6 +84,6 @@ public static class RosterRuleEndpoints
     }
 }
 
-public record RosterRuleDto(long Id, long SeasonId, long? ClassId, SlotType SlotType, int MinPicks, int MaxPicks);
-public record CreateRosterRule(long SeasonId, long? ClassId, SlotType SlotType, int MinPicks, int MaxPicks);
+public record RosterRuleDto(long Id, long SeasonId, long? RoundId, long? ClassId, SlotType SlotType, int MinPicks, int MaxPicks);
+public record CreateRosterRule(long SeasonId, long? RoundId, long? ClassId, SlotType SlotType, int MinPicks, int MaxPicks);
 public record UpdateRosterRule(int MinPicks, int MaxPicks);

@@ -23,12 +23,14 @@ public static class RosterModifierRuleEndpoints
                 .Where(r => seasonId == null || r.SeasonId == seasonId)
                 .OrderBy(r => r.Kind)
                 .Select(r => new RosterModifierRuleDto(r.Id, r.SeasonId, r.Kind, r.MaxCount, r.AppliesTo))
-                .ToListAsync()));
+                .ToListAsync()))
+            .Produces<List<RosterModifierRuleDto>>();
 
         group.MapGet("/{id:long}", async (long id, FantasyDbContext db) =>
             await db.RosterModifierRules.FindAsync(id) is { } r
                 ? Results.Ok(new RosterModifierRuleDto(r.Id, r.SeasonId, r.Kind, r.MaxCount, r.AppliesTo))
-                : Results.NotFound());
+                : Results.NotFound())
+            .Produces<RosterModifierRuleDto>();
 
         group.MapPost("/", async (CreateRosterModifierRule dto, FantasyDbContext db) =>
         {
@@ -48,7 +50,7 @@ public static class RosterModifierRuleEndpoints
             await db.SaveChangesAsync();
             return Results.Created($"/roster-modifier-rules/{r.Id}",
                 new RosterModifierRuleDto(r.Id, r.SeasonId, r.Kind, r.MaxCount, r.AppliesTo));
-        });
+        }).Produces<RosterModifierRuleDto>(StatusCodes.Status201Created);
 
         group.MapPut("/{id:long}", async (long id, UpdateRosterModifierRule dto, FantasyDbContext db) =>
         {
@@ -60,7 +62,7 @@ public static class RosterModifierRuleEndpoints
             r.AppliesTo = dto.AppliesTo;
             await db.SaveChangesAsync();
             return Results.Ok(new RosterModifierRuleDto(r.Id, r.SeasonId, r.Kind, r.MaxCount, r.AppliesTo));
-        });
+        }).Produces<RosterModifierRuleDto>();
 
         group.MapDelete("/{id:long}", async (long id, FantasyDbContext db) =>
         {

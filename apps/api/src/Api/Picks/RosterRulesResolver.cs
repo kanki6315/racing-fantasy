@@ -17,17 +17,26 @@ public static class RosterRulesResolver
     {
         var runningClassIds = await db.Sessions.Where(s => s.RoundId == round.Id)
             .Select(s => s.ClassId).Distinct().ToListAsync();
-        var rules = await db.RosterRules.Where(r => r.SeasonId == round.SeasonId).ToListAsync();
+        // Season defaults (RoundId null) + this round's overrides; per class the override wins (below).
+        var rules = await db.RosterRules
+            .Where(r => r.SeasonId == round.SeasonId && (r.RoundId == null || r.RoundId == round.Id))
+            .ToListAsync();
         var classes = await db.Classes.Where(c => runningClassIds.Contains(c.Id))
             .ToDictionaryAsync(c => c.Id, c => new { c.Name, c.Color });
 
         var mainClasses = rules
             .Where(r => r.SlotType == SlotType.Main && r.ClassId is { } cid && runningClassIds.Contains(cid))
-            .Select(r => new ClassRequirement(
-                r.ClassId!.Value,
-                classes.GetValueOrDefault(r.ClassId!.Value)?.Name,
-                classes.GetValueOrDefault(r.ClassId!.Value)?.Color,
-                r.MinPicks, r.MaxPicks))
+            .GroupBy(r => r.ClassId!.Value)
+            .Select(g =>
+            {
+                // Round override (RoundId == round.Id) sorts before the season default (RoundId == null).
+                var rule = g.OrderByDescending(r => r.RoundId == round.Id).First();
+                return new ClassRequirement(
+                    rule.ClassId!.Value,
+                    classes.GetValueOrDefault(rule.ClassId!.Value)?.Name,
+                    classes.GetValueOrDefault(rule.ClassId!.Value)?.Color,
+                    rule.MinPicks, rule.MaxPicks);
+            })
             .OrderBy(c => c.Name)
             .ToList();
 
