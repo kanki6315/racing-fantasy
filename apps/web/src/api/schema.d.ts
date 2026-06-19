@@ -1690,7 +1690,9 @@ export interface paths {
                     headers: {
                         [name: string]: unknown;
                     };
-                    content?: never;
+                    content: {
+                        "application/json": components["schemas"]["RosterRuleDto"][];
+                    };
                 };
             };
         };
@@ -1708,12 +1710,14 @@ export interface paths {
                 };
             };
             responses: {
-                /** @description OK */
-                200: {
+                /** @description Created */
+                201: {
                     headers: {
                         [name: string]: unknown;
                     };
-                    content?: never;
+                    content: {
+                        "application/json": components["schemas"]["RosterRuleDto"];
+                    };
                 };
             };
         };
@@ -1746,7 +1750,9 @@ export interface paths {
                     headers: {
                         [name: string]: unknown;
                     };
-                    content?: never;
+                    content: {
+                        "application/json": components["schemas"]["RosterRuleDto"];
+                    };
                 };
             };
         };
@@ -1770,7 +1776,9 @@ export interface paths {
                     headers: {
                         [name: string]: unknown;
                     };
-                    content?: never;
+                    content: {
+                        "application/json": components["schemas"]["RosterRuleDto"];
+                    };
                 };
             };
         };
@@ -1823,7 +1831,9 @@ export interface paths {
                     headers: {
                         [name: string]: unknown;
                     };
-                    content?: never;
+                    content: {
+                        "application/json": components["schemas"]["RosterModifierRuleDto"][];
+                    };
                 };
             };
         };
@@ -1841,12 +1851,14 @@ export interface paths {
                 };
             };
             responses: {
-                /** @description OK */
-                200: {
+                /** @description Created */
+                201: {
                     headers: {
                         [name: string]: unknown;
                     };
-                    content?: never;
+                    content: {
+                        "application/json": components["schemas"]["RosterModifierRuleDto"];
+                    };
                 };
             };
         };
@@ -1879,7 +1891,9 @@ export interface paths {
                     headers: {
                         [name: string]: unknown;
                     };
-                    content?: never;
+                    content: {
+                        "application/json": components["schemas"]["RosterModifierRuleDto"];
+                    };
                 };
             };
         };
@@ -1903,7 +1917,9 @@ export interface paths {
                     headers: {
                         [name: string]: unknown;
                     };
-                    content?: never;
+                    content: {
+                        "application/json": components["schemas"]["RosterModifierRuleDto"];
+                    };
                 };
             };
         };
@@ -2962,6 +2978,8 @@ export interface components {
             /** Format: int64 */
             seasonId: number;
             /** Format: int64 */
+            roundId: null | number;
+            /** Format: int64 */
             classId: null | number;
             slotType: components["schemas"]["SlotType"];
             /** Format: int32 */
@@ -3277,6 +3295,16 @@ export interface components {
             kind: string;
             target: null | components["schemas"]["EntityRef"];
         };
+        RosterModifierRuleDto: {
+            /** Format: int64 */
+            id: number;
+            /** Format: int64 */
+            seasonId: number;
+            kind: string;
+            /** Format: int32 */
+            maxCount: number;
+            appliesTo: string;
+        };
         RosterPickDto: {
             entityType: components["schemas"]["EntityType"];
             /** Format: int64 */
@@ -3318,6 +3346,21 @@ export interface components {
             min: number;
             /** Format: int32 */
             max: number;
+        };
+        RosterRuleDto: {
+            /** Format: int64 */
+            id: number;
+            /** Format: int64 */
+            seasonId: number;
+            /** Format: int64 */
+            roundId: null | number;
+            /** Format: int64 */
+            classId: null | number;
+            slotType: components["schemas"]["SlotType"];
+            /** Format: int32 */
+            minPicks: number;
+            /** Format: int32 */
+            maxPicks: number;
         };
         RosterRuleModifier: {
             kind: string;

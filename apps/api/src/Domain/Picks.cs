@@ -47,12 +47,15 @@ public class RosterRule
 {
     public long Id { get; set; }
     public long SeasonId { get; set; }
+    /// <summary>Null = season default (applies to every round); set = a per-round override of the count for that round.</summary>
+    public long? RoundId { get; set; }
     public long? ClassId { get; set; }
     public SlotType SlotType { get; set; }
     public int MinPicks { get; set; }
     public int MaxPicks { get; set; }
 
     public Season Season { get; set; } = null!;
+    public Round? Round { get; set; }
     public Class? Class { get; set; }
 }
 

@@ -92,9 +92,13 @@ public partial class FantasyDbContext(DbContextOptions<FantasyDbContext> options
         b.Entity<AppUser>().Property(x => x.Name).HasMaxLength(200);
         b.Entity<AppUser>().Property(x => x.Email).HasMaxLength(320);
         b.Entity<Registration>().HasIndex(x => new { x.UserId, x.SeasonId }).IsUnique();
-        // ClassId is nullable: treat NULLs as equal so only one IMPACT ("any class") rule per (season, slot).
-        b.Entity<RosterRule>().HasIndex(x => new { x.SeasonId, x.ClassId, x.SlotType })
+        // RoundId/ClassId are nullable (RoundId null = season default, ClassId null = legacy IMPACT "any
+        // class"): treat NULLs as equal so there's at most one season default + one per-round override per
+        // (season, class, slot).
+        b.Entity<RosterRule>().HasIndex(x => new { x.SeasonId, x.RoundId, x.ClassId, x.SlotType })
             .IsUnique().AreNullsDistinct(false);
+        b.Entity<RosterRule>().HasOne(x => x.Round).WithMany().HasForeignKey(x => x.RoundId)
+            .OnDelete(DeleteBehavior.Restrict);
         b.Entity<Roster>().HasIndex(x => new { x.RegistrationId, x.RoundId }).IsUnique();
         b.Entity<Pick>().HasIndex(x => new { x.RosterId, x.SlotType, x.EntityType, x.EntityId }).IsUnique();
         // One modifier-rule per (season, kind); one modifier of each kind per roster (ADR-0006 D3).

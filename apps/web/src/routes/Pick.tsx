@@ -11,6 +11,7 @@ import {
   type RosterError,
 } from '../api/queries'
 import { classMeta } from '../lib/classMeta'
+import { modMeta } from '../lib/modifierMeta'
 import { useCountdown } from '../lib/useCountdown'
 import { EntityThumb } from '../components/EntityThumb'
 import { DriverLineup } from '../components/DriverLineup'
@@ -18,13 +19,6 @@ import { DriverLineup } from '../components/DriverLineup'
 const key = (p: { entityType: string; entityId: number }) => `${p.entityType}:${p.entityId}`
 
 type Target = { entityType: 'Car' | 'Driver'; entityId: number }
-
-// Friendly labels for bonus modifiers (ADR-0006). Unknown kinds fall back to their raw key.
-const MODIFIER_META: Record<string, { label: string; hint: string }> = {
-  DOUBLE_POINTS_TEAM: { label: 'Double Points Team', hint: 'One of your teams scores double — added as bonus points.' },
-  CAPTAIN: { label: 'Captain', hint: 'Your captain driver scores double.' },
-}
-const modMeta = (kind: string) => MODIFIER_META[kind] ?? { label: kind, hint: '' }
 
 // appliesTo values the pick UI can target. MainPick = any roster pick (DOUBLE_POINTS_TEAM, team series);
 // Driver = the roster's driver picks (CAPTAIN, driver-based series like MX-5). The series' price board
