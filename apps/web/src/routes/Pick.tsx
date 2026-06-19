@@ -37,9 +37,10 @@ export function Pick() {
   const roster = useRoster(registration?.id, rid)
   const save = useSaveRoster(registration?.id ?? 0, rid)
 
-  // Draft roster: one entry per classId (Main) — a team or a driver depending on the series — plus
-  // selected bonuses; each modifier kind maps to the pick it targets. IMPACT removed (ADR-0006).
-  const [main, setMain] = useState<Map<number, PriceItem>>(new Map())
+  // Draft roster: the Main picks keyed by entity (entityType:entityId, globally unique) — a class may
+  // hold several picks (min..max), so we key by pick, not class — plus selected bonuses; each modifier
+  // kind maps to the pick it targets. IMPACT removed (ADR-0006).
+  const [main, setMain] = useState<Map<string, PriceItem>>(new Map())
   const [modifiers, setModifiers] = useState<Map<string, Target>>(new Map())
   // Small-screen view toggle: the pit lane and the selection board stack into one column and switch
   // via a segmented control (desktop shows both side by side, so this is ignored at lg+).
@@ -49,10 +50,10 @@ export function Pick() {
   useEffect(() => {
     if (!roster.data || !prices.data) return
     const pm = new Map(prices.data.map((p) => [key(p), p]))
-    const m = new Map<number, PriceItem>()
+    const m = new Map<string, PriceItem>()
     for (const pk of roster.data.main) {
       const it = pm.get(key(pk))
-      if (it) m.set(it.classId, it)
+      if (it) m.set(key(it), it)
     }
     setMain(m)
     const mm = new Map<string, Target>()
@@ -74,7 +75,7 @@ export function Pick() {
   const modifierRules = (rules.data?.modifiers ?? []).filter((m) => SUPPORTED_APPLIES_TO.has(m.appliesTo))
 
   const composition = (rules.data?.classes ?? []).map((c) => {
-    const have = main.has(c.classId) ? 1 : 0
+    const have = selected.filter((p) => p.classId === c.classId).length
     return { ...c, have, ok: have >= c.min && have <= c.max }
   })
   const compositionOk = composition.every((c) => c.ok)
@@ -87,23 +88,48 @@ export function Pick() {
     for (const [k, t] of m) if (t.entityType === pick.entityType && t.entityId === pick.entityId) { n.delete(k); changed = true }
     return changed ? n : m
   }
-  // A class slot holds one entry — a team (car) or a driver. Adding either replaces that slot.
+  const maxForClass = (classId: number) =>
+    (rules.data?.classes ?? []).find((c) => c.classId === classId)?.max ?? 1
+
+  // Clicking a board pick toggles it. A class holds up to `max` picks; when the class is full a
+  // single-slot class (max 1) swaps the existing pick, while a multi-slot class blocks until one is
+  // removed (so the user explicitly drops a pick before adding another).
   const addPick = (item: PriceItem) => {
     if (locked) return
-    const replaced = main.get(item.classId)
-    setMain((prev) => new Map(prev).set(item.classId, item))
-    if (replaced && !(replaced.entityType === item.entityType && replaced.entityId === item.entityId))
+    const k = key(item)
+    if (main.has(k)) {
+      // toggle off
+      setMain((prev) => {
+        const n = new Map(prev)
+        n.delete(k)
+        return n
+      })
+      setModifiers((prev) => dropTargeting(prev, item))
+      return
+    }
+    const inClass = selected.filter((p) => p.classId === item.classId)
+    const max = maxForClass(item.classId)
+    if (inClass.length >= max) {
+      if (max !== 1) return // multi-slot class full — remove one first
+      const replaced = inClass[0]
+      setMain((prev) => {
+        const n = new Map(prev)
+        n.delete(key(replaced))
+        return n.set(k, item)
+      })
       setModifiers((prev) => dropTargeting(prev, replaced))
+      return
+    }
+    setMain((prev) => new Map(prev).set(k, item))
   }
-  const removeClass = (classId: number) => {
+  const removePick = (item: PriceItem) => {
     if (locked) return
-    const removed = main.get(classId)
     setMain((prev) => {
       const n = new Map(prev)
-      n.delete(classId)
+      n.delete(key(item))
       return n
     })
-    if (removed) setModifiers((prev) => dropTargeting(prev, removed))
+    setModifiers((prev) => dropTargeting(prev, item))
   }
   const toggleModifier = (kind: string, item: PriceItem) => {
     if (locked) return
@@ -268,7 +294,7 @@ export function Pick() {
             main={main}
             roundId={rid}
             locked={locked}
-            onRemoveClass={removeClass}
+            onRemovePick={removePick}
             modifierRules={modifierRules}
             modifiers={modifiers}
             mainPicks={selected}
@@ -301,70 +327,80 @@ function PitLane({
   main,
   roundId,
   locked,
-  onRemoveClass,
+  onRemovePick,
   modifierRules,
   modifiers,
   mainPicks,
   onToggleModifier,
 }: {
   classes: { classId: number; name: string | null; color?: string | null; min: number; max: number }[]
-  main: Map<number, PriceItem>
+  main: Map<string, PriceItem>
   roundId: number
   locked: boolean
-  onRemoveClass: (classId: number) => void
+  onRemovePick: (item: PriceItem) => void
   modifierRules: { kind: string; maxCount: number; appliesTo: string }[]
   modifiers: Map<string, Target>
   mainPicks: PriceItem[]
   onToggleModifier: (kind: string, item: PriceItem) => void
 }) {
+  const picksByClass = new Map<number, PriceItem[]>()
+  for (const p of main.values()) picksByClass.set(p.classId, [...(picksByClass.get(p.classId) ?? []), p])
   return (
     <div className="flex-1 bg-gradient-to-b from-[#15171a] to-[#0d0f11] p-6">
       <div className="mb-3 font-display text-[12px] uppercase tracking-[0.14em] text-muted">Your Pit Lane</div>
       <div className="flex flex-col gap-3">
         {classes.map((c) => {
           const m = classMeta(c.name, c.color)
-          const pick = main.get(c.classId)
+          const picks = picksByClass.get(c.classId) ?? []
+          // Show every filled pick plus enough empty slots to reach the class max (at least one prompt
+          // when the class is empty), so a multi-pick class makes all its open slots visible.
+          const emptySlots = Math.max(c.max - picks.length, picks.length === 0 ? 1 : 0)
           return (
             <div key={c.classId} className="flex items-stretch gap-3">
               <div className="flex w-[58px] flex-col items-center justify-center gap-1">
                 <span className="font-mono text-[11px] font-bold" style={{ color: m.hex }}>{m.label}</span>
+                {c.max > 1 && <span className="font-mono text-[9px] text-muted-2">{picks.length}/{c.max}</span>}
                 <span className="w-[2px] flex-1" style={{ background: m.hex }} />
               </div>
-              {pick ? (
-                <div
-                  className="flex min-w-0 flex-1 items-center gap-3 rounded-[4px] border border-line bg-surface-2 px-3 py-3 sm:gap-4 sm:px-4"
-                  style={{ borderLeft: `3px solid ${m.hex}` }}
-                >
-                  <EntityThumb
-                    entityType={pick.entityType}
-                    entityId={pick.entityId}
-                    roundId={roundId}
-                    shape={pick.entityType === 'Car' ? 'wide' : 'square'}
-                    tintHex={m.hex}
-                    className="w-20 sm:w-24"
-                  />
-                  <div className="min-w-0 flex-1">
-                    <div className="truncate font-display text-[16px] font-bold uppercase text-ink sm:text-[18px]">{pick.displayName}</div>
-                    <DriverLineup drivers={pick.drivers} className="mt-[7px]" />
-                    <div className="mt-[7px] font-mono text-[13px] text-ink-2">${pick.price.toFixed(1)}M</div>
+              <div className="flex min-w-0 flex-1 flex-col gap-3">
+                {picks.map((pick) => (
+                  <div
+                    key={key(pick)}
+                    className="flex min-w-0 items-center gap-3 rounded-[4px] border border-line bg-surface-2 px-3 py-3 sm:gap-4 sm:px-4"
+                    style={{ borderLeft: `3px solid ${m.hex}` }}
+                  >
+                    <EntityThumb
+                      entityType={pick.entityType}
+                      entityId={pick.entityId}
+                      roundId={roundId}
+                      shape={pick.entityType === 'Car' ? 'wide' : 'square'}
+                      tintHex={m.hex}
+                      className="w-20 sm:w-24"
+                    />
+                    <div className="min-w-0 flex-1">
+                      <div className="truncate font-display text-[16px] font-bold uppercase text-ink sm:text-[18px]">{pick.displayName}</div>
+                      <DriverLineup drivers={pick.drivers} className="mt-[7px]" />
+                      <div className="mt-[7px] font-mono text-[13px] text-ink-2">${pick.price.toFixed(1)}M</div>
+                    </div>
+                    {!locked && (
+                      <button
+                        type="button"
+                        onClick={() => onRemovePick(pick)}
+                        className="flex h-7 w-7 items-center justify-center rounded-full border border-line-3 bg-surface cursor-pointer"
+                        aria-label="Remove"
+                      >
+                        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke={m.hex} strokeWidth="2.4"><path d="M18 6 6 18M6 6l12 12" /></svg>
+                      </button>
+                    )}
                   </div>
-                  {!locked && (
-                    <button
-                      type="button"
-                      onClick={() => onRemoveClass(c.classId)}
-                      className="flex h-7 w-7 items-center justify-center rounded-full border border-line-3 bg-surface cursor-pointer"
-                      aria-label="Remove"
-                    >
-                      <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke={m.hex} strokeWidth="2.4"><path d="M18 6 6 18M6 6l12 12" /></svg>
-                    </button>
-                  )}
-                </div>
-              ) : (
-                <div className="flex flex-1 items-center gap-3 rounded-[4px] border border-dashed border-line-3 px-4 py-5 text-muted">
-                  <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke={m.hex} strokeWidth="2"><circle cx="12" cy="12" r="10" /><path d="M12 8v8M8 12h8" /></svg>
-                  <span className="font-display text-[15px] font-bold uppercase" style={{ color: m.hex }}>Add a {m.label} pick</span>
-                </div>
-              )}
+                ))}
+                {Array.from({ length: emptySlots }).map((_, i) => (
+                  <div key={`empty-${i}`} className="flex items-center gap-3 rounded-[4px] border border-dashed border-line-3 px-4 py-5 text-muted">
+                    <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke={m.hex} strokeWidth="2"><circle cx="12" cy="12" r="10" /><path d="M12 8v8M8 12h8" /></svg>
+                    <span className="font-display text-[15px] font-bold uppercase" style={{ color: m.hex }}>Add a {m.label} pick</span>
+                  </div>
+                ))}
+              </div>
             </div>
           )
         })}
@@ -440,7 +476,7 @@ function SelectionPanel({
   prices: PriceItem[]
   classList: { classId: number; name: string | null; color?: string | null }[]
   classNameById: Map<number, string | null>
-  mainSelected: Map<number, PriceItem>
+  mainSelected: Map<string, PriceItem>
   roundId: number
   locked: boolean
   onAddPick: (item: PriceItem) => void
@@ -510,8 +546,7 @@ function SelectionPanel({
         {list
           .filter((p) => classFilter === null || p.classId === classFilter)
           .map((p) => {
-            const cur = mainSelected.get(p.classId)
-            const selected = !!cur && cur.entityType === p.entityType && cur.entityId === p.entityId
+            const selected = mainSelected.has(key(p))
             const cm = classMeta(classNameById.get(p.classId), classColorById.get(p.classId))
             return (
               <div key={key(p)} className="flex items-center gap-3 border-b border-surface-2 px-4 py-[10px]">
