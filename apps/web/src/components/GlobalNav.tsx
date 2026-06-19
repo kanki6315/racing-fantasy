@@ -59,26 +59,29 @@ export function GlobalNav() {
         </div>
 
       {isAuthenticated && user ? (
-        <div className="flex items-center gap-2 sm:gap-3">
+        <div className="flex min-w-0 items-center gap-2 sm:gap-3">
           {notRegistered && (
-            <span className="hidden items-center gap-[5px] h-5 px-2 rounded-[3px] bg-warn/10 border border-warn/35 sm:flex">
+            <span className="flex shrink-0 items-center gap-[5px] h-5 px-2 rounded-[3px] bg-warn/10 border border-warn/35">
               <span className="h-[5px] w-[5px] rounded-full bg-warn" />
               <span className="font-mono text-[9px] tracking-[0.06em] text-warn">NOT REGISTERED</span>
             </span>
           )}
-          <div className="hidden text-right leading-tight sm:block">
-            <div className="font-sans text-[13px] font-semibold text-ink">
+          {/* name/email replaces the avatar on mobile; when not registered the pill takes the slot
+              instead (mobile has no room for both — the registration banner shows the name anyway) */}
+          <div className={`${notRegistered ? 'hidden sm:block' : 'block'} min-w-0 text-right leading-tight`}>
+            <div className="truncate font-sans text-[13px] font-semibold text-ink">
               {user.name ?? user.registrations[0]?.teamName ?? 'Player'}
             </div>
-            <div className="font-mono text-[10px] text-muted">{user.email}</div>
+            <div className="truncate font-mono text-[10px] text-muted">{user.email}</div>
           </div>
-          <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-brand font-display text-[14px] font-bold text-ink">
+          {/* initials avatar is desktop-only — the name/email replaces it on mobile */}
+          <div className="hidden h-9 w-9 shrink-0 items-center justify-center rounded-full bg-brand font-display text-[14px] font-bold text-ink sm:flex">
             {initials(user)}
           </div>
           <button
             type="button"
             onClick={() => void logout()}
-            className="font-display text-[12px] font-semibold tracking-[0.05em] uppercase text-muted hover:text-ink-2 transition-colors cursor-pointer"
+            className="shrink-0 font-display text-[12px] font-semibold tracking-[0.05em] uppercase text-muted hover:text-ink-2 transition-colors cursor-pointer"
           >
             Sign out
           </button>
