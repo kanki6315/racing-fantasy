@@ -173,6 +173,14 @@ Domain decisions resolved with this ADR. Each row notes the rejected alternative
 > demands it. D9's principle is unchanged — Postgres remains authoritative. See
 > [data-model.md](../data-model.md#derived-state-not-in-the-relational-model).
 
+> **Amendment (2026-06-19) — D5 per-round overrides:** `roster_rule` gains a nullable
+> `round_id`. A NULL row is the season default (the original D5 model); a row with a
+> `round_id` overrides that class's count for one round. The resolver prefers a round
+> override over the season default per class. Rationale: car counts per class shift
+> across a season's entry lists, so a fixed per-season composition is too rigid. "Enforced
+> only for classes with a session that round" (D5) is unchanged — Sessions still gate
+> which classes run; this only makes the *counts* per-round-tunable.
+
 ## Consequences
 
 **Easier:**

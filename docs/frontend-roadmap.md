@@ -153,7 +153,8 @@ each ends with an **OpenAPI regen** so the typed client stays in sync.
 
 > **F4 build note (2026-06-18).** Shipped the "ready screens" batch: admin shell (`/admin/*`,
 > `RequireAdmin` gated on the new `isAdmin` from `/auth/me`), **Overview**, **Catalog**
-> (Championships/Seasons, Classes, Rounds, Sessions = full CRUD; Roster Rules read-only), **Entries**
+> (Championships/Seasons, Classes, Rounds, Sessions = full CRUD; Roster Rules read-only **at F4 — now a
+> full editor, see the post-F4 note below**), **Entries**
 > (Car Entries, Drivers, Lineups), **Price Board** (per-round bulk price upsert; last-round Δ is real,
 > pick-% is the only mock), **Registrations** (real directory + CSV export; summary tiles are demo),
 > **Users & Data** (directory + visibility tiers + real PII export download + type-to-confirm
@@ -163,16 +164,21 @@ each ends with an **OpenAPI regen** so the typed client stays in sync.
 > preview/commit reshaped into a typed `IngestResponse`, and `/score` + `/scores` typed
 > (`ScoreRoundResult`, `ScoresResponse`) — so the whole admin surface reaches the typed client.
 >
-> **Deferred within F4** (intentional, not gaps to discover later):
-> - **Roster Rules editing.** The Catalog "Roster Rules" tab is **read-only** — it renders the
->   resolved `GET /rounds/{id}/roster-rules` (cap + per-class min/max + modifiers). The cap is
->   editable per-round under the Rounds tab; full per-class min/max editing needs a small editor over
->   the existing `/roster-rules` CRUD (annotate its list response too).
+> **Shipped post-F4 (2026-06-19), once deferred:**
+> - **Roster Rules editing — DONE.** The Catalog "Roster Rules" tab is now a full editor: per-class
+>   composition with a **This-round / Season-default** toggle (per-round overrides via the new nullable
+>   `roster_rule.round_id`, layered on the season default, with reset-to-default) plus a season-scoped
+>   **bonus-format** manager (curated dropdown: Double Points Team, Captain). `/roster-rules` +
+>   `/roster-modifier-rules` got `.Produces<>` response typing + admin hooks.
+> - **Class colors — DONE.** `class.color` (admin-set `#RRGGBB`, nullable) is editable in the Catalog
+>   class form and threaded through `GET /rounds/{id}/roster-rules`; `classMeta(name, color?)` prefers it
+>   and falls back to the name palette. Painted on the pick board + admin badges.
+>
+> **Still deferred within F4** (intentional, not gaps to discover later):
 > - **Results / Score Review richer affordances.** A read-only cut shipped (stage→preview→commit,
 >   issues-list, Score-Round trigger + breakdown). Still deferred — they need real backend work: the
 >   per-row **interactive match-resolution** modal (backend model is fix-upstream-and-re-stage, not
 >   in-UI resolve) and the **publish gate** (scoring is immediate; no hidden-until-published state).
-> - **Class colors are frontend-derived**, not editable in Catalog — see the CLAUDE.md known-gaps note.
 > - **Registrations enrichment.** The admin Registrations table shows team + user id only (`RegistrationDto`
 >   carries no league / per-round pick-status / joined date / status). Those columns + the Picks-Set and
 >   Private-Leagues summary tiles are **demo** until a small admin-registrations enrichment endpoint lands.

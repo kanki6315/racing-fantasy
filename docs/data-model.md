@@ -114,9 +114,12 @@ erDiagram
 | id | bigint PK | |
 | championship_id | bigint FK → championship | UNIQUE(championship_id, name) |
 | name | text | |
+| color | text NULL | admin-set identity color, `#RRGGBB` (validated). NULL = fall back to the client name-keyed palette. |
 
 > Classes are modeled per championship (stable across its seasons). If a
 > championship restructures classes between years, version via a new `class` row.
+> `color` is optional — the frontend (`classMeta`) derives a palette from the class
+> name when it's null, so legacy rows render unchanged.
 
 **`event`** — a physical race weekend shared across championships (ADR-0007)
 | col | type | notes |
@@ -210,10 +213,16 @@ erDiagram
 |---|---|---|
 | id | bigint PK | |
 | season_id | bigint FK → season | |
+| round_id | bigint FK → round | **nullable** — NULL = season default (every round); set = a per-round override of this class's count for that round |
 | class_id | bigint FK → class | **nullable** — NULL = "any class" (used for IMPACT) |
 | slot_type | text | CHECK ∈ {MAIN, IMPACT} |
 | min_picks | int | |
-| max_picks | int | UNIQUE(season_id, class_id, slot_type) |
+| max_picks | int | UNIQUE(season_id, round_id, class_id, slot_type), nulls-not-distinct |
+
+> **Per-round overrides:** the resolver (`RosterRulesResolver`) loads the season defaults
+> (`round_id` NULL) plus the target round's overrides and, per class, prefers the override over
+> the default. Counts vary across a season because the entry list (cars per class) shifts round to
+> round. "Which classes run a round" is still controlled separately by `session` rows.
 
 **`roster`** — a user's picks for one round (one per registration per round)
 | col | type | notes |

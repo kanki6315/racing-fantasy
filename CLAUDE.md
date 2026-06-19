@@ -6,8 +6,12 @@ pick teams/drivers under a salary cap each round (picks lock at qualifying), and
 add **bonus** points (first: Double Points Team — one pick scores double; see [ADR-0006](docs/adr/0006-roster-modifiers.md)).
 Standings run as a season-wide pool plus user-created public/private **leagues**.
 
-## Status (2026-06-18)
+## Status (2026-06-19)
 
+- **Deployed + post-MVP increments merged to `main`:** the app is live (S3/CloudFront web, Railway API+DB);
+  since the MVP, two features shipped — **DB-backed admin-editable class colors** (`class.color`) and an
+  **editable Roster Rules admin tab** (per-round composition overrides via `roster_rule.round_id` + a
+  curated bonus-format manager). Both reflected in the API surface + known-gaps below.
 - **Backend: MVP-complete and tested on real IMSA data** — Phases 0–5 of [docs/roadmap.md](docs/roadmap.md):
   schema, catalog CRUD + bulk import, economy/picks/lock, results ingestion, scoring engine,
   leaderboards. Plus **auth + data minimization** (ADR-0004), **authorization** (ownership + admin),
@@ -143,9 +147,13 @@ pnpm build          # tsc typecheck + production build
   by entry-driver id) and its race **`number`** (null for drivers). The pick board shows the lineup +
   headshots, **orders cars by number** (numeric-aware), and renders a **per-row class badge** for
   multi-class series (color from `classMeta`).
-- **Roster rules:** `GET /rounds/{roundId}/roster-rules` (public) → `{ salaryCap, classes:[{classId,name,slot,min,max}], modifiers:[{kind,maxCount,appliesTo}] }`,
+- **Roster rules:** `GET /rounds/{roundId}/roster-rules` (public) → `{ salaryCap, classes:[{classId,name,color,slot,min,max}], modifiers:[{kind,maxCount,appliesTo}] }`,
   the resolved cap + composition + available **bonus modifiers** (season rules ∩ classes running this
   round; ADR-0006). Drives the cap bar + live pills; the **same resolver** backs the PUT validation.
+  Composition resolves **per-round overrides over season defaults**: `roster_rule.round_id` is nullable
+  (NULL = season default; set = a per-round override of that class's count), and the resolver prefers a
+  round override over the default per class. `class.color` (admin-set `#RRGGBB`, nullable) rides along so
+  the player UI can paint badges from the stored color (fallback: name palette in `classMeta`).
 - **Roster (the pick page):** `GET/PUT /registrations/{registrationId}/rounds/{roundId}/roster`
   body `{ main:[{entityType,entityId}], modifiers:[{kind,target:{entityType,entityId},params}] }`.
   PUT validates lock (409) + cap (422, from the round) + class composition + modifier selection
@@ -183,18 +191,22 @@ pnpm build          # tsc typecheck + production build
   per-row match resolution); scoring has no *publish gate* (standings are live once scored). Both
   need new backend — see the F4 build note in [docs/frontend-roadmap.md](docs/frontend-roadmap.md).
 - **Registrations admin table** shows team + user id only; league/pick-status/joined columns + the
-  summary tiles are **demo** until a small enrichment endpoint lands. **Roster Rules** tab is
-  read-only (per-class min/max editing over the existing `/roster-rules` CRUD is a later pass).
+  summary tiles are **demo** until a small enrichment endpoint lands.
+- **Roster Rules admin tab is a full editor (done):** per-class composition with a **This-round /
+  Season-default** toggle — round overrides layer on the season default (`roster_rule.round_id`), with
+  reset-to-default — plus a season-scoped **bonus-format** manager (curated dropdown: Double Points Team,
+  Captain). Adding a bonus *kind* beyond those needs a scorer first (`ModifierScoring.cs`).
 - **Ruleset-level scoring bonuses** (pole, beat-teammate via `scoring_bonus`) are modeled but **not
   implemented** — position/rank points only. (Distinct from per-player **roster modifiers**, which
   *are* implemented and score as a `Bonus` source — ADR-0006.)
 - **IMPACT / bonus drivers removed (ADR-0006):** replaced by free per-round roster modifiers. The
   `RaceFastestLap` scoring source + `race_fastest_lap` table are retained **dormant**; per-driver
   fastest lap still comes from the Al Kamel "Time Cards" race JSON, not the standard results CSV.
-- **Class identity colors are frontend-only.** `ClassDto` (and the `class` table) carry no color
-  column — the GTP/LMP2/GTD PRO/GTD palette is derived client-side from the class *name* in
-  `apps/web/src/lib/classMeta.ts`. So the admin Catalog shows a class color as a read-only swatch;
-  there's no color to edit/store. Add a `color` column first if classes ever need bespoke colors.
+- **Class identity colors are DB-backed and admin-editable (done).** `class.color` (nullable `#RRGGBB`,
+  validated server-side) is editable in the admin Catalog class form. `ClassDto` and the public
+  roster-rules class entries carry it; `classMeta(name, color?)` (`apps/web/src/lib/classMeta.ts`) prefers
+  the stored color and falls back to the name-keyed GTP/LMP2/GTD PRO/GTD palette when null. Honored on the
+  player pick board and admin Catalog/Entries/Prices badges (the ingestion preview stays on the fallback).
 - **Phase 6** (observability/hardening) is intentionally **deferred** — see roadmap.
 
 ## Design docs to read for depth

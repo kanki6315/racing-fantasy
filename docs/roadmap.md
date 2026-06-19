@@ -49,7 +49,7 @@ ingestion has no dependency on the pick path. P4 needs both.
 
 - [ ] Admin CRUD for `championship` / `season` / `class` / `round` / `session` (incl. `round.quali_start`).
 - [ ] `car_entry`, `driver`, `entry_driver` lineup management.
-- [ ] `roster_rule` authoring (per-class MAIN minimums; class-agnostic IMPACT bounds via `class_id = NULL`).
+- [ ] `roster_rule` authoring (per-class MAIN minimums; class-agnostic IMPACT bounds via `class_id = NULL`; per-round overrides via nullable `round_id` layered on the season default — see [data-model.md](data-model.md)).
 - [ ] `registration` flow with per-season `salary_cap` (ADR-0001 D2); `GET /championships`, `POST .../register`.
 
 **Exit:** an admin can build a full season; a user can register for a championship and see its rounds.
