@@ -119,7 +119,7 @@ export function Landing() {
         {/* season calendar */}
         <div className="min-w-0 flex-1">
           <div className="flex items-center justify-between px-4 pb-[14px] pt-[18px] sm:px-[26px]">
-            <span className="font-display text-[22px] font-extrabold italic uppercase text-ink">Season Calendar</span>
+            <h2 className="font-display text-[22px] font-extrabold italic uppercase text-ink">Season Calendar</h2>
           </div>
           <div className="font-mono">
             {calendar.map((r, i) => (
@@ -203,7 +203,7 @@ function GlobalLeaderboard({ seasonId, myRegistrationId }: { seasonId?: number; 
       {/* global leaderboard (real) */}
       <div className="min-w-0 flex-1">
         <div className="mb-[14px] flex items-end justify-between">
-          <span className="font-display text-[22px] font-extrabold italic uppercase text-ink">Global Leaderboard</span>
+          <h2 className="font-display text-[22px] font-extrabold italic uppercase text-ink">Global Leaderboard</h2>
           <Link to="/standings" className="font-display text-[12px] font-semibold uppercase tracking-[0.05em] text-muted hover:text-ink-2 transition-colors">
             Full standings →
           </Link>

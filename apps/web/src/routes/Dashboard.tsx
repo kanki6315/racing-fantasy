@@ -85,7 +85,7 @@ export function Dashboard() {
       {/* main */}
       <div className="min-w-0 flex-1 bg-bg">
         <div className="flex flex-wrap items-center gap-x-[11px] gap-y-1 px-4 pb-1 pt-[22px] sm:px-[26px]">
-          <span className="font-display text-[22px] font-extrabold italic uppercase text-ink">Your Picks</span>
+          <h1 className="font-display text-[22px] font-extrabold italic uppercase text-ink">Your Picks</h1>
           <span className="hidden rounded-full border border-lmp2/35 bg-lmp2/10 px-[10px] py-[3px] font-sans text-[11px] text-lmp2-2 sm:inline-block">
             One lineup per series — scored across all your leagues
           </span>
@@ -101,7 +101,7 @@ export function Dashboard() {
 
         {/* your leagues */}
         <div className="flex flex-wrap items-center gap-x-[11px] gap-y-1 px-4 pb-[14px] pt-5 sm:px-[26px]">
-          <span className="font-display text-[22px] font-extrabold italic uppercase text-ink">Your Leagues</span>
+          <h2 className="font-display text-[22px] font-extrabold italic uppercase text-ink">Your Leagues</h2>
           <span className="hidden font-sans text-[12px] text-muted sm:inline">Your picks are scored into every league below</span>
         </div>
         {leagues.length === 0 ? (
@@ -252,7 +252,10 @@ function LeagueRow({ league, me }: { league: League; me: Me }) {
           {rank ?? '—'}<span className="text-[11px] text-muted-2">/{league.memberCount}</span>
         </span>
         <Demo>
-          <span className={`block text-center font-mono text-[13px] ${trend > 0 ? 'text-success' : trend < 0 ? 'text-danger' : 'text-muted-2'}`}>
+          <span
+            aria-label={`Trend ${trend > 0 ? `up ${trend}` : trend < 0 ? `down ${-trend}` : 'unchanged'}`}
+            className={`block text-center font-mono text-[13px] ${trend > 0 ? 'text-success' : trend < 0 ? 'text-danger' : 'text-muted-2'}`}
+          >
             {trend > 0 ? `▲ ${trend}` : trend < 0 ? `▼ ${-trend}` : '— 0'}
           </span>
         </Demo>
@@ -293,7 +296,7 @@ function DiscoverLeagues({ seasonId }: { seasonId: number | undefined }) {
 
   return (
     <div className="px-4 py-6 sm:px-[26px]">
-      <div className="mb-[14px] font-display text-[18px] font-extrabold italic uppercase text-ink">Discover Public Leagues</div>
+      <h2 className="mb-[14px] font-display text-[18px] font-extrabold italic uppercase text-ink">Discover Public Leagues</h2>
       <div className="flex flex-wrap gap-3">
         {leagues.map((l) => (
           <div
