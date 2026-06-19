@@ -74,8 +74,9 @@ imsa-fantasy/                 ← monorepo root
   leaderboards; and the **admin console** at `/admin/*` — Overview, Catalog, Entries, Prices,
   Registrations, Users & Data, plus read-only Results/Score-review). Dev board seeded via
   `apps/api/scripts/{seed,price}_dev_board.py`. Hosting: web on S3 + CloudFront; API + Postgres on
-  Railway (Hobby); images on S3 + CloudFront. See [docs/infra/deploy.md](docs/infra/deploy.md) for the
-  deploy runbook (Phase-1 code prerequisites landed; infra steps pending).
+  Railway (Hobby); images on S3 + CloudFront. See [docs/infra/first-deploy.md](docs/infra/first-deploy.md)
+  for the initial-provisioning runbook and [docs/infra/deploy.md](docs/infra/deploy.md) for routine
+  redeploys (`pnpm deploy:web` — build → S3 sync → CloudFront invalidation).
 
 ## Run the backend locally
 

@@ -51,7 +51,8 @@ Chosen 2026-06-16 (no separate ADR):
   reintroduce via **Upstash** serverless only if load requires it.
 - **Hosting:** **Railway** (Hobby) for the API + Postgres; **S3 + CloudFront** for the static React
   build (same AWS account as the image bucket). ~$8–14/mo at MVP scale, scaling with usage rather
-  than paying for idle capacity between race weekends. Full runbook: [infra/deploy.md](infra/deploy.md).
+  than paying for idle capacity between race weekends. First-deploy runbook:
+  [infra/first-deploy.md](infra/first-deploy.md); routine redeploys: [infra/deploy.md](infra/deploy.md).
 
 ## Status
 

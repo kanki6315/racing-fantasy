@@ -107,7 +107,7 @@ each ends with an **OpenAPI regen** so the typed client stays in sync.
 | API client | **Generated from OpenAPI** (orval → typed React Query hooks, or openapi-typescript + openapi-fetch) | End-to-end types from the .NET DTOs; no drift |
 | Forms/validation | **react-hook-form + zod** | The roster builder and admin forms need real validation; mirror server rules for UX |
 | Styling/components | **Tailwind + a headless component lib** (shadcn/ui / Radix) *unless designs dictate otherwise* | Clean accessible defaults fast; easy to restyle to a design |
-| Hosting | **S3 + CloudFront** (static) | Same AWS account as the image bucket; see [infra/deploy.md](infra/deploy.md) |
+| Hosting | **S3 + CloudFront** (static) | Same AWS account as the image bucket; see [infra/first-deploy.md](infra/first-deploy.md) (setup) + [infra/deploy.md](infra/deploy.md) (redeploys) |
 
 ## Phases
 
@@ -202,7 +202,8 @@ each ends with an **OpenAPI regen** so the typed client stays in sync.
   headings. Modals use Radix Dialog (focus-trap/escape/aria).
 - ⬜ **Admin responsive** — deferred; the admin console is desktop-only for now (admins aren't on phones).
 - ⬜ **Production deploy** + API wiring + smoke test (web on S3 + CloudFront; API + Postgres on
-  Railway). Runbook + prerequisites done: [infra/deploy.md](infra/deploy.md).
+  Railway). Runbook + prerequisites done: [infra/first-deploy.md](infra/first-deploy.md)
+  (routine redeploys: [infra/deploy.md](infra/deploy.md)).
 - **Exit:** a real user can play a round end-to-end on a phone. *(Met for the player loop; deploy is the
   last gate.)*
 
