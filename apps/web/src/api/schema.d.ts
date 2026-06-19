@@ -778,6 +778,145 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/events": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description OK */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["EventDto"][];
+                    };
+                };
+            };
+        };
+        put?: never;
+        post: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            requestBody: {
+                content: {
+                    "application/json": components["schemas"]["CreateEvent"];
+                };
+            };
+            responses: {
+                /** @description Created */
+                201: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["EventDto"];
+                    };
+                };
+            };
+        };
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/events/{id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    id: number;
+                };
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description OK */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["EventDto"];
+                    };
+                };
+            };
+        };
+        put: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    id: number;
+                };
+                cookie?: never;
+            };
+            requestBody: {
+                content: {
+                    "application/json": components["schemas"]["UpdateEvent"];
+                };
+            };
+            responses: {
+                /** @description OK */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["EventDto"];
+                    };
+                };
+            };
+        };
+        post?: never;
+        delete: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    id: number;
+                };
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description OK */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content?: never;
+                };
+            };
+        };
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/rounds": {
         parameters: {
             query?: never;
@@ -2790,6 +2929,14 @@ export interface components {
             /** Format: int64 */
             driverId: number;
         };
+        CreateEvent: {
+            name: string;
+            circuit: null | string;
+            /** Format: date-time */
+            startsAt: null | string;
+            /** Format: date-time */
+            endsAt: null | string;
+        };
         CreateLeague: {
             /** Format: int64 */
             seasonId: number;
@@ -2835,6 +2982,8 @@ export interface components {
             endsAt: null | string;
             /** Format: double */
             salaryCap: number;
+            /** Format: int64 */
+            eventId: null | number;
         };
         CreateRuleset: {
             source: components["schemas"]["ScoringSource"];
@@ -2905,6 +3054,31 @@ export interface components {
         };
         EntryListImport: {
             entries: components["schemas"]["EntryListEntry"][];
+        };
+        EventDto: {
+            /** Format: int64 */
+            id: number;
+            name: string;
+            circuit: null | string;
+            /** Format: date-time */
+            startsAt: null | string;
+            /** Format: date-time */
+            endsAt: null | string;
+            rounds: components["schemas"]["EventRoundDto"][];
+        };
+        EventRoundDto: {
+            /** Format: int64 */
+            roundId: number;
+            /** Format: int64 */
+            seasonId: number;
+            /** Format: int64 */
+            championshipId: number;
+            championshipName: string;
+            /** Format: int32 */
+            year: number;
+            roundName: string;
+            /** Format: date-time */
+            qualiStart: string;
         };
         ImagePresignResponse: {
             key: string;
@@ -3173,6 +3347,8 @@ export interface components {
             endsAt: null | string;
             /** Format: double */
             salaryCap: number;
+            /** Format: int64 */
+            eventId: null | number;
         };
         RoundLeaderboardResponse: {
             /** Format: int64 */
@@ -3253,6 +3429,14 @@ export interface components {
             fullName: string;
             country: null | string;
         };
+        UpdateEvent: {
+            name: string;
+            circuit: null | string;
+            /** Format: date-time */
+            startsAt: null | string;
+            /** Format: date-time */
+            endsAt: null | string;
+        };
         UpdateRosterModifierRule: {
             /** Format: int32 */
             maxCount: number;
@@ -3277,6 +3461,8 @@ export interface components {
             endsAt: null | string;
             /** Format: double */
             salaryCap: number;
+            /** Format: int64 */
+            eventId: null | number;
         };
         UpdateSeason: {
             /** Format: int32 */

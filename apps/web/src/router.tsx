@@ -11,6 +11,7 @@ import { RequireAdmin } from './auth/RequireAdmin'
 import { AdminLayout } from './admin/AdminLayout'
 import { AdminOverview } from './routes/admin/Overview'
 import { Catalog } from './routes/admin/Catalog'
+import { Events } from './routes/admin/Events'
 import { Entries } from './routes/admin/Entries'
 import { Prices } from './routes/admin/Prices'
 import { Registrations } from './routes/admin/Registrations'
@@ -43,6 +44,7 @@ export const router = createBrowserRouter([
     children: [
       { index: true, element: <AdminOverview /> },
       { path: 'catalog', element: <Catalog /> },
+      { path: 'events', element: <Events /> },
       { path: 'entries', element: <Entries /> },
       { path: 'prices', element: <Prices /> },
       { path: 'results', element: <Results /> },

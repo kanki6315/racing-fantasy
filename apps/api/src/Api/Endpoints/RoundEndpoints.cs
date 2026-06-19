@@ -42,12 +42,15 @@ public static class RoundEndpoints
         {
             if (!await db.Seasons.AnyAsync(s => s.Id == dto.SeasonId))
                 return ApiResults.RefNotFound("seasonId");
+            if (dto.EventId is { } eid && !await db.Events.AnyAsync(e => e.Id == eid))
+                return ApiResults.RefNotFound("eventId");
             if (dto.SalaryCap <= 0)
                 return Results.ValidationProblem(new Dictionary<string, string[]> { ["salaryCap"] = ["salaryCap must be greater than 0."] });
 
             var r = new Round
             {
                 SeasonId = dto.SeasonId,
+                EventId = dto.EventId,
                 Name = dto.Name,
                 Circuit = dto.Circuit,
                 Sequence = dto.Sequence,
@@ -65,8 +68,11 @@ public static class RoundEndpoints
         {
             var r = await db.Rounds.FindAsync(id);
             if (r is null) return Results.NotFound();
+            if (dto.EventId is { } eid && !await db.Events.AnyAsync(e => e.Id == eid))
+                return ApiResults.RefNotFound("eventId");
             if (dto.SalaryCap <= 0)
                 return Results.ValidationProblem(new Dictionary<string, string[]> { ["salaryCap"] = ["salaryCap must be greater than 0."] });
+            r.EventId = dto.EventId;   // null detaches from the event (ADR-0007)
             r.Name = dto.Name;
             r.Circuit = dto.Circuit;
             r.Sequence = dto.Sequence;
@@ -95,20 +101,25 @@ public static class RoundEndpoints
         new DateTimeOffset(r.QualiStart, TimeSpan.Zero),
         r.StartsAt is { } s ? new DateTimeOffset(s, TimeSpan.Zero) : null,
         r.EndsAt is { } e ? new DateTimeOffset(e, TimeSpan.Zero) : null,
-        r.SalaryCap);
+        r.SalaryCap, r.EventId);
 }
 
+// EventId is additive (ADR-0007 D3): existing consumers (name/circuit/dates unchanged) ignore it;
+// the admin round form reads it to show the current event attachment.
 public record RoundDto(
     long Id, long SeasonId, string Name, string? Circuit, int Sequence,
-    DateTimeOffset QualiStart, DateTimeOffset? StartsAt, DateTimeOffset? EndsAt, decimal SalaryCap);
+    DateTimeOffset QualiStart, DateTimeOffset? StartsAt, DateTimeOffset? EndsAt, decimal SalaryCap,
+    long? EventId);
 
 public record CreateRound(
     long SeasonId, string Name, string? Circuit, int Sequence,
-    DateTimeOffset QualiStart, DateTimeOffset? StartsAt, DateTimeOffset? EndsAt, decimal SalaryCap);
+    DateTimeOffset QualiStart, DateTimeOffset? StartsAt, DateTimeOffset? EndsAt, decimal SalaryCap,
+    long? EventId);
 
 public record UpdateRound(
     string Name, string? Circuit, int Sequence,
-    DateTimeOffset QualiStart, DateTimeOffset? StartsAt, DateTimeOffset? EndsAt, decimal SalaryCap);
+    DateTimeOffset QualiStart, DateTimeOffset? StartsAt, DateTimeOffset? EndsAt, decimal SalaryCap,
+    long? EventId);
 
 public record RosterRulesResponse(long RoundId, decimal SalaryCap, List<RosterRuleClass> Classes, List<RosterRuleModifier> Modifiers);
 public record RosterRuleClass(long ClassId, string? Name, string Slot, int Min, int Max);

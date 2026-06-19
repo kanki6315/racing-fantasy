@@ -7,6 +7,7 @@ import { AdminProvider, useAdmin } from './AdminContext'
 const consoleNav = [
   { to: '/admin', label: 'Overview', end: true },
   { to: '/admin/catalog', label: 'Catalog' },
+  { to: '/admin/events', label: 'Events' },
   { to: '/admin/entries', label: 'Entries' },
   { to: '/admin/prices', label: 'Prices' },
   { to: '/admin/results', label: 'Results' },

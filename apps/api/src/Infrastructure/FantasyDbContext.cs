@@ -10,6 +10,7 @@ public partial class FantasyDbContext(DbContextOptions<FantasyDbContext> options
     public DbSet<Championship> Championships => Set<Championship>();
     public DbSet<Season> Seasons => Set<Season>();
     public DbSet<Class> Classes => Set<Class>();
+    public DbSet<Event> Events => Set<Event>();
     public DbSet<Round> Rounds => Set<Round>();
     public DbSet<Session> Sessions => Set<Session>();
 

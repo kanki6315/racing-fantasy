@@ -26,6 +26,7 @@ import {
   useDeleteClass,
   useCreateRound,
   useUpdateRound,
+  useAdminEvents,
   useCreateSession,
   useUpdateSession,
   useDeleteSession,
@@ -351,8 +352,10 @@ function RoundForm({
   const [sequence, setSequence] = useState(String(round?.sequence ?? ''))
   const [salaryCap, setSalaryCap] = useState(String(round?.salaryCap ?? ''))
   const [qualiStart, setQualiStart] = useState(isoToLocalInput(round?.qualiStart))
+  const [eventId, setEventId] = useState(round?.eventId != null ? String(round.eventId) : '')
   const create = useCreateRound()
   const update = useUpdateRound()
+  const { data: events = [] } = useAdminEvents()
 
   const save = async () => {
     const body = {
@@ -363,6 +366,7 @@ function RoundForm({
       qualiStart: localInputToIso(qualiStart),
       startsAt: round?.startsAt ?? null,
       endsAt: round?.endsAt ?? null,
+      eventId: eventId ? Number(eventId) : null,
     }
     if (round) await update.mutateAsync({ id: round.id, body })
     else {
@@ -395,6 +399,20 @@ function RoundForm({
         </div>
         <Field label="Qualifying Start (lock)" hint="Picks lock for all players when qualifying begins.">
           <TextInput type="datetime-local" value={qualiStart} onChange={(e) => setQualiStart(e.target.value)} />
+        </Field>
+        <Field
+          label="Shared Event"
+          hint="Optional. Link this round to a shared race weekend so it groups with other championships running it."
+        >
+          <Select value={eventId} onChange={(e) => setEventId(e.target.value)}>
+            <option value="">— None (standalone) —</option>
+            {events.map((ev) => (
+              <option key={ev.id} value={ev.id}>
+                {ev.name}
+                {ev.circuit ? ` · ${ev.circuit}` : ''}
+              </option>
+            ))}
+          </Select>
         </Field>
         <div className="flex justify-end">
           <PrimaryButton onClick={save} disabled={!valid || create.isPending || update.isPending}>
