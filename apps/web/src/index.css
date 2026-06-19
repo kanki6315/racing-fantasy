@@ -67,3 +67,24 @@ body {
     opacity: 0.35;
   }
 }
+
+/*
+ * Keyboard focus ring for every interactive element (keyboard nav only, not mouse clicks).
+ * Unlayered, so it wins over Tailwind's utility-layer `outline-none` on inputs/buttons.
+ */
+:focus-visible {
+  outline: 2px solid var(--color-brand-3);
+  outline-offset: 2px;
+}
+
+/* Honour reduced-motion: neutralise the blink/pulse indicators and all transitions. */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+}
