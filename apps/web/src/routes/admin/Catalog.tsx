@@ -218,7 +218,7 @@ function ClassesTab() {
           </div>
         ) : (
           classes.map((c) => {
-            const m = classMeta(c.name)
+            const m = classMeta(c.name, c.color)
             return (
               <ListRow key={c.id} selected={c.id === sel} onClick={() => setSel(c.id)}>
                 <ClassSwatch hex={m.hex} />
@@ -468,6 +468,7 @@ function SessionsTab() {
   const [newType, setNewType] = useState<'Qualifying' | 'Race'>('Qualifying')
 
   const className = (id: number) => classes.find((c) => c.id === id)?.name ?? `#${id}`
+  const classColor = (id: number) => classes.find((c) => c.id === id)?.color
 
   if (!roundId) return <EmptyState>Select a round in the topbar</EmptyState>
 
@@ -528,7 +529,7 @@ function SessionsTab() {
               <div key={s.id} className="contents">
                 <div className="border-b border-line px-4 py-3">
                   <div className="flex items-center gap-2">
-                    <ClassSwatch hex={classMeta(className(s.classId)).hex} />
+                    <ClassSwatch hex={classMeta(className(s.classId), classColor(s.classId)).hex} />
                     <span className="font-display text-[13px] font-semibold uppercase text-ink">
                       {className(s.classId)}
                     </span>
@@ -607,7 +608,7 @@ function RosterRulesTab() {
         {rules.classes.map((c) => (
           <div key={c.classId} className="grid grid-cols-[2fr_1fr_1fr_1fr] items-center">
             <div className="flex items-center gap-2 border-b border-line px-4 py-3">
-              <ClassSwatch hex={classMeta(c.name).hex} />
+              <ClassSwatch hex={classMeta(c.name, c.color).hex} />
               <span className="font-display text-[13px] font-semibold uppercase text-ink">{c.name ?? '—'}</span>
             </div>
             <div className="border-b border-line px-4 py-3 font-mono text-[12px] text-muted">{c.slot}</div>

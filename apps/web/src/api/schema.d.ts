@@ -3312,6 +3312,7 @@ export interface components {
             /** Format: int64 */
             classId: number;
             name: null | string;
+            color: null | string;
             slot: string;
             /** Format: int32 */
             min: number;

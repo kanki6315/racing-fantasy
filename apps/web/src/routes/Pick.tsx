@@ -185,7 +185,7 @@ export function Pick() {
         {/* requirement pills */}
         <div className="flex gap-[7px]">
           {composition.map((c) => {
-            const m = classMeta(c.name)
+            const m = classMeta(c.name, c.color)
             return (
               <div
                 key={c.classId}
@@ -313,7 +313,7 @@ function PitLane({
   mainPicks,
   onToggleModifier,
 }: {
-  classes: { classId: number; name: string | null; min: number; max: number }[]
+  classes: { classId: number; name: string | null; color?: string | null; min: number; max: number }[]
   main: Map<number, PriceItem>
   roundId: number
   locked: boolean
@@ -328,7 +328,7 @@ function PitLane({
       <div className="mb-3 font-display text-[12px] uppercase tracking-[0.14em] text-muted">Your Pit Lane</div>
       <div className="flex flex-col gap-3">
         {classes.map((c) => {
-          const m = classMeta(c.name)
+          const m = classMeta(c.name, c.color)
           const pick = main.get(c.classId)
           return (
             <div key={c.classId} className="flex items-stretch gap-3">
@@ -444,7 +444,7 @@ function SelectionPanel({
   onAddPick,
 }: {
   prices: PriceItem[]
-  classList: { classId: number; name: string | null }[]
+  classList: { classId: number; name: string | null; color?: string | null }[]
   classNameById: Map<number, string | null>
   mainSelected: Map<number, PriceItem>
   roundId: number
@@ -463,6 +463,7 @@ function SelectionPanel({
   // Show a per-row class badge only when the series actually runs multiple classes (ADR — a one-make
   // cup wouldn't need it). Drives both the badge and whether the flat list interleaves classes.
   const multiClass = classList.length > 1
+  const classColorById = new Map(classList.map((c) => [c.classId, c.color]))
 
   // Cars order by race number (numeric-aware so "#04" sorts before "#7"); driver series keep price order.
   const list = pool
@@ -517,7 +518,7 @@ function SelectionPanel({
           .map((p) => {
             const cur = mainSelected.get(p.classId)
             const selected = !!cur && cur.entityType === p.entityType && cur.entityId === p.entityId
-            const cm = classMeta(classNameById.get(p.classId))
+            const cm = classMeta(classNameById.get(p.classId), classColorById.get(p.classId))
             return (
               <div key={key(p)} className="flex items-center gap-3 border-b border-surface-2 px-4 py-[10px]">
                 <EntityThumb

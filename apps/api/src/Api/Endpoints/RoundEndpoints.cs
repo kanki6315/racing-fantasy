@@ -34,7 +34,7 @@ public static class RoundEndpoints
             return Results.Ok(new RosterRulesResponse(
                 round.Id,
                 rules.SalaryCap,
-                rules.Classes.Select(c => new RosterRuleClass(c.ClassId, c.Name, "Main", c.Min, c.Max)).ToList(),
+                rules.Classes.Select(c => new RosterRuleClass(c.ClassId, c.Name, c.Color, "Main", c.Min, c.Max)).ToList(),
                 rules.Modifiers.Select(m => new RosterRuleModifier(m.Kind, m.MaxCount, m.AppliesTo)).ToList()));
         }).Produces<RosterRulesResponse>();
 
@@ -122,5 +122,5 @@ public record UpdateRound(
     long? EventId);
 
 public record RosterRulesResponse(long RoundId, decimal SalaryCap, List<RosterRuleClass> Classes, List<RosterRuleModifier> Modifiers);
-public record RosterRuleClass(long ClassId, string? Name, string Slot, int Min, int Max);
+public record RosterRuleClass(long ClassId, string? Name, string? Color, string Slot, int Min, int Max);
 public record RosterRuleModifier(string Kind, int MaxCount, string AppliesTo);

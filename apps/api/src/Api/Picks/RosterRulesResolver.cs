@@ -18,13 +18,16 @@ public static class RosterRulesResolver
         var runningClassIds = await db.Sessions.Where(s => s.RoundId == round.Id)
             .Select(s => s.ClassId).Distinct().ToListAsync();
         var rules = await db.RosterRules.Where(r => r.SeasonId == round.SeasonId).ToListAsync();
-        var classNames = await db.Classes.Where(c => runningClassIds.Contains(c.Id))
-            .ToDictionaryAsync(c => c.Id, c => c.Name);
+        var classes = await db.Classes.Where(c => runningClassIds.Contains(c.Id))
+            .ToDictionaryAsync(c => c.Id, c => new { c.Name, c.Color });
 
         var mainClasses = rules
             .Where(r => r.SlotType == SlotType.Main && r.ClassId is { } cid && runningClassIds.Contains(cid))
             .Select(r => new ClassRequirement(
-                r.ClassId!.Value, classNames.GetValueOrDefault(r.ClassId!.Value), r.MinPicks, r.MaxPicks))
+                r.ClassId!.Value,
+                classes.GetValueOrDefault(r.ClassId!.Value)?.Name,
+                classes.GetValueOrDefault(r.ClassId!.Value)?.Color,
+                r.MinPicks, r.MaxPicks))
             .OrderBy(c => c.Name)
             .ToList();
 
@@ -97,7 +100,7 @@ public static class RosterRulesResolver
 }
 
 public record ResolvedRosterRules(decimal SalaryCap, IReadOnlyList<ClassRequirement> Classes, IReadOnlyList<ModifierOption> Modifiers);
-public record ClassRequirement(long ClassId, string? Name, int Min, int Max);
+public record ClassRequirement(long ClassId, string? Name, string? Color, int Min, int Max);
 public record ModifierOption(string Kind, int MaxCount, string AppliesTo);
 
 /// <summary>One submitted modifier for validation: its kind and (for pick-targeted kinds) its target entity.</summary>
