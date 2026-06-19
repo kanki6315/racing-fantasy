@@ -14,11 +14,13 @@ public static class AuthEndpoints
         var group = app.MapGroup("/auth").WithTags("Auth");
 
         // Begin Google sign-in (redirects to Google). 503 if Google isn't configured.
-        group.MapGet("/login", async (string? returnUrl, IAuthenticationSchemeProvider schemes) =>
+        group.MapGet("/login", async (string? returnUrl, IAuthenticationSchemeProvider schemes, IConfiguration config, IWebHostEnvironment env) =>
         {
             if (await schemes.GetSchemeAsync(AuthSetup.GoogleScheme) is null)
                 return Results.Problem("Google sign-in is not configured.", statusCode: StatusCodes.Status503ServiceUnavailable);
-            return Results.Challenge(new AuthenticationProperties { RedirectUri = returnUrl ?? "/" }, [AuthSetup.GoogleScheme]);
+            // Only honour a returnUrl that points back at our own web origin (open-redirect guard).
+            var redirect = SafeReturnUrl(returnUrl, config["Web:Origin"], env.IsDevelopment()) ?? "/";
+            return Results.Challenge(new AuthenticationProperties { RedirectUri = redirect }, [AuthSetup.GoogleScheme]);
         });
 
         group.MapGet("/me", async (HttpContext http, FantasyDbContext db, AdminSubjects admins) =>
@@ -72,6 +74,25 @@ public static class AuthEndpoints
         }).Produces<DevLoginResponse>();
 
         return app;
+    }
+
+    /// <summary>
+    /// Validates a post-login returnUrl against an allowlist to prevent open redirects: same-app
+    /// relative paths are fine, absolute URLs must match the configured web origin, and in dev we
+    /// also allow localhost so the SPA on :5173 still gets the redirect back. Returns null if unsafe.
+    /// </summary>
+    private static string? SafeReturnUrl(string? url, string? webOrigin, bool isDev)
+    {
+        if (string.IsNullOrEmpty(url)) return null;
+        // Relative same-app path — allow, but reject protocol-relative "//evil.com".
+        if (url.StartsWith('/') && !url.StartsWith("//")) return url;
+        if (!string.IsNullOrEmpty(webOrigin) &&
+            (url == webOrigin || url.StartsWith(webOrigin + "/", StringComparison.Ordinal)))
+            return url;
+        if (isDev && (url.StartsWith("http://localhost:", StringComparison.Ordinal)
+                   || url.StartsWith("http://127.0.0.1:", StringComparison.Ordinal)))
+            return url;
+        return null;
     }
 }
 

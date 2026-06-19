@@ -30,6 +30,9 @@ public static class AuthSetup
                 o.Cookie.Name = "imsa.session";
                 o.Cookie.SameSite = SameSiteMode.Lax;
                 o.Cookie.HttpOnly = true;
+                // Prod runs behind HTTPS (Railway) so the cookie must be Secure. Browsers treat
+                // http://localhost as a secure context, so Always still works in local dev.
+                o.Cookie.SecurePolicy = CookieSecurePolicy.Always;
                 o.ExpireTimeSpan = TimeSpan.FromDays(30);
                 o.SlidingExpiration = true;
                 // It's an API: answer 401/403 rather than redirecting to a login page.
