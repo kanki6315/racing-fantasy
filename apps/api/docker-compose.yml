@@ -1,6 +1,6 @@
 services:
   postgres:
-    image: postgres:16
+    image: postgres:18
     container_name: imsa-fantasy-db
     environment:
       POSTGRES_USER: imsa
@@ -9,7 +9,7 @@ services:
     ports:
       - "5432:5432"
     volumes:
-      - imsa_pgdata:/var/lib/postgresql/data
+      - imsa_pgdata:/var/lib/postgresql
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U imsa -d imsa_fantasy"]
       interval: 5s
