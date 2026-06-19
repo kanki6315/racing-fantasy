@@ -47,6 +47,7 @@ export function Prices() {
   }, [prevPrices])
 
   const className = (id: number) => classes.find((c) => c.id === id)?.name ?? `#${id}`
+  const classColor = (id: number) => classes.find((c) => c.id === id)?.color
 
   const rows: Row[] = useMemo(
     () =>
@@ -149,7 +150,7 @@ export function Prices() {
             return (
               <div key={cl.id} className="overflow-hidden rounded-[6px] border border-line bg-surface">
                 <div className="flex items-center gap-2 border-b border-line px-4 py-2">
-                  <ClassSwatch hex={classMeta(cl.name).hex} />
+                  <ClassSwatch hex={classMeta(cl.name, cl.color).hex} />
                   <span className="font-display text-[13px] font-semibold uppercase text-ink">{cl.name}</span>
                   <span className="font-mono text-[10px] text-muted-2">{classRows.length} cars</span>
                   {avg != null && (
@@ -181,7 +182,7 @@ export function Prices() {
                     >
                       <div
                         className="border-l-[3px] pl-2 font-mono text-[13px] font-semibold text-ink"
-                        style={{ borderColor: classMeta(r.className).hex }}
+                        style={{ borderColor: classMeta(r.className, classColor(r.classId)).hex }}
                       >
                         {r.number}
                       </div>

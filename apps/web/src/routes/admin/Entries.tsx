@@ -97,7 +97,7 @@ function CarEntriesTab({ seasonId }: { seasonId: number }) {
                 filterClass === c.id ? 'bg-surface-2 text-ink' : 'border border-line-2 text-muted hover:text-ink-2'
               }`}
             >
-              <ClassSwatch hex={classMeta(c.name).hex} />
+              <ClassSwatch hex={classMeta(c.name, c.color).hex} />
               {c.name}
             </button>
           ))}
@@ -111,7 +111,8 @@ function CarEntriesTab({ seasonId }: { seasonId: number }) {
           </div>
         ) : (
           cars.map((c) => {
-            const m = classMeta(classes.find((cl) => cl.id === c.classId)?.name)
+            const cl = classes.find((cl) => cl.id === c.classId)
+            const m = classMeta(cl?.name, cl?.color)
             return (
               <ListRow key={c.id} selected={c.id === sel} onClick={() => setSel(c.id)}>
                 <span
@@ -148,7 +149,7 @@ function CarEntryForm({
   onSaved,
 }: {
   seasonId: number
-  classes: { id: number; name: string }[]
+  classes: { id: number; name: string; color?: string | null }[]
   car: CarEntryDto | null
   onSaved: (id: number | null) => void
 }) {
@@ -169,6 +170,8 @@ function CarEntryForm({
     }
   }
 
+  const carClass = car ? classes.find((c) => c.id === car.classId) : undefined
+
   return (
     <div className="rounded-[6px] border border-line bg-surface p-4">
       <h2 className="mb-4 font-mono text-[10px] tracking-[0.14em] uppercase text-muted-2">
@@ -186,9 +189,9 @@ function CarEntryForm({
         <Field label="Class" hint={car ? 'Class is fixed after creation.' : undefined}>
           {car ? (
             <div className="flex h-9 items-center gap-2 rounded-[4px] border border-line bg-surface-3 px-3">
-              <ClassSwatch hex={classMeta(classes.find((c) => c.id === car.classId)?.name).hex} />
+              <ClassSwatch hex={classMeta(carClass?.name, carClass?.color).hex} />
               <span className="font-display text-[13px] uppercase text-ink-2">
-                {classes.find((c) => c.id === car.classId)?.name ?? '—'}
+                {carClass?.name ?? '—'}
               </span>
             </div>
           ) : (
@@ -392,7 +395,7 @@ function LineupsTab({ seasonId }: { seasonId: number }) {
         .map((cl) => (
           <div key={cl.id} className="rounded-[6px] border border-line bg-surface">
             <div className="flex items-center gap-2 border-b border-line px-4 py-2">
-              <ClassSwatch hex={classMeta(cl.name).hex} />
+              <ClassSwatch hex={classMeta(cl.name, cl.color).hex} />
               <span className="font-display text-[13px] font-semibold uppercase text-ink">{cl.name}</span>
               <span className="font-mono text-[10px] text-muted-2">{byClass.get(cl.id)?.length} cars</span>
             </div>

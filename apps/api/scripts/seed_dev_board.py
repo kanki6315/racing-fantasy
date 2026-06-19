@@ -7,23 +7,31 @@ season+class+number) and update existing rules.
 
 Run with the API up (Development):  python3 apps/api/scripts/seed_dev_board.py
 """
-import json, urllib.request, urllib.parse, urllib.error, http.cookiejar
+import json, urllib.request, urllib.parse, urllib.error
 
 BASE = 'http://localhost:5239'
 SEASON, ROUND = 1, 1
 
-cj = http.cookiejar.CookieJar()
-opener = urllib.request.build_opener(urllib.request.HTTPCookieProcessor(cj))
+# http.cookiejar stores the localhost session cookie under domain 'localhost.local' and never
+# resends it to host 'localhost', so capture Set-Cookie and attach it manually.
+_session = None
+opener = urllib.request.build_opener()
 
 
 def req(method, path, body=None, query=None):
+    global _session
     url = BASE + path + ('?' + urllib.parse.urlencode(query) if query else '')
     data = json.dumps(body).encode() if body is not None else None
     r = urllib.request.Request(url, data=data, method=method)
     if data:
         r.add_header('Content-Type', 'application/json')
+    if _session:
+        r.add_header('Cookie', _session)
     try:
         with opener.open(r) as resp:
+            sc = resp.headers.get('Set-Cookie')
+            if sc:
+                _session = sc.split(';', 1)[0]
             t = resp.read().decode()
             return resp.status, (json.loads(t) if t else None)
     except urllib.error.HTTPError as e:

@@ -218,7 +218,7 @@ function ClassesTab() {
           </div>
         ) : (
           classes.map((c) => {
-            const m = classMeta(c.name)
+            const m = classMeta(c.name, c.color)
             return (
               <ListRow key={c.id} selected={c.id === sel} onClick={() => setSel(c.id)}>
                 <ClassSwatch hex={m.hex} />
@@ -245,15 +245,21 @@ function ClassForm({
   onSaved: (id: number | null) => void
 }) {
   const [name, setName] = useState(cls?.name ?? '')
+  const [color, setColor] = useState(cls?.color ?? '')
   const create = useCreateClass()
   const update = useUpdateClass()
   const del = useDeleteClass()
-  const m = classMeta(name)
+
+  const fallback = classMeta(name)
+  const hexError = color !== '' && !/^#[0-9a-fA-F]{6}$/.test(color)
+  const pickerHex = /^#[0-9a-fA-F]{6}$/.test(color) ? color : fallback.hex // native picker needs a valid value
+  const swatchHex = color || fallback.hex // empty color → name-derived palette
 
   const save = async () => {
-    if (cls) await update.mutateAsync({ id: cls.id, body: { name } })
+    const body = { name, color: color || null }
+    if (cls) await update.mutateAsync({ id: cls.id, body })
     else {
-      const created = await create.mutateAsync({ championshipId, name })
+      const created = await create.mutateAsync({ championshipId, ...body })
       onSaved(created.id)
     }
   }
@@ -264,13 +270,37 @@ function ClassForm({
         {cls ? 'Edit Class' : 'New Class'}
       </h2>
       <div className="grid gap-4">
-        <Field label="Name" hint="Color is derived from the class name (GTP, LMP2, GTD PRO, GTD).">
+        <Field label="Name">
           <TextInput value={name} onChange={(e) => setName(e.target.value)} placeholder="GTP" />
         </Field>
+        <Field label="Color" hint="Leave blank to fall back to the name-based palette (GTP, LMP2, GTD PRO, GTD).">
+          <div className="flex items-center gap-2">
+            <input
+              type="color"
+              value={pickerHex}
+              onChange={(e) => setColor(e.target.value)}
+              aria-label="Pick class color"
+              className="h-9 w-12 shrink-0 cursor-pointer rounded-[4px] border border-line-2 bg-surface-3 p-1"
+            />
+            <TextInput
+              value={color}
+              onChange={(e) => setColor(e.target.value)}
+              placeholder={fallback.hex}
+              aria-label="Class color hex code"
+              className="flex-1 font-mono uppercase"
+            />
+            {color && <GhostButton onClick={() => setColor('')}>Clear</GhostButton>}
+          </div>
+          {hexError && (
+            <span className="mt-1 block font-sans text-[11px] text-danger">Must be a #RRGGBB hex code.</span>
+          )}
+        </Field>
         <div className="flex items-center gap-2 rounded-[4px] border border-line bg-surface-3 px-3 py-2">
-          <ClassSwatch hex={m.hex} />
-          <span className="font-display text-[13px] font-semibold uppercase text-ink-2">{m.label}</span>
-          <span className="ml-auto font-mono text-[11px] text-muted">{m.hex}</span>
+          <ClassSwatch hex={swatchHex} />
+          <span className="font-display text-[13px] font-semibold uppercase text-ink-2">{fallback.label}</span>
+          <span className="ml-auto font-mono text-[11px] text-muted">
+            {color ? 'custom' : 'derived'} · {swatchHex}
+          </span>
         </div>
         <div className="flex justify-between">
           {cls ? (
@@ -287,7 +317,7 @@ function ClassForm({
           ) : (
             <span />
           )}
-          <PrimaryButton onClick={save} disabled={!name || create.isPending || update.isPending}>
+          <PrimaryButton onClick={save} disabled={!name || hexError || create.isPending || update.isPending}>
             {cls ? 'Save' : 'Create'}
           </PrimaryButton>
         </div>
@@ -438,6 +468,7 @@ function SessionsTab() {
   const [newType, setNewType] = useState<'Qualifying' | 'Race'>('Qualifying')
 
   const className = (id: number) => classes.find((c) => c.id === id)?.name ?? `#${id}`
+  const classColor = (id: number) => classes.find((c) => c.id === id)?.color
 
   if (!roundId) return <EmptyState>Select a round in the topbar</EmptyState>
 
@@ -498,7 +529,7 @@ function SessionsTab() {
               <div key={s.id} className="contents">
                 <div className="border-b border-line px-4 py-3">
                   <div className="flex items-center gap-2">
-                    <ClassSwatch hex={classMeta(className(s.classId)).hex} />
+                    <ClassSwatch hex={classMeta(className(s.classId), classColor(s.classId)).hex} />
                     <span className="font-display text-[13px] font-semibold uppercase text-ink">
                       {className(s.classId)}
                     </span>
@@ -577,7 +608,7 @@ function RosterRulesTab() {
         {rules.classes.map((c) => (
           <div key={c.classId} className="grid grid-cols-[2fr_1fr_1fr_1fr] items-center">
             <div className="flex items-center gap-2 border-b border-line px-4 py-3">
-              <ClassSwatch hex={classMeta(c.name).hex} />
+              <ClassSwatch hex={classMeta(c.name, c.color).hex} />
               <span className="font-display text-[13px] font-semibold uppercase text-ink">{c.name ?? '—'}</span>
             </div>
             <div className="border-b border-line px-4 py-3 font-mono text-[12px] text-muted">{c.slot}</div>

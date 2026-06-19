@@ -77,6 +77,7 @@ public partial class FantasyDbContext(DbContextOptions<FantasyDbContext> options
         b.Entity<RosterModifierRule>().Property(x => x.Kind).HasMaxLength(32);
         b.Entity<RosterModifierRule>().Property(x => x.AppliesTo).HasMaxLength(16);
         b.Entity<RosterModifier>().Property(x => x.Kind).HasMaxLength(32);
+        b.Entity<Class>().Property(x => x.Color).HasMaxLength(7);   // #RRGGBB
 
         // ---- Unique constraints (from data-model.md) ----
         b.Entity<Championship>().HasIndex(x => x.Slug).IsUnique();
