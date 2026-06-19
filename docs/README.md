@@ -17,6 +17,7 @@ championship, per-round salary-cap picks that lock at qualifying, and scoring on
 | [adr/0005-leagues.md](adr/0005-leagues.md) | Shared-roster leagues (public/private) as ranking groups over a season |
 | [adr/0006-roster-modifiers.md](adr/0006-roster-modifiers.md) | Removes IMPACT/bonus drivers; adds free per-round **roster modifiers** (Double Points Team) scored as a `BONUS` source |
 | [adr/0007-shared-events.md](adr/0007-shared-events.md) | **Proposed** — `event` parent above `round`: championships opt into one shared weekend (each with its own `quali_start`); enables a cross-championship calendar with no client dedup |
+| [adr/0008-multi-championship-and-picks-open.md](adr/0008-multi-championship-and-picks-open.md) | Decouples the player UI from a single "active" championship; adds `championship.sort_order` and the event-level `event.picks_open` pick-release gate (admin toggle → calendar status → roster GET/PUT enforcement); leaderboard Championship → Year → Round filters |
 | [roster-modifiers-plan.md](roster-modifiers-plan.md) | Step-by-step implementation plan for ADR-0006 |
 | [frontend-roadmap.md](frontend-roadmap.md) | React/TS frontend build phases |
 | [data-model.md](data-model.md) | Full ERD — every table, key, constraint, index, and the polymorphic/resolution nuances |

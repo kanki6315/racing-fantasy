@@ -100,6 +100,7 @@ erDiagram
 | id | bigint PK | |
 | name | text | |
 | slug | text | UNIQUE |
+| sort_order | int NOT NULL DEFAULT 0 | constant sort key (lower first); exposed to clients as `order`. `GET /championships` orders by it then name — used everywhere championships are listed (ADR-0008) |
 
 **`season`** — a championship's running of a year
 | col | type | notes |
@@ -128,6 +129,7 @@ erDiagram
 | name | text | e.g. "Rolex 24 At Daytona" |
 | circuit | text | |
 | starts_at / ends_at | timestamptz | the weekend bounds |
+| picks_open | boolean NOT NULL DEFAULT false | admin **pick-release gate** — opens the board for every series this weekend at once (ADR-0008). Gates COMING SOON → PICKS OPEN; per-round `quali_start` still locks. Enforced on the roster PUT (`409 not_open`) and surfaced on the roster GET. |
 
 > A top-level calendar entity (not under championship/season): it spans them. Championships
 > **opt in** by attaching a `round` (`round.event_id`), each with its own `quali_start`. Backs the

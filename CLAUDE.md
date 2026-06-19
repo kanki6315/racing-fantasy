@@ -9,9 +9,15 @@ Standings run as a season-wide pool plus user-created public/private **leagues**
 ## Status (2026-06-19)
 
 - **Deployed + post-MVP increments merged to `main`:** the app is live (S3/CloudFront web, Railway API+DB);
-  since the MVP, two features shipped — **DB-backed admin-editable class colors** (`class.color`) and an
+  since the MVP, these shipped — **DB-backed admin-editable class colors** (`class.color`); an
   **editable Roster Rules admin tab** (per-round composition overrides via `roster_rule.round_id` + a
-  curated bonus-format manager). Both reflected in the API surface + known-gaps below.
+  curated bonus-format manager); **shared events** (ADR-0007, `event` parent above `round`); and
+  **multi-championship support** (ADR-0008): the player UI is decoupled from a single "active"
+  championship — event-driven Landing calendar, a `championship.sort_order` constant sort key, leaderboard
+  **Championship → Year → Round** filters, and an event-level **`event.picks_open`** pick-release gate
+  (admin toggle → calendar status → roster GET/PUT enforcement). All reflected in the API surface +
+  known-gaps below. **Local dev DB is now PostgreSQL 18** (`docker-compose.yml`; volume mounts at
+  `/var/lib/postgresql`) to match Railway.
 - **Backend: MVP-complete and tested on real IMSA data** — Phases 0–5 of [docs/roadmap.md](docs/roadmap.md):
   schema, catalog CRUD + bulk import, economy/picks/lock, results ingestion, scoring engine,
   leaderboards. Plus **auth + data minimization** (ADR-0004), **authorization** (ownership + admin),
@@ -143,6 +149,11 @@ pnpm build          # tsc typecheck + production build
 - **Identity:** `/auth/me`, `/auth/login`, `/auth/logout`.
 - **Register:** `POST /registrations { seasonId, teamName }` (player; user from cookie). `teamName`
   is the **only public identifier** shown on leaderboards. (Cap is per round now — not chosen here.)
+- **Championships & calendar (ADR-0008):** `GET /championships` returns each series with `order` (the
+  `sort_order` constant key; the list is ordered by it then name — used everywhere championships are
+  listed). The unified Landing calendar reads `GET /events` (public; ADR-0007), now decoupled from any
+  single "active" championship; each event carries **`picksOpen`** (the admin pick-release gate) and its
+  rounds with `championshipOrder`. `POST/PUT /events` accept `picksOpen`; the admin Events screen toggles it.
 - **Selection board:** `GET /rounds/{roundId}/prices` (public; cars + drivers + prices + display names).
   Each **car** item also carries its **driver lineup** (`drivers: [{ id, fullName }]`, co-drivers ordered
   by entry-driver id) and its race **`number`** (null for drivers). The pick board shows the lineup +
@@ -157,13 +168,16 @@ pnpm build          # tsc typecheck + production build
   the player UI can paint badges from the stored color (fallback: name palette in `classMeta`).
 - **Roster (the pick page):** `GET/PUT /registrations/{registrationId}/rounds/{roundId}/roster`
   body `{ main:[{entityType,entityId}], modifiers:[{kind,target:{entityType,entityId},params}] }`.
-  PUT validates lock (409) + cap (422, from the round) + class composition + modifier selection
-  (422, violations named) in one transaction. Modifiers are **free** (no salary).
+  PUT validates lock (409) + **event pick-release** (`409 not_open` when the round's `event.picks_open`
+  is false; ADR-0008) + cap (422, from the round) + class composition + modifier selection (422,
+  violations named) in one transaction. Modifiers are **free** (no salary). GET returns `picksOpen` so
+  the pick page disables upfront (neutral "PICKS NOT OPEN" state, distinct from the quali "LOCKED").
 - **Scores/standings:** `GET /rounds/{id}/scores` (admin), `GET /seasons/{id}/leaderboard` (global, public),
-  `GET /rounds/{id}/leaderboard`.
+  `GET /rounds/{id}/leaderboard`. The Standings page composes these behind a **Championship → Year → Round**
+  filter (ADR-0008); the Total | round sub-filter (`RoundFilter`) is shared with league boards.
 - **Leagues:** `POST /leagues`, `GET /leagues?seasonId=&mine=`, `GET /leagues/{id}`,
   `POST /leagues/{id}/join?joinCode=`, `POST /leagues/{id}/leave`, `DELETE /leagues/{id}`,
-  `GET /leagues/{id}/leaderboard` (private = members-only).
+  `GET /leagues/{id}/leaderboard[?roundId=]` (private = members-only; `roundId` narrows to a single round).
 - **Images (admin):** `POST /admin/images/liveries/{roundId}/{entryId}` and
   `POST /admin/images/drivers/{driverId}` → `{ key, uploadUrl }` (presigned S3 PUT; browser converts to
   WebP and PUTs directly). Player UI builds display URLs by convention from `VITE_IMAGE_BASE_URL` (see
@@ -188,6 +202,12 @@ pnpm build          # tsc typecheck + production build
   `prefers-reduced-motion` in index.css; loading/error states on Pick/Dashboard/Landing; aria-labels +
   semantic headings). Remaining for a shippable MVP: **admin responsive** (untouched — desktop-only for
   now) and **production deploy**.
+- **Multi-championship support (done — ADR-0008):** player UI decoupled from a single "active"
+  championship; `championship.sort_order`, event-driven calendar, `event.picks_open` gate, leaderboard
+  Championship → Year → Round filters. **Follow-ups (deferred):** series-specific registration call-outs
+  (registration still defaults to the order-first season); the event-driven calendar omits standalone
+  (no-event) rounds by design; `picks_open` is a manual admin toggle (a "still closed near first quali"
+  warning would help). See ADR-0008 *To revisit*.
 - **Admin richer affordances (deferred):** ingestion has an *issues-list* preview (no interactive
   per-row match resolution); scoring has no *publish gate* (standings are live once scored). Both
   need new backend — see the F4 build note in [docs/frontend-roadmap.md](docs/frontend-roadmap.md).
