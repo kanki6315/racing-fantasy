@@ -26,7 +26,7 @@ export function Standings() {
   const myRegId = user?.registrations.find((r) => r.seasonId === seasonId)?.id
 
   return (
-    <div className="mx-auto max-w-[860px] px-[26px] py-7">
+    <div className="mx-auto max-w-[860px] px-4 py-7 sm:px-[26px]">
       <div className="flex items-center gap-[13px]">
         <span className="h-[28px] w-[6px] flex-none bg-brand [transform:skewX(-14deg)]" />
         <div>

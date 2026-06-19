@@ -1,6 +1,6 @@
 # Frontend Build Roadmap — React / TypeScript
 
-**Status:** Accepted — F0–F4 done, **F5 in progress** (updated 2026-06-18)
+**Status:** Accepted — F0–F4 done; **F5 player UI complete (images + responsive + a11y); admin-responsive + deploy remaining** (updated 2026-06-18)
 **Date:** 2026-06-17
 **Related:** [README](README.md) (stack), [roadmap.md](roadmap.md) (backend),
 [ADR-0004](adr/0004-authentication-and-data-minimization.md) (auth + the name/email amendment),
@@ -101,13 +101,13 @@ each ends with an **OpenAPI regen** so the typed client stays in sync.
 
 | Concern | Choice | Why |
 |---|---|---|
-| Build/tooling | **Vite + React + TypeScript** | Decided in stack; fast, static output for Cloudflare Pages |
+| Build/tooling | **Vite + React + TypeScript** | Decided in stack; fast, static output for an S3 + CloudFront origin |
 | Server state | **TanStack Query** | Caching, mutations, invalidation — fits a read-heavy API with a few critical writes |
 | Routing | **React Router** | Standard; supports role-gated routes |
 | API client | **Generated from OpenAPI** (orval → typed React Query hooks, or openapi-typescript + openapi-fetch) | End-to-end types from the .NET DTOs; no drift |
 | Forms/validation | **react-hook-form + zod** | The roster builder and admin forms need real validation; mirror server rules for UX |
 | Styling/components | **Tailwind + a headless component lib** (shadcn/ui / Radix) *unless designs dictate otherwise* | Clean accessible defaults fast; easy to restyle to a design |
-| Hosting | **Cloudflare Pages** (free static) | Per stack plan |
+| Hosting | **S3 + CloudFront** (static) | Same AWS account as the image bucket; see [infra/deploy.md](infra/deploy.md) |
 
 ## Phases
 
@@ -115,7 +115,7 @@ each ends with an **OpenAPI regen** so the typed client stays in sync.
 **Goal:** the app builds, is typed against the API, and renders live data.
 - Scaffold `apps/web/` (Vite React TS) alongside `apps/api/` in the monorepo.
 - Wire Router, TanStack Query, the generated API client, env config (API base URL), base layout/nav.
-- Styling baseline + CI + Cloudflare Pages deploy.
+- Styling baseline + CI + static hosting deploy (S3 + CloudFront).
 - **Exit:** deployed shell that lists championships from the live API.
 
 ### F1 — Identity / auth *(gated on the auth decision)*
@@ -177,19 +177,28 @@ each ends with an **OpenAPI regen** so the typed client stays in sync.
 >   carries no league / per-round pick-status / joined date / status). Those columns + the Picks-Set and
 >   Private-Leagues summary tiles are **demo** until a small admin-registrations enrichment endpoint lands.
 
-### F5 — Polish & ship *(in progress, 2026-06-18)*
+### F5 — Polish & ship *(player UI done, 2026-06-18)*
 **Goal:** shippable.
-- **Images (S3 + CloudFront).** ✅ **Upload done** — admin uploads driver headshots + per-round car
-  liveries via the console: API issues a **presigned S3 PUT**, the browser converts to **WebP** and
-  uploads straight to S3 (convention keys, no DB; `Cache-Control: max-age=300, s-maxage=86400`; display
-  base = `VITE_IMAGE_BASE_URL`). ⬜ **Display not done** — images aren't shown on any player/admin
-  surface yet. The player screens have **no image slots at all** today, so introduce the slots as part
-  of the responsive pass (fixed box + `object-fit: cover` + reserved aspect-ratio), then drop in the
-  `liveryUrl`/`headshotUrl` helpers with a placeholder fallback.
-- ⬜ **Mobile/responsive** (fantasy users live on phones) + loading/empty/error states + a11y — do these
-  **merged with the image-slot work, screen by screen (Pick board first)** to avoid laying out twice.
-- ⬜ Production deploy + API wiring + smoke test (Cloudflare Pages + API on Railway/Hetzner).
-- **Exit:** a real user can play a round end-to-end on a phone.
+- **Images (S3 + CloudFront).** ✅ **Upload + display done.** Admin uploads driver headshots + per-round
+  car liveries via a **presigned S3 PUT** (browser converts to **WebP**, uploads straight to S3;
+  convention keys `liveries/{roundId}/{entryId}.webp` + `drivers/{driverId}.webp`, no DB; display base =
+  `VITE_IMAGE_BASE_URL`). Player UI shows them via the shared **`EntityThumb`** (livery/headshot +
+  class-tinted placeholder fallback) and **`DriverLineup`** (per-car co-driver list — names *and*
+  headshots, the "driver lineup" the design had + pictures it didn't). Live on the Pick board (pit-lane
+  cards + selection rows) and the Dashboard "Your Picks" cards. The selection board also orders cars by
+  number and shows a per-row **class badge** for multi-class series.
+- ✅ **Mobile/responsive** — every player page (Pick, Dashboard, Standings, LeagueStandings, Landing,
+  ComingSoon) + shared chrome (`GlobalNav` two-row nav, `ChampionshipStrip`, `Leaderboard`). Tables use
+  **card reflow** below `sm` (desktop keeps the grid); two-column layouts stack below `lg`.
+- ✅ **Loading / empty / error + a11y** — global `:focus-visible` keyboard ring +
+  `prefers-reduced-motion` reset (index.css); loading skeletons + error UI on Pick / Dashboard / Landing
+  (Standings/LeagueStandings already had them); aria-labels (search, modal close, trend) + semantic
+  headings. Modals use Radix Dialog (focus-trap/escape/aria).
+- ⬜ **Admin responsive** — deferred; the admin console is desktop-only for now (admins aren't on phones).
+- ⬜ **Production deploy** + API wiring + smoke test (web on S3 + CloudFront; API + Postgres on
+  Railway). Runbook + prerequisites done: [infra/deploy.md](infra/deploy.md).
+- **Exit:** a real user can play a round end-to-end on a phone. *(Met for the player loop; deploy is the
+  last gate.)*
 
 ## Suggested MVP cut
 

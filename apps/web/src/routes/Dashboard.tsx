@@ -17,6 +17,8 @@ import { useCountdown } from '../lib/useCountdown'
 import { mockTrend } from '../lib/demoStats'
 import { Demo } from '../components/Demo'
 import { CreateLeagueModal, JoinByCodeModal } from '../components/LeagueModals'
+import { EntityThumb } from '../components/EntityThumb'
+import { DriverLineup } from '../components/DriverLineup'
 
 type Registration = Me['registrations'][number]
 
@@ -43,9 +45,9 @@ export function Dashboard() {
   const primarySeason = regs[0]?.seasonId
 
   return (
-    <div className="flex flex-1">
-      {/* left rail */}
-      <aside className="w-[268px] flex-none border-r border-line bg-surface-3 p-[18px] pt-6">
+    <div className="flex flex-1 flex-col lg:flex-row">
+      {/* left rail — full-width below the content on mobile, fixed left rail at lg+ */}
+      <aside className="order-last w-full flex-none border-t border-line bg-surface-3 p-[18px] pt-6 lg:order-first lg:w-[268px] lg:border-r lg:border-t-0">
         <div className="font-display text-[26px] font-extrabold italic uppercase text-ink">My Team</div>
         <div className="mb-5 font-sans text-[12px] text-muted">
           {regs.length} series · {leagues.length} leagues · {regs[0] ? seasonInfo(regs[0].seasonId).year : '—'}
@@ -81,36 +83,34 @@ export function Dashboard() {
       </aside>
 
       {/* main */}
-      <div className="flex-1 bg-bg">
-        <div className="flex items-end justify-between px-[26px] pb-1 pt-[22px]">
-          <div className="flex items-center gap-[11px]">
-            <span className="font-display text-[22px] font-extrabold italic uppercase text-ink">Your Picks</span>
-            <span className="rounded-full border border-lmp2/35 bg-lmp2/10 px-[10px] py-[3px] font-sans text-[11px] text-lmp2-2">
-              One lineup per series — scored across all your leagues
-            </span>
-          </div>
+      <div className="min-w-0 flex-1 bg-bg">
+        <div className="flex flex-wrap items-center gap-x-[11px] gap-y-1 px-4 pb-1 pt-[22px] sm:px-[26px]">
+          <h1 className="font-display text-[22px] font-extrabold italic uppercase text-ink">Your Picks</h1>
+          <span className="hidden rounded-full border border-lmp2/35 bg-lmp2/10 px-[10px] py-[3px] font-sans text-[11px] text-lmp2-2 sm:inline-block">
+            One lineup per series — scored across all your leagues
+          </span>
         </div>
 
-        <div className="flex flex-col gap-3 px-[26px] py-[10px]">
+        <div className="flex flex-col gap-3 px-4 py-[10px] sm:px-[26px]">
           {regs.map((r) => (
             <RegistrationCard key={r.id} reg={r} champName={seasonInfo(r.seasonId).champName} />
           ))}
         </div>
 
-        <div className="mx-[26px] mt-[22px] h-px bg-line" />
+        <div className="mx-4 mt-[22px] h-px bg-line sm:mx-[26px]" />
 
         {/* your leagues */}
-        <div className="flex items-center gap-[11px] px-[26px] pb-[14px] pt-5">
-          <span className="font-display text-[22px] font-extrabold italic uppercase text-ink">Your Leagues</span>
-          <span className="font-sans text-[12px] text-muted">Your picks are scored into every league below</span>
+        <div className="flex flex-wrap items-center gap-x-[11px] gap-y-1 px-4 pb-[14px] pt-5 sm:px-[26px]">
+          <h2 className="font-display text-[22px] font-extrabold italic uppercase text-ink">Your Leagues</h2>
+          <span className="hidden font-sans text-[12px] text-muted sm:inline">Your picks are scored into every league below</span>
         </div>
         {leagues.length === 0 ? (
-          <div className="mx-[26px] rounded-[4px] border border-dashed border-line-2 px-5 py-8 text-center font-sans text-[13px] text-muted">
+          <div className="mx-4 rounded-[4px] border border-dashed border-line-2 px-5 py-8 text-center font-sans text-[13px] text-muted sm:mx-[26px]">
             You haven't joined any leagues yet — create one or join with a code.
           </div>
         ) : (
           <>
-            <div className="grid grid-cols-[1fr_110px_100px_110px] items-center border-y border-line px-[26px] py-[10px] font-display text-[11px] tracking-[0.1em] uppercase text-muted-2">
+            <div className="hidden grid-cols-[1fr_110px_100px_110px] items-center border-y border-line px-[26px] py-[10px] font-display text-[11px] tracking-[0.1em] uppercase text-muted-2 sm:grid">
               <span>League</span><span className="text-center">Position</span><span className="text-center">Trend</span><span />
             </div>
             {leagues.map((l) => (
@@ -149,8 +149,8 @@ function RegistrationCard({ reg, champName }: { reg: Registration; champName: st
   const picks = roster.data ? roster.data.main.length : 0
   const status = locked ? { t: 'LOCKED', c: 'text-muted' } : picks > 0 ? { t: 'SET', c: 'text-success' } : { t: 'TO DO', c: 'text-warn' }
 
-  const nameOf = (p: { entityType: string; entityId: number }) =>
-    prices.data?.find((x) => x.entityType === p.entityType && x.entityId === p.entityId)?.displayName ?? '—'
+  const itemOf = (p: { entityType: string; entityId: number }) =>
+    prices.data?.find((x) => x.entityType === p.entityType && x.entityId === p.entityId)
 
   // Bonus modifiers targeting each pick, keyed by entity (ADR-0006). Shown as a small gold badge.
   const bonusLabel: Record<string, string> = { DOUBLE_POINTS_TEAM: '2×', CAPTAIN: 'C' }
@@ -159,8 +159,8 @@ function RegistrationCard({ reg, champName }: { reg: Registration; champName: st
     if (m.target) bonusByPick.set(`${m.target.entityType}:${m.target.entityId}`, bonusLabel[m.kind] ?? '★')
 
   return (
-    <div className="flex items-stretch overflow-hidden rounded-[4px] border border-line border-l-[3px] border-l-brand bg-surface">
-      <div className="w-[188px] flex-none border-r border-line p-[15px]">
+    <div className="flex flex-col items-stretch overflow-hidden rounded-[4px] border border-line border-l-[3px] border-l-brand bg-surface sm:flex-row">
+      <div className="flex-none border-b border-line p-[15px] sm:w-[188px] sm:border-b-0 sm:border-r">
         <div className="flex items-start gap-2">
           <span className="mt-1 h-[18px] w-[5px] flex-none bg-brand [transform:skewX(-14deg)]" />
           <span className="font-display text-[17px] font-bold uppercase leading-tight text-ink">{champName}</span>
@@ -171,23 +171,40 @@ function RegistrationCard({ reg, champName }: { reg: Registration; champName: st
         </div>
       </div>
 
-      <div className="flex flex-1 flex-wrap items-center gap-[10px] p-[15px]">
-        {picks > 0 ? (
+      <div className="flex flex-1 flex-wrap items-center gap-2 p-[15px]">
+        {rounds.isLoading || roster.isLoading ? (
+          <span className="font-sans text-[13px] text-muted-2">Loading lineup…</span>
+        ) : roster.isError ? (
+          <span className="font-sans text-[13px] text-danger">Couldn't load this lineup.</span>
+        ) : picks > 0 ? (
           (roster.data?.main ?? []).map((p) => {
+            const pi = itemOf(p)
             const badge = bonusByPick.get(`${p.entityType}:${p.entityId}`)
             return (
-              <span key={`${p.entityType}:${p.entityId}`} className="flex h-7 items-center gap-[7px] rounded-[3px] border border-line-2 bg-surface-2 px-[11px] font-sans text-[12px] text-ink-2">
-                {nameOf(p)}
-                {badge && (
-                  <span
-                    className="flex h-[17px] items-center rounded-[2px] px-[5px] font-mono text-[10px] font-bold text-[#1a1206]"
-                    style={{ background: '#ffc23d' }}
-                    title="Bonus applied"
-                  >
-                    {badge}
-                  </span>
-                )}
-              </span>
+              <div key={`${p.entityType}:${p.entityId}`} className="flex items-center gap-2 rounded-[3px] border border-line-2 bg-surface-2 p-1.5 pr-2.5">
+                <EntityThumb
+                  entityType={p.entityType as 'Car' | 'Driver'}
+                  entityId={p.entityId}
+                  roundId={round?.id ?? 0}
+                  shape={p.entityType === 'Car' ? 'wide' : 'square'}
+                  className="w-11"
+                />
+                <div className="min-w-0 max-w-[150px]">
+                  <div className="flex items-center gap-1.5">
+                    <span className="truncate font-sans text-[12px] font-medium text-ink-2">{pi?.displayName ?? '—'}</span>
+                    {badge && (
+                      <span
+                        className="flex h-[16px] flex-none items-center rounded-[2px] px-[5px] font-mono text-[10px] font-bold text-[#1a1206]"
+                        style={{ background: '#ffc23d' }}
+                        title="Bonus applied"
+                      >
+                        {badge}
+                      </span>
+                    )}
+                  </div>
+                  <DriverLineup drivers={pi?.drivers} variant="compact" className="mt-0.5" />
+                </div>
+              </div>
             )
           })
         ) : (
@@ -195,11 +212,11 @@ function RegistrationCard({ reg, champName }: { reg: Registration; champName: st
         )}
       </div>
 
-      <div className="flex flex-none items-center p-[15px]">
+      <div className="flex flex-none items-center border-t border-line p-[15px] sm:border-t-0">
         {round && (
           <Link
             to={`/pick/${round.id}`}
-            className={`flex h-[38px] items-center rounded-[3px] px-[18px] font-display text-[14px] font-semibold uppercase tracking-[0.04em] ${
+            className={`flex h-[38px] w-full items-center justify-center rounded-[3px] px-[18px] font-display text-[14px] font-semibold uppercase tracking-[0.04em] sm:w-auto ${
               status.t === 'TO DO' ? 'bg-brand font-bold italic text-ink' : 'border border-line-2 text-ink-2'
             }`}
           >
@@ -221,28 +238,51 @@ function LeagueRow({ league, me }: { league: League; me: Me }) {
   const initials = league.name.split(/\s+/).map((w) => w[0]).join('').slice(0, 2).toUpperCase()
 
   return (
-    <div className="grid grid-cols-[1fr_110px_100px_110px] items-center border-b border-surface-2 px-[26px] py-[15px]">
-      <div className="flex items-center gap-3">
-        <div className="flex h-10 w-10 items-center justify-center rounded-[5px] border border-line-3 bg-surface-2 font-display text-[15px] font-extrabold italic text-ink">{initials}</div>
-        <div>
-          <div className="font-display text-[17px] font-bold uppercase leading-none text-ink">{league.name}</div>
+    <>
+      {/* sm+ : grid row */}
+      <div className="hidden grid-cols-[1fr_110px_100px_110px] items-center border-b border-surface-2 px-[26px] py-[15px] sm:grid">
+        <div className="flex min-w-0 items-center gap-3">
+          <div className="flex h-10 w-10 flex-none items-center justify-center rounded-[5px] border border-line-3 bg-surface-2 font-display text-[15px] font-extrabold italic text-ink">{initials}</div>
+          <div className="min-w-0">
+            <div className="truncate font-display text-[17px] font-bold uppercase leading-none text-ink">{league.name}</div>
+            <div className="mt-[3px] font-sans text-[11px] text-muted">{league.visibility} · {league.memberCount} players</div>
+          </div>
+        </div>
+        <span className="text-center font-mono text-[16px] font-bold text-ink">
+          {rank ?? '—'}<span className="text-[11px] text-muted-2">/{league.memberCount}</span>
+        </span>
+        <Demo>
+          <span
+            aria-label={`Trend ${trend > 0 ? `up ${trend}` : trend < 0 ? `down ${-trend}` : 'unchanged'}`}
+            className={`block text-center font-mono text-[13px] ${trend > 0 ? 'text-success' : trend < 0 ? 'text-danger' : 'text-muted-2'}`}
+          >
+            {trend > 0 ? `▲ ${trend}` : trend < 0 ? `▼ ${-trend}` : '— 0'}
+          </span>
+        </Demo>
+        <span className="text-right">
+          <Link to={`/leagues/${league.id}`} className="rounded-[3px] border border-line-2 px-[14px] py-[7px] font-display text-[13px] font-semibold uppercase tracking-[0.04em] text-ink-2">
+            Standings
+          </Link>
+        </span>
+      </div>
+
+      {/* < sm : card (Trend dropped — it's mocked anyway) */}
+      <div className="flex items-center gap-3 border-b border-surface-2 px-4 py-[14px] sm:hidden">
+        <div className="flex h-9 w-9 flex-none items-center justify-center rounded-[5px] border border-line-3 bg-surface-2 font-display text-[14px] font-extrabold italic text-ink">{initials}</div>
+        <div className="min-w-0 flex-1">
+          <div className="truncate font-display text-[16px] font-bold uppercase leading-none text-ink">{league.name}</div>
           <div className="mt-[3px] font-sans text-[11px] text-muted">{league.visibility} · {league.memberCount} players</div>
         </div>
+        <div className="flex shrink-0 flex-col items-end gap-1">
+          <span className="font-mono text-[15px] font-bold text-ink">
+            {rank ?? '—'}<span className="text-[10px] text-muted-2">/{league.memberCount}</span>
+          </span>
+          <Link to={`/leagues/${league.id}`} className="rounded-[3px] border border-line-2 px-[10px] py-[4px] font-display text-[11px] font-semibold uppercase tracking-[0.04em] text-ink-2">
+            Standings
+          </Link>
+        </div>
       </div>
-      <span className="text-center font-mono text-[16px] font-bold text-ink">
-        {rank ?? '—'}<span className="text-[11px] text-muted-2">/{league.memberCount}</span>
-      </span>
-      <Demo>
-        <span className={`block text-center font-mono text-[13px] ${trend > 0 ? 'text-success' : trend < 0 ? 'text-danger' : 'text-muted-2'}`}>
-          {trend > 0 ? `▲ ${trend}` : trend < 0 ? `▼ ${-trend}` : '— 0'}
-        </span>
-      </Demo>
-      <span className="text-right">
-        <Link to={`/leagues/${league.id}`} className="rounded-[3px] border border-line-2 px-[14px] py-[7px] font-display text-[13px] font-semibold uppercase tracking-[0.04em] text-ink-2">
-          Standings
-        </Link>
-      </span>
-    </div>
+    </>
   )
 }
 
@@ -255,19 +295,22 @@ function DiscoverLeagues({ seasonId }: { seasonId: number | undefined }) {
   if (leagues.length === 0) return null
 
   return (
-    <div className="px-[26px] py-6">
-      <div className="mb-[14px] font-display text-[18px] font-extrabold italic uppercase text-ink">Discover Public Leagues</div>
+    <div className="px-4 py-6 sm:px-[26px]">
+      <h2 className="mb-[14px] font-display text-[18px] font-extrabold italic uppercase text-ink">Discover Public Leagues</h2>
       <div className="flex flex-wrap gap-3">
         {leagues.map((l) => (
-          <div key={l.id} className="flex flex-1 items-center justify-between gap-4 rounded-[3px] border border-line bg-surface px-[15px] py-[13px]" style={{ minWidth: 260 }}>
-            <div>
-              <div className="font-display text-[15px] font-bold uppercase text-ink">{l.name}</div>
+          <div
+            key={l.id}
+            className="flex min-w-0 flex-1 basis-full items-center justify-between gap-4 rounded-[3px] border border-line bg-surface px-[15px] py-[13px] sm:basis-[260px]"
+          >
+            <div className="min-w-0">
+              <div className="truncate font-display text-[15px] font-bold uppercase text-ink">{l.name}</div>
               <div className="font-sans text-[11px] text-muted">{l.memberCount} players · Public</div>
             </div>
             <button
               onClick={() => join.mutate({ id: l.id })}
               disabled={join.isPending}
-              className="rounded-[3px] border border-line-2 px-3 py-[6px] font-display text-[12px] font-semibold uppercase text-ink cursor-pointer"
+              className="flex-none rounded-[3px] border border-line-2 px-3 py-[6px] font-display text-[12px] font-semibold uppercase text-ink cursor-pointer"
             >
               Join
             </button>

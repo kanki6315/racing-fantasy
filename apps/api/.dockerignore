@@ -1,0 +1,12 @@
+# Build outputs — rebuilt inside the image
+**/bin/
+**/obj/
+
+# Local-only / not needed in the image
+docker-compose.yml
+scripts/
+**/appsettings.Development.json
+**/*.user
+.git/
+.vs/
+.vscode/

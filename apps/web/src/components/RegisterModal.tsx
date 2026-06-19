@@ -64,8 +64,8 @@ export function RegisterModal({
                   your team name is shared — never your real name.
                 </Dialog.Description>
               </div>
-              <Dialog.Close className="ml-3.5 flex h-[30px] w-[30px] flex-none items-center justify-center rounded-[3px] border border-line-2 cursor-pointer">
-                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#8a8f98" strokeWidth="2.2">
+              <Dialog.Close aria-label="Close" className="ml-3.5 flex h-[30px] w-[30px] flex-none items-center justify-center rounded-[3px] border border-line-2 cursor-pointer">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#8a8f98" strokeWidth="2.2" aria-hidden="true">
                   <path d="M6 6l12 12M18 6L6 18" />
                 </svg>
               </Dialog.Close>

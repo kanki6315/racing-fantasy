@@ -136,6 +136,13 @@ export function Pick() {
   if (round.isLoading || rules.isLoading || prices.isLoading) {
     return <div className="py-32 text-center font-mono text-[12px] uppercase tracking-[0.12em] text-muted-2">Loading board…</div>
   }
+  if (round.isError || rules.isError || prices.isError) {
+    return (
+      <div className="mx-4 my-12 rounded-[4px] border border-danger/30 bg-danger/[0.06] px-5 py-12 text-center font-sans text-[13px] text-danger sm:mx-[26px]">
+        Couldn't load the selection board. Please refresh to try again.
+      </div>
+    )
+  }
   if (round.data && registration == null) {
     return (
       <div className="flex flex-col items-center gap-3 py-32 text-center">
@@ -156,7 +163,7 @@ export function Pick() {
       {/* header band: budget + requirements + actions */}
       <div className="flex flex-wrap items-center gap-x-6 gap-y-3 border-b border-line bg-surface px-4 py-3 sm:px-[26px]">
         <div>
-          <div className="font-display text-[11px] uppercase tracking-[0.12em] text-muted-2">{round.data?.name}</div>
+          <h1 className="font-display text-[11px] uppercase tracking-[0.12em] text-muted-2">{round.data?.name}</h1>
           <div className="font-mono text-[20px] font-bold text-ink">${cap.toFixed(1)}M</div>
         </div>
         <div className="w-full sm:w-[280px]">
@@ -480,6 +487,7 @@ function SelectionPanel({
             value={search}
             onChange={(e) => setSearch(e.target.value)}
             placeholder={teamBased ? 'Search teams…' : 'Search drivers…'}
+            aria-label={teamBased ? 'Search teams' : 'Search drivers'}
             className="w-full bg-transparent font-sans text-[13px] text-ink outline-none placeholder:text-muted-2"
           />
         </div>
