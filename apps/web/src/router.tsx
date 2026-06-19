@@ -30,8 +30,7 @@ export const router = createBrowserRouter([
       { path: 'leagues/:id', element: <RequireAuth><LeagueStandings /></RequireAuth> },
       { path: 'standings', element: <Standings /> },
       { path: 'stats', element: <ComingSoon title="Stats" /> },
-      { path: 'calendar', element: <ComingSoon title="Calendar" /> },
-      { path: '*', element: <ComingSoon title="Not Found" /> },
+      { path: '*', element: <ComingSoon title="Not Found" subtitle="That page doesn't exist" /> },
     ],
   },
   {
