@@ -9,22 +9,25 @@ import { useAuth } from '../auth/AuthContext'
 import { useActiveSeason, useSeasonLeaderboard, useRounds, useEvents } from '../api/queries'
 import { useCountdown } from '../lib/useCountdown'
 
-/** One weekend on the unified calendar (ADR-0007) — an event (multi-series) or a standalone round. */
-type CalSeries = { name: string; isActive: boolean }
+/** One weekend on the unified calendar (ADR-0007), driven by the Event API — every series racing it. */
+type CalSeries = { name: string; order: number; isActive: boolean }
 type CalItem = {
   key: string
-  seq?: number // the active championship's round number this weekend, if it races
+  seq?: number // the active championship's round number this weekend, if it races (cosmetic label)
   title: string
   track: string
   dateMs: number
   series: CalSeries[]
-  activeRoundId?: number // the active championship's round here, if any (drives status/countdown)
-  qualiStart?: string
+  activeRoundId?: number // the active championship's round here, if any (links the hero to its weekend)
+  picksOpen: boolean // admin-released the board for this weekend → gates COMING SOON vs PICKS OPEN
+  earliestQuali: string // soonest quali across the weekend's series — drives PICKS OPEN → CLOSING
+  latestQuali: string // last quali across the weekend's series — once passed, the weekend is LOCKED
 }
 
 const statusStyle: Record<string, string> = {
   'PICKS OPEN': 'text-ink bg-brand',
-  UPCOMING: 'text-ink-2 bg-line',
+  'PICKS CLOSING': 'text-ink bg-warn',
+  'COMING SOON': 'text-ink-2 bg-line',
   LOCKED: 'text-muted bg-surface-2',
 }
 
@@ -55,45 +58,38 @@ export function Landing() {
   )
 
   const now = Date.now()
-  // The active championship's soonest upcoming round drives the hero + the "PICKS OPEN" highlight.
-  const nextRound = activeRounds
-    .filter((r) => new Date(r.qualiStart).getTime() > now)
-    .sort((a, b) => +new Date(a.qualiStart) - +new Date(b.qualiStart))[0]
-  const nextRoundId = nextRound?.id
 
+  // The unified calendar is driven entirely by the Event API (every series' weekends), independent of
+  // any single "active" championship. We scope to the latest year present so it reads as the current
+  // season. The active championship is used only to (a) label its round number and (b) highlight its pill.
   const calendar = useMemo<CalItem[]>(() => {
-    if (!active) return []
+    const events = eventsQ.data ?? []
+    const latestYear = Math.max(0, ...events.flatMap((e) => e.rounds.map((r) => r.year)))
+    if (!latestYear) return []
     const seqByRoundId = new Map(activeRounds.map((r) => [r.id, r.sequence]))
     const items: CalItem[] = []
-    // Events = shared weekends: list every series racing, flag the active championship's round if present.
-    for (const e of eventsQ.data ?? []) {
-      const evRounds = e.rounds.filter((r) => r.year === active.season.year)
+    for (const e of events) {
+      const evRounds = e.rounds.filter((r) => r.year === latestYear)
       if (evRounds.length === 0) continue
-      const mine = evRounds.find((r) => r.championshipId === active.championship.id)
-      const names = [...new Set(evRounds.map((r) => r.championshipName))]
+      const qualis = evRounds.map((r) => +new Date(r.qualiStart))
+      const mine = active ? evRounds.find((r) => r.championshipId === active.championship.id) : undefined
+      // Unique series racing this weekend, ordered by the championship sort key.
+      const byName = new Map<string, number>()
+      for (const r of evRounds) if (!byName.has(r.championshipName)) byName.set(r.championshipName, r.championshipOrder)
+      const series = [...byName.entries()]
+        .sort((a, b) => a[1] - b[1] || a[0].localeCompare(b[0]))
+        .map(([name, order]) => ({ name, order, isActive: !!active && name === active.championship.name }))
       items.push({
         key: `e${e.id}`,
         seq: mine ? seqByRoundId.get(mine.roundId) : undefined,
         title: e.name,
         track: e.circuit ?? '',
-        dateMs: e.startsAt ? +new Date(e.startsAt) : Math.min(...evRounds.map((r) => +new Date(r.qualiStart))),
-        series: names.map((n) => ({ name: n, isActive: n === active.championship.name })),
+        dateMs: e.startsAt ? +new Date(e.startsAt) : Math.min(...qualis),
+        series,
         activeRoundId: mine?.roundId,
-        qualiStart: mine?.qualiStart,
-      })
-    }
-    // Standalone active-championship rounds (no event) = single-series weekends.
-    for (const r of activeRounds) {
-      if (r.eventId != null) continue
-      items.push({
-        key: `r${r.id}`,
-        seq: r.sequence,
-        title: r.name,
-        track: r.circuit ?? '',
-        dateMs: +new Date(r.startsAt ?? r.qualiStart),
-        series: [{ name: active.championship.name, isActive: true }],
-        activeRoundId: r.id,
-        qualiStart: r.qualiStart,
+        picksOpen: e.picksOpen,
+        earliestQuali: new Date(Math.min(...qualis)).toISOString(),
+        latestQuali: new Date(Math.max(...qualis)).toISOString(),
       })
     }
     return items.sort((a, b) => a.dateMs - b.dateMs)
@@ -102,21 +98,24 @@ export function Landing() {
   const calLoading = roundsQ.isLoading || eventsQ.isLoading
   const calError = roundsQ.isError || eventsQ.isError
 
-  // Hero "next round" — the soonest upcoming round + its live lock countdown.
-  const heroCd = useCountdown(nextRound?.qualiStart)
-  const heroBadge = nextRound
-    ? `RD ${String(nextRound.sequence).padStart(2, '0')} — ${(active?.championship.name ?? '').toUpperCase()}`
-    : '// SEASON'
-  const heroTitle = nextRound?.name ?? (activeRounds.length ? 'Season complete' : 'Schedule coming soon')
-  const heroWhere = nextRound
-    ? [nextRound.circuit, fmtDate(nextRound.startsAt ?? nextRound.qualiStart)].filter(Boolean).join(' · ')
+  // Hero — the next event (soonest weekend not yet fully locked), seeded entirely from the Event API:
+  // name, track, date, the series racing it, and a lock countdown (to the first series' quali while the
+  // weekend is open, then to the last while it's closing).
+  const nextEvent = calendar.find((c) => +new Date(c.latestQuali) > now)
+  const heroOpen = nextEvent ? now < +new Date(nextEvent.earliestQuali) : false
+  const heroCd = useCountdown(nextEvent ? (heroOpen ? nextEvent.earliestQuali : nextEvent.latestQuali) : undefined)
+  const heroTitle = nextEvent?.title ?? (calendar.length ? 'Season complete' : 'Schedule coming soon')
+  const heroWhere = nextEvent
+    ? [nextEvent.track, fmtDate(new Date(nextEvent.dateMs).toISOString())].filter(Boolean).join(' · ')
     : ''
-  // All series racing the hero weekend (only worth showing when it's a shared event, i.e. >1 series).
-  const heroSeries = (nextRound && calendar.find((c) => c.activeRoundId === nextRound.id)?.series) || []
+  const heroSeries = nextEvent?.series ?? []
 
+  // "Registered" now means a registration in ANY series — a player interested only in a support series
+  // shouldn't be nagged to enter the headline championship (future: per-series call-outs).
   const registration =
     active && user ? (user.registrations.find((r) => r.seasonId === active.season.id) ?? null) : null
-  const needsRegistration = isAuthenticated && !!active && !registration
+  const hasAnyRegistration = (user?.registrations.length ?? 0) > 0
+  const needsRegistration = isAuthenticated && !!active && !hasAnyRegistration
 
   const onHeroCta = () => {
     if (!isAuthenticated) loginWithGoogle()
@@ -164,13 +163,12 @@ export function Landing() {
       <div className="flex flex-col bg-black lg:flex-row">
         {/* hero — next round + lock countdown */}
         <div className="w-full border-b border-line bg-gradient-to-b from-surface-3 to-bg px-4 py-[26px] sm:px-7 lg:w-[420px] lg:shrink-0 lg:border-b-0 lg:border-r">
-          <div className="mb-[14px] font-mono text-[11px] tracking-[0.14em] text-brand">// NEXT_ROUND</div>
-          <div className="mb-[6px] font-mono text-[12px] text-muted-2">{heroBadge}</div>
+          <div className="mb-[14px] font-mono text-[11px] tracking-[0.14em] text-brand">// NEXT_EVENT</div>
           <h1 className="font-display text-[34px] font-extrabold italic uppercase leading-[0.92] text-ink sm:text-[40px]">
             {heroTitle}
           </h1>
           {heroWhere && <div className="mt-[10px] font-sans text-[14px] text-muted">{heroWhere}</div>}
-          {heroSeries.length > 1 && (
+          {heroSeries.length > 0 && (
             <div className="mt-[10px] flex flex-wrap items-center gap-[6px]">
               {heroSeries.map((s) => (
                 <span
@@ -232,7 +230,7 @@ export function Landing() {
               </p>
             ) : (
               calendar.map((item) => (
-                <CalendarRow key={item.key} item={item} isNext={item.activeRoundId === nextRoundId} />
+                <CalendarRow key={item.key} item={item} />
               ))
             )}
           </div>
@@ -252,17 +250,36 @@ export function Landing() {
  * its series and no pick-lock (the active championship sits this one out). Three lines: round / track /
  * series pills (the active championship's pill is highlighted).
  */
-function CalendarRow({ item, isNext }: { item: CalItem; isNext: boolean }) {
-  const cd = useCountdown(item.qualiStart)
-  const racing = item.activeRoundId != null
-  const status = racing ? (cd.locked ? 'LOCKED' : isNext ? 'PICKS OPEN' : 'UPCOMING') : null
-  const hi = racing && isNext && !cd.locked
+function CalendarRow({ item }: { item: CalItem }) {
+  const earliest = +new Date(item.earliestQuali)
+  const latest = +new Date(item.latestQuali)
+  // Count down to whichever lock boundary is next. useCountdown re-renders every second, so the phase
+  // stays current.
+  const cd = useCountdown(Date.now() < earliest ? item.earliestQuali : item.latestQuali)
+  const now = Date.now()
+  // Status machine: a passed weekend is LOCKED; an un-released board is COMING SOON; once the admin
+  // opens the event (Event.picksOpen) picks are OPEN until the first series qualifies, then CLOSING as
+  // each series locks in turn. Openness is per-event, so any number of weekends can be open at once.
+  const status =
+    now >= latest ? 'LOCKED' : !item.picksOpen ? 'COMING SOON' : now < earliest ? 'PICKS OPEN' : 'PICKS CLOSING'
+  const text = status === 'LOCKED' ? '—' : cd.text
+  const hi = status === 'PICKS OPEN'
   const label = item.seq != null ? `R${String(item.seq).padStart(2, '0')}` : '·'
   const date = fmtDate(new Date(item.dateMs).toISOString()).toUpperCase()
-  const badge = status && (
-    <span className={`shrink-0 rounded-[2px] px-[9px] py-[3px] font-display text-[11px] tracking-[0.06em] ${statusStyle[status]}`}>
-      {status}
+  const closing = status === 'PICKS CLOSING'
+  const pillClass = `inline-block rounded-[2px] px-[9px] py-[3px] font-display text-[11px] tracking-[0.06em] ${statusStyle[status]}`
+  const badge = closing ? (
+    <span className="group relative inline-block shrink-0" tabIndex={0}>
+      <span className={`${pillClass} cursor-help`}>{status}</span>
+      <span
+        role="tooltip"
+        className="pointer-events-none absolute right-0 top-full z-30 mt-[7px] hidden w-[210px] rounded-[4px] border border-line-2 bg-surface-3 px-3 py-2 font-sans text-[11px] leading-snug text-ink shadow-[0_8px_24px_rgba(0,0,0,0.5)] group-hover:block group-focus-within:block"
+      >
+        Once Qualifying starts, picks for a Championship are locked
+      </span>
     </span>
+  ) : (
+    <span className={`${pillClass} shrink-0`}>{status}</span>
   )
   // All series racing this weekend, the active championship highlighted.
   const pills = (
@@ -296,7 +313,7 @@ function CalendarRow({ item, isNext }: { item: CalItem; isNext: boolean }) {
         </div>
         <span className="text-[13px] text-ink-2">{date}</span>
         <div>{badge}</div>
-        <span className={`text-right text-[12px] ${hi ? 'text-brand' : 'text-muted-2'}`}>{racing ? cd.text : '—'}</span>
+        <span className={`text-right text-[12px] ${hi ? 'text-brand' : 'text-muted-2'}`}>{text}</span>
       </div>
 
       {/* < sm : card */}
@@ -316,7 +333,7 @@ function CalendarRow({ item, isNext }: { item: CalItem; isNext: boolean }) {
         </div>
         <div className="flex items-center justify-between pl-[27px] text-[12px]">
           <span className="text-ink-2">{date}</span>
-          {racing && <span className={`${hi ? 'text-brand' : 'text-muted-2'}`}>{cd.text}</span>}
+          <span className={`${hi ? 'text-brand' : 'text-muted-2'}`}>{text}</span>
         </div>
       </div>
     </Fragment>

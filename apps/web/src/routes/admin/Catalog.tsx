@@ -112,6 +112,9 @@ function ChampionshipsTab() {
                 </div>
                 <div className="font-mono text-[10px] text-muted">/{c.slug}</div>
               </div>
+              <span className="shrink-0 rounded-[3px] border border-line-2 bg-surface-3 px-2 py-[2px] font-mono text-[10px] text-muted-2">
+                #{c.order}
+              </span>
             </ListRow>
           ))
         )}
@@ -130,6 +133,7 @@ function ChampionshipForm({
 }) {
   const [name, setName] = useState(championship?.name ?? '')
   const [slug, setSlug] = useState(championship?.slug ?? '')
+  const [order, setOrder] = useState(String(championship?.order ?? 0))
   const create = useCreateChampionship()
   const update = useUpdateChampionship()
   const { data: seasons = [] } = useAdminSeasons(championship?.id)
@@ -137,9 +141,10 @@ function ChampionshipForm({
   const [year, setYear] = useState('')
 
   const save = async () => {
-    if (championship) await update.mutateAsync({ id: championship.id, body: { name, slug } })
+    const body = { name, slug, order: Number(order) || 0 }
+    if (championship) await update.mutateAsync({ id: championship.id, body })
     else {
-      const created = await create.mutateAsync({ name, slug })
+      const created = await create.mutateAsync(body)
       onSaved(created.id)
     }
   }
@@ -155,6 +160,16 @@ function ChampionshipForm({
         </Field>
         <Field label="Slug">
           <TextInput value={slug} onChange={(e) => setSlug(e.target.value)} placeholder="imsa-weathertech" />
+        </Field>
+        <Field label="Order">
+          <TextInput
+            value={order}
+            onChange={(e) => setOrder(e.target.value)}
+            placeholder="0"
+            inputMode="numeric"
+            className="w-28"
+          />
+          <p className="mt-1 font-sans text-[11px] text-muted">Lower sorts first — ranks this series ahead of higher numbers everywhere.</p>
         </Field>
         <div className="flex justify-end">
           <PrimaryButton onClick={save} disabled={!name || !slug || create.isPending || update.isPending}>

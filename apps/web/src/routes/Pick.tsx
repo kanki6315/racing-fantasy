@@ -64,7 +64,10 @@ export function Pick() {
   }, [roster.data, prices.data])
 
   const cd = useCountdown(round.data?.qualiStart)
-  const locked = cd.locked || roster.data?.locked === true
+  // The event's board hasn't been released yet → not pickable, distinct from quali-locked. Folded into
+  // `locked` so every control disables; the status pill + error copy below tell the two apart.
+  const notOpen = roster.data?.picksOpen === false
+  const locked = cd.locked || roster.data?.locked === true || notOpen
 
   const cap = rules.data?.salaryCap ?? round.data?.salaryCap ?? 0
   const selected = useMemo(() => [...main.values()], [main])
@@ -236,12 +239,20 @@ export function Pick() {
         <div className="flex items-center gap-3">
           <div
             className={`flex items-center gap-[7px] rounded-[3px] border px-3 py-[6px] ${
-              locked ? 'border-danger/45 bg-danger/10' : 'border-line-2'
+              notOpen ? 'border-line-2 bg-surface-2' : locked ? 'border-danger/45 bg-danger/10' : 'border-line-2'
             }`}
           >
-            <span className={`h-[6px] w-[6px] rounded-full ${locked ? 'bg-danger' : 'bg-brand [animation:blink_1.4s_infinite]'}`} />
-            <span className={`font-mono text-[12px] font-semibold ${locked ? 'text-danger' : 'text-brand-3'}`}>
-              {locked ? 'LOCKED' : `LOCKS ${cd.text}`}
+            <span
+              className={`h-[6px] w-[6px] rounded-full ${
+                notOpen ? 'bg-muted-2' : locked ? 'bg-danger' : 'bg-brand [animation:blink_1.4s_infinite]'
+              }`}
+            />
+            <span
+              className={`font-mono text-[12px] font-semibold ${
+                notOpen ? 'text-muted-2' : locked ? 'text-danger' : 'text-brand-3'
+              }`}
+            >
+              {notOpen ? 'PICKS NOT OPEN' : locked ? 'LOCKED' : `LOCKS ${cd.text}`}
             </span>
           </div>
           <button
@@ -264,6 +275,7 @@ export function Pick() {
       {err && (
         <div className="bg-danger/10 px-4 py-2 font-sans text-[13px] text-danger sm:px-[26px]">
           {err.error === 'locked' && (err.message ?? 'Picks are locked.')}
+          {err.error === 'not_open' && (err.message ?? "Picks for this event aren't open yet.")}
           {err.error === 'cap_exceeded' && `Over the cap by $${(spent - cap).toFixed(1)}M.`}
           {err.error === 'composition' && 'Lineup composition is invalid — check the class requirements.'}
           {err.error === 'modifier' && 'A selected bonus is invalid — re-pick it.'}

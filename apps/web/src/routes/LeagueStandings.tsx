@@ -1,7 +1,9 @@
+import { useState } from 'react'
 import { Link, useParams } from 'react-router-dom'
 import { useAuth } from '../auth/AuthContext'
-import { useLeague, useLeagueLeaderboard } from '../api/queries'
+import { useLeague, useLeagueLeaderboard, useRounds } from '../api/queries'
 import { Leaderboard } from '../components/Leaderboard'
+import { RoundFilter } from '../components/StandingsFilters'
 
 /** F3 league standings — the real page behind the dashboard "Standings" links. */
 export function LeagueStandings() {
@@ -9,7 +11,12 @@ export function LeagueStandings() {
   const leagueId = Number(id)
   const { user } = useAuth()
   const league = useLeague(leagueId)
-  const lb = useLeagueLeaderboard(leagueId)
+
+  // Championship + year are fixed by the league's season; the Total | round sub-filter mirrors the
+  // season standings page.
+  const rounds = useRounds(league.data?.seasonId)
+  const [tab, setTab] = useState<'season' | number>('season')
+  const lb = useLeagueLeaderboard(leagueId, typeof tab === 'number' ? tab : undefined)
 
   // A user has at most one registration per season, so the league's season pins my row.
   const myRegId = user?.registrations.find((r) => r.seasonId === league.data?.seasonId)?.id
@@ -44,6 +51,10 @@ export function LeagueStandings() {
       </div>
 
       <div className="mt-6">
+        <RoundFilter rounds={rounds.data ?? []} value={tab} onChange={setTab} />
+      </div>
+
+      <div className="mt-6">
         {lb.isLoading ? (
           <SkeletonTable />
         ) : lb.isError ? (
@@ -53,7 +64,11 @@ export function LeagueStandings() {
             entries={lb.data?.entries ?? []}
             myRegistrationId={myRegId}
             showName={isPrivate}
-            emptyMessage="No standings yet — they fill in once a round is scored."
+            emptyMessage={
+              tab === 'season'
+                ? 'No standings yet — they fill in once a round is scored.'
+                : 'This round has no scores yet.'
+            }
           />
         )}
       </div>

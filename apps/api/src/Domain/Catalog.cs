@@ -6,6 +6,9 @@ public class Championship
     public long Id { get; set; }
     public required string Name { get; set; }
     public required string Slug { get; set; }
+    /// <summary>Constant sort key — lower sorts first, ahead of higher. Column <c>sort_order</c>;
+    /// exposed to clients as <c>order</c>. Lets certain series rank above others everywhere.</summary>
+    public int SortOrder { get; set; }
 
     public ICollection<Season> Seasons { get; set; } = new List<Season>();
     public ICollection<Class> Classes { get; set; } = new List<Class>();
@@ -46,6 +49,10 @@ public class Event
     public string? Circuit { get; set; }
     public DateTime? StartsAt { get; set; }
     public DateTime? EndsAt { get; set; }
+    /// <summary>Whether the pick board for this weekend has been released. Gates the COMING SOON →
+    /// PICKS OPEN transition for every championship racing here at once; per-round quali still locks
+    /// picks automatically. Admin-toggled once all series' entry lists are published.</summary>
+    public bool PicksOpen { get; set; }
 
     public ICollection<Round> Rounds { get; set; } = new List<Round>();
 }

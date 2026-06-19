@@ -1,29 +1,57 @@
-import { useState, type ReactNode } from 'react'
+import { useEffect, useState } from 'react'
 import { useAuth } from '../auth/AuthContext'
 import {
-  useActiveSeason,
+  useChampionships,
   useRoundLeaderboard,
   useRounds,
   useSeasonLeaderboard,
+  useSeasons,
 } from '../api/queries'
 import { Leaderboard } from '../components/Leaderboard'
+import { FilterRow, FilterTab, RoundFilter } from '../components/StandingsFilters'
 import { ErrorBox, SkeletonTable } from './LeagueStandings'
 
-/** F3 season standings — public season pool + per-round boards, with a tab toggle. */
+/**
+ * F3 season standings, now multi-championship. Three filter levels — Championship → Year → Total/round —
+ * replace the old single "active season" anchor, so any series' board is reachable.
+ */
 export function Standings() {
   const { user } = useAuth()
-  const { data: active } = useActiveSeason()
-  const seasonId = active?.season.id
-  const rounds = useRounds(seasonId)
+  const { data: champs = [] } = useChampionships()
 
-  // 'season' = season-wide pool; a number = that round's board.
+  // Championship — default/heal to the first (lowest sort order).
+  const [champId, setChampId] = useState<number | null>(null)
+  useEffect(() => {
+    if (champs.length === 0) return
+    if (champId == null || !champs.some((c) => c.id === champId)) setChampId(champs[0].id)
+  }, [champs, champId])
+
+  // Year — default/heal to the newest season of the selected championship.
+  const { data: seasons = [] } = useSeasons(champId ?? undefined)
+  const [seasonId, setSeasonId] = useState<number | null>(null)
+  useEffect(() => {
+    if (seasons.length === 0) {
+      setSeasonId(null)
+      return
+    }
+    if (seasonId == null || !seasons.some((s) => s.id === seasonId)) {
+      setSeasonId([...seasons].sort((a, b) => b.year - a.year)[0].id)
+    }
+  }, [seasons, seasonId])
+
+  // Total | round — reset to season-wide whenever the season changes.
+  const rounds = useRounds(seasonId ?? undefined)
   const [tab, setTab] = useState<'season' | number>('season')
+  useEffect(() => setTab('season'), [seasonId])
 
-  const season = useSeasonLeaderboard(tab === 'season' ? seasonId : undefined)
+  const season = useSeasonLeaderboard(tab === 'season' ? (seasonId ?? undefined) : undefined)
   const round = useRoundLeaderboard(typeof tab === 'number' ? tab : undefined)
   const active$ = tab === 'season' ? season : round
 
   const myRegId = user?.registrations.find((r) => r.seasonId === seasonId)?.id
+  const champ = champs.find((c) => c.id === champId)
+  const season$ = seasons.find((s) => s.id === seasonId)
+  const sortedSeasons = [...seasons].sort((a, b) => b.year - a.year)
 
   return (
     <div className="mx-auto max-w-[860px] px-4 py-7 sm:px-[26px]">
@@ -32,24 +60,41 @@ export function Standings() {
         <div>
           <h1 className="font-display text-[30px] font-extrabold italic uppercase leading-none text-ink">Standings</h1>
           <div className="mt-[6px] font-sans text-[12px] text-muted">
-            {active ? `${active.championship.name} · ${active.season.year}` : 'Season pool & per-round boards'}
+            {champ ? `${champ.name}${season$ ? ` · ${season$.year}` : ''}` : 'Season pool & per-round boards'}
           </div>
         </div>
       </div>
 
-      {/* tabs: season pool + each round */}
-      <div className="mt-6 flex flex-wrap gap-[6px] border-b border-line pb-[14px]">
-        <Tab active={tab === 'season'} onClick={() => setTab('season')}>Season</Tab>
-        {(rounds.data ?? []).map((r) => (
-          <Tab key={r.id} active={tab === r.id} onClick={() => setTab(r.id)}>
-            {r.name}
-          </Tab>
-        ))}
+      {/* Championship → Year selectors */}
+      <div className="mt-6 flex flex-col gap-3">
+        <FilterRow label="Series">
+          {champs.map((c) => (
+            <FilterTab key={c.id} active={c.id === champId} onClick={() => setChampId(c.id)}>
+              {c.name}
+            </FilterTab>
+          ))}
+        </FilterRow>
+        {sortedSeasons.length > 0 && (
+          <FilterRow label="Year">
+            {sortedSeasons.map((s) => (
+              <FilterTab key={s.id} active={s.id === seasonId} onClick={() => setSeasonId(s.id)}>
+                {s.year}
+              </FilterTab>
+            ))}
+          </FilterRow>
+        )}
+      </div>
+
+      {/* Total | round sub-filter */}
+      <div className="mt-5">
+        <RoundFilter rounds={rounds.data ?? []} value={tab} onChange={setTab} />
       </div>
 
       <div className="mt-6">
-        {!active ? (
-          <ErrorBox message="No active season found." />
+        {!champ ? (
+          <ErrorBox message="No championships found." />
+        ) : seasonId == null ? (
+          <ErrorBox message="This series has no seasons yet." />
         ) : active$.isLoading ? (
           <SkeletonTable />
         ) : active$.isError ? (
@@ -67,19 +112,5 @@ export function Standings() {
         )}
       </div>
     </div>
-  )
-}
-
-function Tab({ active, onClick, children }: { active: boolean; onClick: () => void; children: ReactNode }) {
-  return (
-    <button
-      type="button"
-      onClick={onClick}
-      className={`h-8 rounded-[3px] px-[14px] font-display text-[13px] font-semibold uppercase tracking-[0.04em] transition-colors cursor-pointer ${
-        active ? 'bg-brand text-ink' : 'border border-line-2 text-muted hover:text-ink-2'
-      }`}
-    >
-      {children}
-    </button>
   )
 }

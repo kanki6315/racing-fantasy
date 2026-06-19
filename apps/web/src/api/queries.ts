@@ -75,6 +75,19 @@ export function useAllSeasons() {
   })
 }
 
+/** Seasons (years) for one championship — the Year level of the leaderboard's Champ → Year → Round filter. */
+export function useSeasons(championshipId: number | undefined) {
+  return useQuery({
+    queryKey: ['seasons', championshipId],
+    enabled: championshipId != null,
+    queryFn: async () => {
+      const { data, error } = await api.GET('/seasons', { params: { query: { championshipId } } })
+      if (error) throw error
+      return data ?? []
+    },
+  })
+}
+
 // ---- Events (shared weekends, ADR-0007) ----
 export type EventDto = components['schemas']['EventDto']
 
@@ -161,11 +174,14 @@ export function useLeague(id: number) {
   })
 }
 
-export function useLeagueLeaderboard(id: number) {
+/** League board, season-wide by default; pass a roundId to narrow to that single round (Total | round sub-filter). */
+export function useLeagueLeaderboard(id: number, roundId?: number) {
   return useQuery({
-    queryKey: ['league-leaderboard', id],
+    queryKey: ['league-leaderboard', id, roundId ?? 'season'],
     queryFn: async () => {
-      const { data, error } = await api.GET('/leagues/{id}/leaderboard', { params: { path: { id } } })
+      const { data, error } = await api.GET('/leagues/{id}/leaderboard', {
+        params: { path: { id }, query: { roundId } },
+      })
       if (error) throw error
       return data!
     },
