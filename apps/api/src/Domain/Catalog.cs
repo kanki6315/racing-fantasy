@@ -29,6 +29,9 @@ public class Class
     public long ChampionshipId { get; set; }
     public required string Name { get; set; }
 
+    /// <summary>Identity color as a #RRGGBB hex string, or null to fall back to the client-derived palette.</summary>
+    public string? Color { get; set; }
+
     public Championship Championship { get; set; } = null!;
 }
 
