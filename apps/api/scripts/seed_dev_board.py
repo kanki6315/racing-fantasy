@@ -56,16 +56,18 @@ for cid in (GTP, LMP2, GTDPRO, GTD):
     req('POST', '/sessions', {'roundId': ROUND, 'classId': cid, 'type': 'Race',
                               'scheduledStart': None, 'status': 'Scheduled'})
 
-# --- roster rules: 1 car per class (Main 1/1) ---
+# --- roster rules: 1 car per class, except GTD which takes 2 (Main 1/2) so the multi-pick-per-class
+#     path is exercised; GTD has 4 cars seeded below to choose from. ---
+comp = {GTP: (1, 1), LMP2: (1, 1), GTDPRO: (1, 1), GTD: (1, 2)}
 _, allrules = req('GET', '/roster-rules', query={'seasonId': SEASON})
 rules = [r for r in (allrules or []) if r['seasonId'] == SEASON]
 main_by_class = {r['classId']: r['id'] for r in rules if r['slotType'] == 'Main'}
-for cid in (GTP, LMP2, GTDPRO, GTD):
+for cid, (lo, hi) in comp.items():
     if cid in main_by_class:
-        req('PUT', f'/roster-rules/{main_by_class[cid]}', {'minPicks': 1, 'maxPicks': 1})
+        req('PUT', f'/roster-rules/{main_by_class[cid]}', {'minPicks': lo, 'maxPicks': hi})
     else:
         req('POST', '/roster-rules', {'seasonId': SEASON, 'classId': cid, 'slotType': 'Main',
-                                      'minPicks': 1, 'maxPicks': 1})
+                                      'minPicks': lo, 'maxPicks': hi})
 
 # --- modifier rules (ADR-0006): free per-round bonuses, one of each per roster ---
 # This is the WeatherTech (team-based) season → Double Points Team. CAPTAIN is a driver-based-series
@@ -99,6 +101,11 @@ def add_car(cid, number, team, price, drivers):
         req('POST', '/entry-drivers', {'carEntryId': car['id'], 'driverId': drv['id']})
         prices.append({'entityType': 'Driver', 'entityId': drv['id'], 'classId': cid, 'price': dprice})
 
+
+# GTP is a running class with a Main rule, so the board needs GTP entries for a complete lineup.
+add_car(GTP, '7', 'Porsche Penske', 30.0, [('Felipe Nasr', 7.0), ('Nick Tandy', 6.5)])
+add_car(GTP, '6', 'Porsche Penske', 29.0, [('Mathieu Jaminet', 6.5), ('Matt Campbell', 6.0)])
+add_car(GTP, '25', 'BMW M Team RLL', 27.0, [('Connor De Phillippi', 5.5), ('Sheldon van der Linde', 6.0)])
 
 add_car(LMP2, '04', 'CrowdStrike Tower', 18.0, [('Ben Keating', 5.5), ('Nico Pino', 4.0)])
 add_car(LMP2, '22', 'United Autosports', 17.0, [('Bijoy Garg', 3.5), ('Paul di Resta', 6.0)])
