@@ -1,0 +1,87 @@
+# ───────────────────────────── OS ─────────────────────────────
+.DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+Thumbs.db
+ehthumbs.db
+
+# ──────────────────────────── Editors ─────────────────────────
+.idea/
+.vs/
+*.suo
+*.user
+*.swp
+*.swo
+*~
+# VS Code: keep shared settings, ignore local noise
+.vscode/*
+!.vscode/settings.json
+!.vscode/launch.json
+!.vscode/extensions.json
+!.vscode/tasks.json
+
+# ──────────────────────── .NET / C# (apps/api) ────────────────
+bin/
+obj/
+[Dd]ebug/
+[Rr]elease/
+*.user
+*.userosscache
+*.suo
+project.lock.json
+artifacts/
+.vs/
+
+# EF Core / local dev secrets — never commit these
+**/appsettings.*.local.json
+secrets.json
+
+# ──────────────────────── Node / Vite (apps/web) ──────────────
+node_modules/
+dist/
+dist-ssr/
+.vite/
+*.local
+
+# Build / coverage output
+coverage/
+*.tsbuildinfo
+
+# ───────────────────────────── Python ─────────────────────────
+__pycache__/
+*.py[cod]
+*$py.class
+.venv/
+venv/
+env/
+.mypy_cache/
+.pytest_cache/
+.ruff_cache/
+
+# ──────────────────────── Env / secrets ───────────────────────
+.env
+.env.*
+!.env.example
+*.pem
+*.key
+*.pfx
+*.p12
+
+# ──────────────────────── Claude Code ─────────────────────────
+# Keep shared .claude/settings.json; ignore personal/local config
+.claude/settings.local.json
+.claude/*.local.json
+
+# ──────────────────────── Design handoff ─────────────────────
+# Design-tool export (mockups) — kept local only, not in the repo.
+docs/handoff/
+docs/*-handoff.zip
+
+# ───────────────────────────── Logs ───────────────────────────
+*.log
+npm-debug.log*
+pnpm-debug.log*
+yarn-debug.log*
+yarn-error.log*

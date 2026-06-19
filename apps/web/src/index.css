@@ -1,0 +1,69 @@
+@import 'tailwindcss';
+
+/*
+ * IMSA Fantasy design tokens (from the handoff designs).
+ * Tailwind v4 turns each token into utilities, e.g. --color-surface → bg-surface / text-surface,
+ * --font-display → font-display. The class-color tokens (gtp/lmp2/gtdpro/gtd) are load-bearing —
+ * they encode each racing class's identity across the whole app.
+ */
+@theme {
+  --font-sans: 'Saira', sans-serif;
+  --font-display: 'Saira Condensed', sans-serif;
+  --font-mono: 'Spline Sans Mono', monospace;
+
+  /* surfaces & lines (near-black broadcast palette) */
+  --color-bg: #0a0b0d;
+  --color-surface: #101317;
+  --color-surface-2: #16181c;
+  --color-surface-3: #0e0f12;
+  --color-line: #1f242a;
+  --color-line-2: #2a2d33;
+  --color-line-3: #3a3f47;
+
+  /* text */
+  --color-ink: #ffffff;
+  --color-ink-2: #c8ccd2;
+  --color-muted: #8a8f98;
+  --color-muted-2: #5c626b;
+
+  /* brand (IMSA red) */
+  --color-brand: #e10600;
+  --color-brand-2: #ff2d2d;
+  --color-brand-3: #ff5d5d;
+
+  /* racing classes */
+  --color-gtp: #ff2d2d;
+  --color-lmp2: #2e7dff;
+  --color-lmp2-2: #6ba4ff;
+  --color-gtdpro: #ffb400;
+  --color-gtdpro-2: #ffc23d;
+  --color-gtd: #4ade80;
+
+  /* status */
+  --color-success: #4ade80;
+  --color-warn: #ffc23d;
+  --color-danger: #ff5d5d;
+}
+
+html,
+body,
+#root {
+  min-height: 100vh;
+}
+
+body {
+  margin: 0;
+  background: var(--color-bg);
+  color: var(--color-ink);
+  font-family: var(--font-sans);
+}
+
+@keyframes blink {
+  0%,
+  100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.35;
+  }
+}
