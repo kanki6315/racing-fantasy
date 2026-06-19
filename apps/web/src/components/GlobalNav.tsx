@@ -7,7 +7,6 @@ const links = [
   { to: '/', label: 'Home', end: true },
   { to: '/standings', label: 'Standings' },
   { to: '/stats', label: 'Stats' },
-  { to: '/calendar', label: 'Calendar' },
 ]
 
 function initials(me: Me): string {
