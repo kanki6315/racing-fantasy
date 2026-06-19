@@ -6,12 +6,21 @@ import { Leaderboard } from '../components/Leaderboard'
 import { RegisterModal } from '../components/RegisterModal'
 import { ErrorBox, SkeletonTable } from './LeagueStandings'
 import { useAuth } from '../auth/AuthContext'
-import { useActiveSeason, useSeasonLeaderboard } from '../api/queries'
+import { useActiveSeason, useSeasonLeaderboard, useRounds } from '../api/queries'
+import { useCountdown } from '../lib/useCountdown'
+import type { components } from '../api/schema'
+
+type Round = components['schemas']['RoundDto']
 
 const statusStyle: Record<string, string> = {
   'PICKS OPEN': 'text-ink bg-brand',
-  'OPENS SOON': 'text-ink-2 bg-line',
-  SCHEDULED: 'text-muted bg-surface-2',
+  UPCOMING: 'text-ink-2 bg-line',
+  LOCKED: 'text-muted bg-surface-2',
+}
+
+/** "Jun 28" from an ISO date. */
+function fmtDate(iso: string) {
+  return new Date(iso).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })
 }
 
 /**
@@ -20,11 +29,29 @@ const statusStyle: Record<string, string> = {
  * the registration call-out + team-name modal appear (the front of F2).
  */
 export function Landing() {
-  const { nextRound, calendar } = demoStats
   const { isAuthenticated, user, loginWithGoogle } = useAuth()
   const { data: active } = useActiveSeason()
   const navigate = useNavigate()
   const [modalOpen, setModalOpen] = useState(false)
+
+  // Season calendar + hero — live from the API (rounds for the active season, ordered by sequence).
+  const roundsQ = useRounds(active?.season.id)
+  const rounds = [...(roundsQ.data ?? [])].sort((a, b) => a.sequence - b.sequence)
+  const now = Date.now()
+  const nextRound = rounds
+    .filter((r) => new Date(r.qualiStart).getTime() > now)
+    .sort((a, b) => +new Date(a.qualiStart) - +new Date(b.qualiStart))[0]
+  const nextRoundId = nextRound?.id
+
+  // Hero "next round" — the soonest upcoming round + its live lock countdown.
+  const heroCd = useCountdown(nextRound?.qualiStart)
+  const heroBadge = nextRound
+    ? `RD ${String(nextRound.sequence).padStart(2, '0')} — ${(active?.championship.name ?? '').toUpperCase()}`
+    : '// SEASON'
+  const heroTitle = nextRound?.name ?? (rounds.length ? 'Season complete' : 'Schedule coming soon')
+  const heroWhere = nextRound
+    ? [nextRound.circuit, fmtDate(nextRound.startsAt ?? nextRound.qualiStart)].filter(Boolean).join(' · ')
+    : ''
 
   const registration =
     active && user ? (user.registrations.find((r) => r.seasonId === active.season.id) ?? null) : null
@@ -77,21 +104,15 @@ export function Landing() {
         {/* hero — next round + lock countdown */}
         <div className="w-full border-b border-line bg-gradient-to-b from-surface-3 to-bg px-4 py-[26px] sm:px-7 lg:w-[420px] lg:shrink-0 lg:border-b-0 lg:border-r">
           <div className="mb-[14px] font-mono text-[11px] tracking-[0.14em] text-brand">// NEXT_ROUND</div>
-          <Demo>
-            <div className="mb-[6px] font-mono text-[12px] text-muted-2">{nextRound.badge}</div>
-          </Demo>
+          <div className="mb-[6px] font-mono text-[12px] text-muted-2">{heroBadge}</div>
           <h1 className="font-display text-[34px] font-extrabold italic uppercase leading-[0.92] text-ink sm:text-[40px]">
-            {nextRound.title}
+            {heroTitle}
           </h1>
-          <Demo>
-            <div className="mt-[10px] font-sans text-[14px] text-muted">{nextRound.where}</div>
-          </Demo>
+          {heroWhere && <div className="mt-[10px] font-sans text-[14px] text-muted">{heroWhere}</div>}
 
           <div className="mt-[22px] rounded-[3px] border border-line border-l-[3px] border-l-brand bg-black px-4 py-[14px]">
             <div className="mb-[7px] font-display text-[11px] tracking-[0.16em] text-muted-2">PICKS LOCK IN</div>
-            <Demo>
-              <div className="font-mono text-[34px] font-bold tracking-[0.02em] text-ink">{nextRound.lock}</div>
-            </Demo>
+            <div className="font-mono text-[34px] font-bold tracking-[0.02em] text-ink">{heroCd.text}</div>
           </div>
 
           <button
@@ -122,59 +143,29 @@ export function Landing() {
             <h2 className="font-display text-[22px] font-extrabold italic uppercase text-ink">Season Calendar</h2>
           </div>
           <div className="font-mono">
-            {calendar.map((r, i) => (
-              <Fragment key={r.round}>
-                {/* sm+ : grid row */}
-                <div
-                  className={`hidden grid-cols-[54px_1fr_130px_120px_110px] items-center border-b border-line px-[26px] py-[13px] sm:grid ${
-                    i === 0 ? 'border-t border-t-line bg-brand/[0.07]' : ''
-                  }`}
-                >
-                  <span className={`text-[13px] font-bold ${i === 0 ? 'text-brand' : 'text-muted'}`}>{r.round}</span>
-                  <div>
-                    <div className="font-display text-[17px] font-bold uppercase text-ink">{r.name}</div>
-                    <div className="text-[11px] text-muted-2">{r.series}</div>
-                  </div>
-                  <span className="text-[13px] text-ink-2">{r.date}</span>
-                  <div>
-                    <span className={`rounded-[2px] px-[9px] py-[3px] font-display text-[11px] tracking-[0.06em] ${statusStyle[r.status]}`}>
-                      {r.status}
-                    </span>
-                  </div>
-                  <Demo>
-                    <span className={`text-right text-[12px] ${i === 0 ? 'text-brand' : 'text-muted-2'}`}>{r.lock}</span>
-                  </Demo>
-                </div>
-
-                {/* < sm : card */}
-                <div
-                  className={`flex flex-col gap-[7px] border-b border-line px-4 py-3 sm:hidden ${
-                    i === 0 ? 'border-t border-t-line bg-brand/[0.07]' : ''
-                  }`}
-                >
-                  <div className="flex items-start gap-3">
-                    <span className={`mt-[2px] text-[13px] font-bold ${i === 0 ? 'text-brand' : 'text-muted'}`}>{r.round}</span>
-                    <div className="min-w-0 flex-1">
-                      <div className="font-display text-[16px] font-bold uppercase text-ink">{r.name}</div>
-                      <div className="text-[11px] text-muted-2">{r.series}</div>
-                    </div>
-                    <span className={`shrink-0 rounded-[2px] px-[9px] py-[3px] font-display text-[11px] tracking-[0.06em] ${statusStyle[r.status]}`}>
-                      {r.status}
-                    </span>
-                  </div>
-                  <div className="flex items-center justify-between pl-[27px] text-[12px]">
-                    <span className="text-ink-2">{r.date}</span>
-                    <Demo>
-                      <span className={`${i === 0 ? 'text-brand' : 'text-muted-2'}`}>{r.lock}</span>
-                    </Demo>
-                  </div>
-                </div>
-              </Fragment>
-            ))}
+            {roundsQ.isLoading ? (
+              <div className="px-4 py-6 sm:px-[26px]">
+                <SkeletonTable />
+              </div>
+            ) : roundsQ.isError ? (
+              <div className="px-4 py-6 sm:px-[26px]">
+                <ErrorBox message="Couldn't load the schedule." />
+              </div>
+            ) : rounds.length === 0 ? (
+              <p className="px-4 py-6 text-[13px] text-muted-2 sm:px-[26px]">
+                The {active?.season.year ?? ''} schedule hasn't been published yet.
+              </p>
+            ) : (
+              rounds.map((r) => (
+                <CalendarRow
+                  key={r.id}
+                  round={r}
+                  isNext={r.id === nextRoundId}
+                  seriesName={active?.championship.name}
+                />
+              ))
+            )}
           </div>
-          <p className="px-4 py-4 text-[12px] text-muted-2 sm:px-[26px]">
-            Hero &amp; calendar are placeholder data; the championships bar above is live from the API.
-          </p>
         </div>
       </div>
 
@@ -182,6 +173,64 @@ export function Landing() {
 
       {active && <RegisterModal seasonId={active.season.id} open={modalOpen} onOpenChange={setModalOpen} />}
     </>
+  )
+}
+
+/**
+ * One season-calendar row (sm+ grid + mobile card). Owns its own lock countdown (client-side from
+ * quali_start), so status is live: LOCKED once quali passes, PICKS OPEN for the next round, else UPCOMING.
+ */
+function CalendarRow({ round, isNext, seriesName }: { round: Round; isNext: boolean; seriesName?: string }) {
+  const cd = useCountdown(round.qualiStart)
+  const status = cd.locked ? 'LOCKED' : isNext ? 'PICKS OPEN' : 'UPCOMING'
+  const hi = isNext && !cd.locked
+  const label = `R${String(round.sequence).padStart(2, '0')}`
+  const subtitle = round.circuit ?? seriesName ?? ''
+  const date = fmtDate(round.startsAt ?? round.qualiStart).toUpperCase()
+  const badge = (
+    <span className={`shrink-0 rounded-[2px] px-[9px] py-[3px] font-display text-[11px] tracking-[0.06em] ${statusStyle[status]}`}>
+      {status}
+    </span>
+  )
+
+  return (
+    <Fragment>
+      {/* sm+ : grid row */}
+      <div
+        className={`hidden grid-cols-[54px_1fr_130px_120px_110px] items-center border-b border-line px-[26px] py-[13px] sm:grid ${
+          hi ? 'border-t border-t-line bg-brand/[0.07]' : ''
+        }`}
+      >
+        <span className={`text-[13px] font-bold ${hi ? 'text-brand' : 'text-muted'}`}>{label}</span>
+        <div>
+          <div className="font-display text-[17px] font-bold uppercase text-ink">{round.name}</div>
+          <div className="text-[11px] text-muted-2">{subtitle}</div>
+        </div>
+        <span className="text-[13px] text-ink-2">{date}</span>
+        <div>{badge}</div>
+        <span className={`text-right text-[12px] ${hi ? 'text-brand' : 'text-muted-2'}`}>{cd.text}</span>
+      </div>
+
+      {/* < sm : card */}
+      <div
+        className={`flex flex-col gap-[7px] border-b border-line px-4 py-3 sm:hidden ${
+          hi ? 'border-t border-t-line bg-brand/[0.07]' : ''
+        }`}
+      >
+        <div className="flex items-start gap-3">
+          <span className={`mt-[2px] text-[13px] font-bold ${hi ? 'text-brand' : 'text-muted'}`}>{label}</span>
+          <div className="min-w-0 flex-1">
+            <div className="font-display text-[16px] font-bold uppercase text-ink">{round.name}</div>
+            <div className="text-[11px] text-muted-2">{subtitle}</div>
+          </div>
+          {badge}
+        </div>
+        <div className="flex items-center justify-between pl-[27px] text-[12px]">
+          <span className="text-ink-2">{date}</span>
+          <span className={`${hi ? 'text-brand' : 'text-muted-2'}`}>{cd.text}</span>
+        </div>
+      </div>
+    </Fragment>
   )
 }
 

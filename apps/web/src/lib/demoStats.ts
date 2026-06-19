@@ -23,20 +23,4 @@ export const demoStats = {
 
   // Admin Registrations summary tiles — no aggregate pick-set / league-count endpoints yet.
   registrations: { picksSetPct: 80, privateLeagues: 412 },
-
-  // Landing hero "next round" — until we read the real next round + client-side lock countdown (F2/F3).
-  nextRound: {
-    badge: 'RD 07 — WEATHERTECH',
-    title: 'Six Hours of The Glen',
-    where: 'Watkins Glen International · Jun 28',
-    lock: '07d 11h 51m',
-  },
-
-  // Landing season calendar rows.
-  calendar: [
-    { round: 'R07', name: 'Watkins Glen', series: 'WeatherTech · 6H', date: 'JUN 28', status: 'PICKS OPEN', lock: '7d 11h' },
-    { round: 'R05', name: 'Road America', series: 'MX-5 Cup · Sprint', date: 'JUL 12', status: 'OPENS SOON', lock: '14d' },
-    { round: 'R06', name: 'VIR', series: 'Carrera Cup · Pro / Pro-Am', date: 'JUL 19', status: 'OPENS SOON', lock: '21d' },
-    { round: 'R08', name: 'Mosport', series: 'WeatherTech · 2H40', date: 'AUG 09', status: 'SCHEDULED', lock: '42d' },
-  ],
 }
