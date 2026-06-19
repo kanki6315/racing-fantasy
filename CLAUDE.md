@@ -12,10 +12,13 @@ Standings run as a season-wide pool plus user-created public/private **leagues**
   schema, catalog CRUD + bulk import, economy/picks/lock, results ingestion, scoring engine,
   leaderboards. Plus **auth + data minimization** (ADR-0004), **authorization** (ownership + admin),
   and **leagues** (ADR-0005). **P6 (hardening) is the only deferred backend stage.**
-- **Frontend: F0–F4 complete; F5 (polish/ship) in progress.** Player core (landing, registration,
-  roster builder, scores/standings) and the **full admin console** (all 9 screens) are built and
-  browser-verified. F5 remaining: **image display** on player/admin surfaces, **mobile/responsive**,
-  loading/empty/error + a11y, and **production deploy**. (Image *upload* is done — see Images below.)
+- **Frontend: F0–F4 complete; F5 (polish/ship) — player UI shippable.** Player core (landing,
+  registration, roster builder, scores/standings) and the **full admin console** (all 9 screens) are
+  built and browser-verified. F5 is **done for every player page**: image display (liveries + driver
+  lineups via shared `EntityThumb`/`DriverLineup`), **mobile/responsive** (table card-reflow), and
+  **loading/empty/error + a11y** (global `:focus-visible` ring + `prefers-reduced-motion`, aria-labels,
+  semantic headings). F5 remaining: **admin responsive** (deferred — desktop-only) and **production
+  deploy**. (Image *upload* + display both done — see Images below.)
 - **Auth is live:** Google OAuth is configured and working; admin allowlist resolves real Google
   subjects. Dev-login remains the local shortcut.
 
@@ -168,11 +171,13 @@ pnpm build          # tsc typecheck + production build
 - **Catalog read access (done):** `GET` on championships / seasons / rounds / classes is **public**;
   their writes — and all of sessions / car-entries / drivers / entry-list / ingestion — remain Admin.
   The pick board reads the public `GET /rounds/{id}/prices` (carries display names + class).
-- **F5 in progress** — the **Pick page** image-display + responsive pass is **done** (shared
-  `EntityThumb` for liveries/headshots; mobile Lineup/Add-Picks toggle; `GlobalNav`/`ChampionshipStrip`
-  made responsive). Remaining for a shippable MVP: **image display + responsive** on the other player
-  screens (Dashboard, standings, Landing) and admin surfaces, loading/empty/error + a11y, and
-  **production deploy**.
+- **F5 in progress** — **all player pages are responsive** (Pick, Dashboard, Standings,
+  LeagueStandings, Landing, ComingSoon; shared `GlobalNav`/`ChampionshipStrip`/`Leaderboard`). Tables
+  use **card reflow** on mobile; Dashboard "Your Picks" reuses `EntityThumb` + `DriverLineup`. The
+  **loading/empty/error + a11y pass is done** for player screens (global `:focus-visible` ring +
+  `prefers-reduced-motion` in index.css; loading/error states on Pick/Dashboard/Landing; aria-labels +
+  semantic headings). Remaining for a shippable MVP: **admin responsive** (untouched — desktop-only for
+  now) and **production deploy**.
 - **Admin richer affordances (deferred):** ingestion has an *issues-list* preview (no interactive
   per-row match resolution); scoring has no *publish gate* (standings are live once scored). Both
   need new backend — see the F4 build note in [docs/frontend-roadmap.md](docs/frontend-roadmap.md).

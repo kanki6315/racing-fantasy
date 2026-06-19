@@ -2,8 +2,9 @@
 
 Design docs for a motorsports fantasy league focused on the IMSA series:
 multi-championship (WeatherTech, Pilot Challenge, MX-5 Cup, …), opt-in per
-championship, per-round salary-cap picks that lock at qualifying, and two-stream
-scoring (qualifying + race fastest-lap impact bonus).
+championship, per-round salary-cap picks that lock at qualifying, and scoring on
+**qualifying + race position** plus free per-round **roster-modifier** bonuses
+([ADR-0006](adr/0006-roster-modifiers.md)).
 
 ## Index
 
@@ -31,7 +32,8 @@ Users register **per championship/season**, each with a per-round salary cap and
 class-based roster-composition rules. Picks freeze at a single **round-level
 `quali_start`**, enforced server-side in the same transaction that checks cap and
 composition. Scoring is a **versioned, data-driven, class-relative** engine that
-runs in **two phases** (MAIN from qualifying, IMPACT from race fastest lap) and
+scores **MAIN picks on qualifying + race position** (plus free per-round
+**roster-modifier** bonuses — [ADR-0006](adr/0006-roster-modifiers.md)) and
 **recomputes idempotently** from the constant stream of post-race corrections.
 
 ## Stack & hosting
@@ -53,6 +55,7 @@ Chosen 2026-06-16 (no separate ADR):
 ## Status
 
 All documents are **Accepted**. As of 2026-06-18: **backend P0–P5 complete** (P6 hardening deferred —
-[roadmap.md](roadmap.md)); **frontend F0–F4 complete, F5 (polish/ship) in progress** —
-[frontend-roadmap.md](frontend-roadmap.md). Remaining for a shippable MVP: image **display**,
-mobile/responsive, and production deploy. See [CLAUDE.md](../CLAUDE.md) for the live status + known gaps.
+[roadmap.md](roadmap.md)); **frontend F0–F4 complete; F5 (polish/ship) done for all player pages** —
+image display, mobile/responsive, and loading/empty/error + a11y — [frontend-roadmap.md](frontend-roadmap.md).
+Remaining for a shippable MVP: **admin responsive** (deferred) and **production deploy**. See
+[CLAUDE.md](../CLAUDE.md) for the live status + known gaps.

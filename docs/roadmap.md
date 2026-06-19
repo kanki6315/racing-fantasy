@@ -12,8 +12,10 @@ without ingested results, can't rank without scores.
 > unbuilt stage — see below). Note ADR-0006 superseded the IMPACT slot with free per-round **roster
 > modifiers** (P4's "IMPACT scoring" line is dormant; `RaceFastestLap` retained but unused). Frontend
 > F4/F5 work added small backend pieces beyond these phases — `isAdmin` on `/auth/me`, `.Produces<>`
-> response-DTO annotations across the admin endpoints, and **image upload** (presigned S3 PUT +
-> CloudFront); see [frontend-roadmap.md](frontend-roadmap.md) and CLAUDE.md.
+> response-DTO annotations across the admin endpoints, **image upload** (presigned S3 PUT + CloudFront,
+> keyed by `CarEntry.Id`), and the `GET /rounds/{id}/prices` `PriceItem` gaining each car's **driver
+> lineup + race number** (so the pick board shows who drives each team and orders by number); see
+> [frontend-roadmap.md](frontend-roadmap.md) and CLAUDE.md.
 
 ## Critical path
 
