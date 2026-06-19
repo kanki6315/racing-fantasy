@@ -43,7 +43,7 @@ presigned URLs the API signs with its keys) can write.
 ### 1. Bucket
 1. **S3 → Create bucket** → name `race-fantasy-images`, region `us-east-1`.
 2. **Block Public Access**: left **all four boxes checked**.
-3. Versioning enabled; default SSE-S3 encryption.
+3. Versioning **off**; default SSE-S3 encryption.
 
 ### 2. Writer IAM user
 1. **IAM → Users → Create user** → `my-app-writer`, **no** console access (programmatic only).

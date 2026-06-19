@@ -1,4 +1,4 @@
-import { NavLink } from 'react-router-dom'
+import { Link, NavLink } from 'react-router-dom'
 import { Logo } from './Logo'
 import { useAuth, type Me } from '../auth/AuthContext'
 import { useActiveSeason } from '../api/queries'
@@ -21,10 +21,14 @@ function initials(me: Me): string {
 const linkClass = (isActive: boolean, accent = false, compact = false) => {
   const idle = accent ? 'text-brand-3/70 hover:text-brand-3' : 'text-muted hover:text-ink-2'
   const active = accent ? 'text-brand-3' : 'text-ink'
-  // Desktop link sits in the tall h-16 bar, so the underline drops to the bar bottom via pb-[20px];
-  // the compact mobile row underlines right under the label.
-  const underline = compact ? 'border-b-2 border-brand pb-1' : 'border-b-2 border-brand pb-[20px]'
-  return `${isActive ? `${active} ${underline}` : `${idle} transition-colors`} shrink-0`
+  // Vertically center the label in the bar (so it lines up with the logo + auth controls) while
+  // keeping the underline a touch above the bar's bottom edge. The border is in BOTH states
+  // (transparent when idle) so the label never shifts when a link becomes active. Desktop: an h-11
+  // box centered in the h-16 bar puts the text mid-bar with the underline ~10px up; the compact
+  // mobile row fills its short height with the underline at the bottom.
+  const box = compact ? 'h-full' : 'h-11'
+  const border = isActive ? 'border-brand' : 'border-transparent'
+  return `${isActive ? active : `${idle} transition-colors`} flex items-center border-b-2 ${border} ${box} shrink-0`
 }
 
 /** Top bar: wordmark + section nav + auth (Google sign-in / dev-login / signed-in identity). */
@@ -66,18 +70,25 @@ export function GlobalNav() {
               <span className="font-mono text-[9px] tracking-[0.06em] text-warn">NOT REGISTERED</span>
             </span>
           )}
-          {/* name/email replaces the avatar on mobile; when not registered the pill takes the slot
-              instead (mobile has no room for both — the registration banner shows the name anyway) */}
-          <div className={`${notRegistered ? 'hidden sm:block' : 'block'} min-w-0 text-right leading-tight`}>
-            <div className="truncate font-sans text-[13px] font-semibold text-ink">
-              {user.name ?? user.registrations[0]?.teamName ?? 'Player'}
+          {/* the identity block is the way into the dashboard. name/email replaces the avatar on
+              mobile; when not registered the pill takes the slot instead (mobile has no room for both
+              — the registration banner shows the name anyway) */}
+          <Link
+            to="/dashboard"
+            aria-label="Go to your dashboard"
+            className="group flex min-w-0 items-center gap-2 sm:gap-3 cursor-pointer"
+          >
+            <div className={`${notRegistered ? 'hidden sm:block' : 'block'} min-w-0 text-right leading-tight`}>
+              <div className="truncate font-sans text-[13px] font-semibold text-ink transition-colors group-hover:text-brand-3">
+                {user.name ?? user.registrations[0]?.teamName ?? 'Player'}
+              </div>
+              <div className="truncate font-mono text-[10px] text-muted">{user.email}</div>
             </div>
-            <div className="truncate font-mono text-[10px] text-muted">{user.email}</div>
-          </div>
-          {/* initials avatar is desktop-only — the name/email replaces it on mobile */}
-          <div className="hidden h-9 w-9 shrink-0 items-center justify-center rounded-full bg-brand font-display text-[14px] font-bold text-ink sm:flex">
-            {initials(user)}
-          </div>
+            {/* initials avatar is desktop-only — the name/email replaces it on mobile */}
+            <div className="hidden h-9 w-9 shrink-0 items-center justify-center rounded-full bg-brand font-display text-[14px] font-bold text-ink ring-2 ring-transparent transition-shadow group-hover:ring-brand-3/40 sm:flex">
+              {initials(user)}
+            </div>
+          </Link>
           <button
             type="button"
             onClick={() => void logout()}
