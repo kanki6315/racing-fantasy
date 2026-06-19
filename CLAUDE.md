@@ -69,8 +69,9 @@ imsa-fantasy/                 ← monorepo root
   picks plus a **Bonuses** panel (Double Points Team wired); full Dashboard with leagues; standings/
   leaderboards; and the **admin console** at `/admin/*` — Overview, Catalog, Entries, Prices,
   Registrations, Users & Data, plus read-only Results/Score-review). Dev board seeded via
-  `apps/api/scripts/{seed,price}_dev_board.py`. Hosting target: Cloudflare Pages; API on Railway/Hetzner;
-  images on S3 + CloudFront.
+  `apps/api/scripts/{seed,price}_dev_board.py`. Hosting: web on S3 + CloudFront; API + Postgres on
+  Railway (Hobby); images on S3 + CloudFront. See [docs/infra/deploy.md](docs/infra/deploy.md) for the
+  deploy runbook (Phase-1 code prerequisites landed; infra steps pending).
 
 ## Run the backend locally
 

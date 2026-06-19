@@ -48,9 +48,9 @@ Chosen 2026-06-16 (no separate ADR):
 - **Data:** PostgreSQL. **Redis deferred** for the MVP (see the
   [data-model MVP note](data-model.md#derived-state-not-in-the-relational-model));
   reintroduce via **Upstash** serverless only if load requires it.
-- **Hosting target:** Railway or a Hetzner VPS for the API + worker + Postgres;
-  Cloudflare Pages (free) for the static React build. ~$5–20/mo at MVP scale,
-  scaling with usage rather than paying for idle capacity between race weekends.
+- **Hosting:** **Railway** (Hobby) for the API + Postgres; **S3 + CloudFront** for the static React
+  build (same AWS account as the image bucket). ~$8–14/mo at MVP scale, scaling with usage rather
+  than paying for idle capacity between race weekends. Full runbook: [infra/deploy.md](infra/deploy.md).
 
 ## Status
 

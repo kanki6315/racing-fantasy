@@ -101,13 +101,13 @@ each ends with an **OpenAPI regen** so the typed client stays in sync.
 
 | Concern | Choice | Why |
 |---|---|---|
-| Build/tooling | **Vite + React + TypeScript** | Decided in stack; fast, static output for Cloudflare Pages |
+| Build/tooling | **Vite + React + TypeScript** | Decided in stack; fast, static output for an S3 + CloudFront origin |
 | Server state | **TanStack Query** | Caching, mutations, invalidation — fits a read-heavy API with a few critical writes |
 | Routing | **React Router** | Standard; supports role-gated routes |
 | API client | **Generated from OpenAPI** (orval → typed React Query hooks, or openapi-typescript + openapi-fetch) | End-to-end types from the .NET DTOs; no drift |
 | Forms/validation | **react-hook-form + zod** | The roster builder and admin forms need real validation; mirror server rules for UX |
 | Styling/components | **Tailwind + a headless component lib** (shadcn/ui / Radix) *unless designs dictate otherwise* | Clean accessible defaults fast; easy to restyle to a design |
-| Hosting | **Cloudflare Pages** (free static) | Per stack plan |
+| Hosting | **S3 + CloudFront** (static) | Same AWS account as the image bucket; see [infra/deploy.md](infra/deploy.md) |
 
 ## Phases
 
@@ -115,7 +115,7 @@ each ends with an **OpenAPI regen** so the typed client stays in sync.
 **Goal:** the app builds, is typed against the API, and renders live data.
 - Scaffold `apps/web/` (Vite React TS) alongside `apps/api/` in the monorepo.
 - Wire Router, TanStack Query, the generated API client, env config (API base URL), base layout/nav.
-- Styling baseline + CI + Cloudflare Pages deploy.
+- Styling baseline + CI + static hosting deploy (S3 + CloudFront).
 - **Exit:** deployed shell that lists championships from the live API.
 
 ### F1 — Identity / auth *(gated on the auth decision)*
@@ -195,7 +195,8 @@ each ends with an **OpenAPI regen** so the typed client stays in sync.
   (Standings/LeagueStandings already had them); aria-labels (search, modal close, trend) + semantic
   headings. Modals use Radix Dialog (focus-trap/escape/aria).
 - ⬜ **Admin responsive** — deferred; the admin console is desktop-only for now (admins aren't on phones).
-- ⬜ **Production deploy** + API wiring + smoke test (Cloudflare Pages + API on Railway/Hetzner).
+- ⬜ **Production deploy** + API wiring + smoke test (web on S3 + CloudFront; API + Postgres on
+  Railway). Runbook + prerequisites done: [infra/deploy.md](infra/deploy.md).
 - **Exit:** a real user can play a round end-to-end on a phone. *(Met for the player loop; deploy is the
   last gate.)*
 
