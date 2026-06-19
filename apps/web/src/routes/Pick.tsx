@@ -136,6 +136,13 @@ export function Pick() {
   if (round.isLoading || rules.isLoading || prices.isLoading) {
     return <div className="py-32 text-center font-mono text-[12px] uppercase tracking-[0.12em] text-muted-2">Loading board…</div>
   }
+  if (round.isError || rules.isError || prices.isError) {
+    return (
+      <div className="mx-4 my-12 rounded-[4px] border border-danger/30 bg-danger/[0.06] px-5 py-12 text-center font-sans text-[13px] text-danger sm:mx-[26px]">
+        Couldn't load the selection board. Please refresh to try again.
+      </div>
+    )
+  }
   if (round.data && registration == null) {
     return (
       <div className="flex flex-col items-center gap-3 py-32 text-center">

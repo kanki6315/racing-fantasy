@@ -4,6 +4,7 @@ import { demoStats } from '../lib/demoStats'
 import { Demo } from '../components/Demo'
 import { Leaderboard } from '../components/Leaderboard'
 import { RegisterModal } from '../components/RegisterModal'
+import { ErrorBox, SkeletonTable } from './LeagueStandings'
 import { useAuth } from '../auth/AuthContext'
 import { useActiveSeason, useSeasonLeaderboard } from '../api/queries'
 
@@ -207,11 +208,17 @@ function GlobalLeaderboard({ seasonId, myRegistrationId }: { seasonId?: number; 
             Full standings →
           </Link>
         </div>
-        <Leaderboard
-          entries={top}
-          myRegistrationId={myRegistrationId}
-          emptyMessage="The global board opens once the first round is scored."
-        />
+        {lb.isLoading ? (
+          <SkeletonTable />
+        ) : lb.isError ? (
+          <ErrorBox message="Couldn't load the global board." />
+        ) : (
+          <Leaderboard
+            entries={top}
+            myRegistrationId={myRegistrationId}
+            emptyMessage="The global board opens once the first round is scored."
+          />
+        )}
       </div>
     </div>
   )

@@ -172,7 +172,11 @@ function RegistrationCard({ reg, champName }: { reg: Registration; champName: st
       </div>
 
       <div className="flex flex-1 flex-wrap items-center gap-2 p-[15px]">
-        {picks > 0 ? (
+        {rounds.isLoading || roster.isLoading ? (
+          <span className="font-sans text-[13px] text-muted-2">Loading lineup…</span>
+        ) : roster.isError ? (
+          <span className="font-sans text-[13px] text-danger">Couldn't load this lineup.</span>
+        ) : picks > 0 ? (
           (roster.data?.main ?? []).map((p) => {
             const pi = itemOf(p)
             const badge = bonusByPick.get(`${p.entityType}:${p.entityId}`)
