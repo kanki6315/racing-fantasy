@@ -392,10 +392,26 @@ function RoundForm({
   const [sequence, setSequence] = useState(String(round?.sequence ?? ''))
   const [salaryCap, setSalaryCap] = useState(String(round?.salaryCap ?? ''))
   const [qualiStart, setQualiStart] = useState(isoToLocalInput(round?.qualiStart))
+  const [startsAt, setStartsAt] = useState(isoToLocalInput(round?.startsAt))
+  const [endsAt, setEndsAt] = useState(isoToLocalInput(round?.endsAt))
   const [eventId, setEventId] = useState(round?.eventId != null ? String(round.eventId) : '')
   const create = useCreateRound()
   const update = useUpdateRound()
   const { data: events = [] } = useAdminEvents()
+
+  // Picking a shared event copies its weekend details (name/circuit/dates) into the form so the
+  // admin doesn't re-type them; the per-championship fields (quali lock, round #, cap) are left
+  // alone (ADR-0007). All copied fields stay editable. Clearing the event leaves them as-is.
+  const onEventChange = (value: string) => {
+    setEventId(value)
+    const ev = value ? events.find((e) => String(e.id) === value) : undefined
+    if (ev) {
+      setName(ev.name)
+      setCircuit(ev.circuit ?? '')
+      setStartsAt(isoToLocalInput(ev.startsAt))
+      setEndsAt(isoToLocalInput(ev.endsAt))
+    }
+  }
 
   const save = async () => {
     const body = {
@@ -404,8 +420,8 @@ function RoundForm({
       sequence: Number(sequence),
       salaryCap: Number(salaryCap),
       qualiStart: localInputToIso(qualiStart),
-      startsAt: round?.startsAt ?? null,
-      endsAt: round?.endsAt ?? null,
+      startsAt: startsAt ? localInputToIso(startsAt) : null,
+      endsAt: endsAt ? localInputToIso(endsAt) : null,
       eventId: eventId ? Number(eventId) : null,
     }
     if (round) await update.mutateAsync({ id: round.id, body })
@@ -423,6 +439,20 @@ function RoundForm({
         {round ? 'Edit Round' : 'New Round'}
       </h2>
       <div className="grid gap-4">
+        <Field
+          label="Shared Event"
+          hint="Optional. Pick a master event to auto-fill name, circuit, and weekend dates; you can still edit them. Links this round to other championships running the same weekend."
+        >
+          <Select value={eventId} onChange={(e) => onEventChange(e.target.value)}>
+            <option value="">— None (standalone) —</option>
+            {events.map((ev) => (
+              <option key={ev.id} value={ev.id}>
+                {ev.name}
+                {ev.circuit ? ` · ${ev.circuit}` : ''}
+              </option>
+            ))}
+          </Select>
+        </Field>
         <Field label="Name">
           <TextInput value={name} onChange={(e) => setName(e.target.value)} placeholder="Watkins Glen" />
         </Field>
@@ -437,23 +467,17 @@ function RoundForm({
             <TextInput value={salaryCap} onChange={(e) => setSalaryCap(e.target.value)} inputMode="decimal" placeholder="120" />
           </Field>
         </div>
-        <Field label="Qualifying Start (lock)" hint="Picks lock for all players when qualifying begins.">
+        <Field label="Qualifying Start (lock)" hint="Per championship — not copied from the event. Picks lock for all players when qualifying begins.">
           <TextInput type="datetime-local" value={qualiStart} onChange={(e) => setQualiStart(e.target.value)} />
         </Field>
-        <Field
-          label="Shared Event"
-          hint="Optional. Link this round to a shared race weekend so it groups with other championships running it."
-        >
-          <Select value={eventId} onChange={(e) => setEventId(e.target.value)}>
-            <option value="">— None (standalone) —</option>
-            {events.map((ev) => (
-              <option key={ev.id} value={ev.id}>
-                {ev.name}
-                {ev.circuit ? ` · ${ev.circuit}` : ''}
-              </option>
-            ))}
-          </Select>
-        </Field>
+        <div className="grid grid-cols-2 gap-3">
+          <Field label="Weekend Start">
+            <TextInput type="datetime-local" value={startsAt} onChange={(e) => setStartsAt(e.target.value)} />
+          </Field>
+          <Field label="Weekend End">
+            <TextInput type="datetime-local" value={endsAt} onChange={(e) => setEndsAt(e.target.value)} />
+          </Field>
+        </div>
         <div className="flex justify-end">
           <PrimaryButton onClick={save} disabled={!valid || create.isPending || update.isPending}>
             {round ? 'Save' : 'Create'}
