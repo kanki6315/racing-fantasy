@@ -5,12 +5,14 @@ import {
   useAllSeasons,
   useChampionships,
   useDiscoverLeagues,
+  useEvents,
   useJoinLeague,
   useLeagueLeaderboard,
   useMyLeagues,
   usePrices,
   useRoster,
   useRounds,
+  type EventDto,
   type League,
 } from '../api/queries'
 import { useCountdown } from '../lib/useCountdown'
@@ -28,8 +30,16 @@ export function Dashboard() {
   const champs = useChampionships()
   const seasons = useAllSeasons()
   const myLeagues = useMyLeagues()
+  const events = useEvents()
   const [createOpen, setCreateOpen] = useState(false)
   const [joinOpen, setJoinOpen] = useState(false)
+
+  // eventId → event, so a picks card can show the other championships sharing its weekend (ADR-0007).
+  const eventById = useMemo(() => {
+    const m = new Map<number, EventDto>()
+    for (const e of events.data ?? []) m.set(e.id, e)
+    return m
+  }, [events.data])
 
   const seasonInfo = useMemo(() => {
     return (seasonId: number) => {
@@ -93,7 +103,12 @@ export function Dashboard() {
 
         <div className="flex flex-col gap-3 px-4 py-[10px] sm:px-[26px]">
           {regs.map((r) => (
-            <RegistrationCard key={r.id} reg={r} champName={seasonInfo(r.seasonId).champName} />
+            <RegistrationCard
+              key={r.id}
+              reg={r}
+              champName={seasonInfo(r.seasonId).champName}
+              eventById={eventById}
+            />
           ))}
         </div>
 
@@ -138,12 +153,31 @@ function Row({ label, value, strong }: { label: string; value: number; strong?: 
 }
 
 // ---- Your-picks card (resolves round + roster + names) ----
-function RegistrationCard({ reg, champName }: { reg: Registration; champName: string }) {
+function RegistrationCard({
+  reg,
+  champName,
+  eventById,
+}: {
+  reg: Registration
+  champName: string
+  eventById: Map<number, EventDto>
+}) {
   const rounds = useRounds(reg.seasonId)
   const round = rounds.data?.[0]
   const roster = useRoster(reg.id, round?.id ?? 0)
   const prices = usePrices(round?.id ?? 0)
   const cd = useCountdown(round?.qualiStart)
+
+  // Shared weekend (ADR-0007): all series racing this round's event (this one highlighted). Only
+  // meaningful when more than one series shares the weekend.
+  const event = round?.eventId != null ? eventById.get(round.eventId) : undefined
+  const weekendSeries = event
+    ? [...new Set(event.rounds.map((er) => er.championshipName))].map((name) => ({
+        name,
+        isActive: name === champName,
+      }))
+    : []
+  const sharedWeekend = weekendSeries.length > 1
 
   const locked = cd.locked || roster.data?.locked === true
   const picks = roster.data ? roster.data.main.length : 0
@@ -159,7 +193,8 @@ function RegistrationCard({ reg, champName }: { reg: Registration; champName: st
     if (m.target) bonusByPick.set(`${m.target.entityType}:${m.target.entityId}`, bonusLabel[m.kind] ?? '★')
 
   return (
-    <div className="flex flex-col items-stretch overflow-hidden rounded-[4px] border border-line border-l-[3px] border-l-brand bg-surface sm:flex-row">
+    <div className="overflow-hidden rounded-[4px] border border-line border-l-[3px] border-l-brand bg-surface">
+     <div className="flex flex-col items-stretch sm:flex-row">
       <div className="flex-none border-b border-line p-[15px] sm:w-[188px] sm:border-b-0 sm:border-r">
         <div className="flex items-start gap-2">
           <span className="mt-1 h-[18px] w-[5px] flex-none bg-brand [transform:skewX(-14deg)]" />
@@ -224,6 +259,26 @@ function RegistrationCard({ reg, champName }: { reg: Registration; champName: st
           </Link>
         )}
       </div>
+     </div>
+
+      {/* Shared-weekend strip: every series racing this event, this one highlighted (ADR-0007). */}
+      {sharedWeekend && (
+        <div className="flex flex-wrap items-center gap-x-2 gap-y-1 border-t border-line bg-surface-2/40 px-[15px] py-[9px]">
+          <span className="font-display text-[10px] tracking-[0.1em] uppercase text-muted-2">
+            {event?.name ?? 'This weekend'}
+          </span>
+          {weekendSeries.map((s) => (
+            <span
+              key={s.name}
+              className={`rounded-[2px] border px-[7px] py-[2px] font-sans text-[11px] ${
+                s.isActive ? 'border-brand/50 bg-brand/10 text-brand-3' : 'border-line-2 bg-surface-3 text-ink-2'
+              }`}
+            >
+              {s.name}
+            </span>
+          ))}
+        </div>
+      )}
     </div>
   )
 }

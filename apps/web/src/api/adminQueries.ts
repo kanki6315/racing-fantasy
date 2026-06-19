@@ -12,6 +12,7 @@ export type Championship = components['schemas']['ChampionshipDto']
 export type Season = components['schemas']['SeasonDto']
 export type ClassDto = components['schemas']['ClassDto']
 export type RoundDto = components['schemas']['RoundDto']
+export type EventDto = components['schemas']['EventDto']
 export type SessionDto = components['schemas']['SessionDto']
 export type CarEntryDto = components['schemas']['CarEntryDto']
 export type DriverDto = components['schemas']['DriverDto']
@@ -175,6 +176,54 @@ export function useUpdateRound() {
       return data!
     },
     onSuccess: () => invalidate(qc, ['admin', 'rounds']),
+  })
+}
+
+// ---- Events (shared weekends, ADR-0007) ----
+export function useAdminEvents() {
+  return useQuery({
+    queryKey: ['admin', 'events'] as const,
+    queryFn: async () => {
+      const { data, error } = await api.GET('/events')
+      if (error) throw error
+      return data ?? []
+    },
+  })
+}
+
+export function useCreateEvent() {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: async (body: components['schemas']['CreateEvent']) => {
+      const { data, error } = await api.POST('/events', { body })
+      if (error) throw error
+      return data!
+    },
+    onSuccess: () => invalidate(qc, ['admin', 'events']),
+  })
+}
+
+export function useUpdateEvent() {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: async ({ id, body }: { id: number; body: components['schemas']['UpdateEvent'] }) => {
+      const { data, error } = await api.PUT('/events/{id}', { params: { path: { id } }, body })
+      if (error) throw error
+      return data!
+    },
+    // A round may have changed event attachment elsewhere; refresh rounds too.
+    onSuccess: () => invalidate(qc, ['admin', 'events'], ['admin', 'rounds']),
+  })
+}
+
+export function useDeleteEvent() {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: async (id: number) => {
+      const { error } = await api.DELETE('/events/{id}', { params: { path: { id } } })
+      if (error) throw error
+    },
+    onSuccess: () => invalidate(qc, ['admin', 'events']),
   })
 }
 

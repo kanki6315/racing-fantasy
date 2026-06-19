@@ -48,6 +48,7 @@ erDiagram
     CHAMPIONSHIP ||--o{ SEASON : "has"
     CHAMPIONSHIP ||--o{ CLASS : "defines"
     SEASON ||--o{ ROUND : "has"
+    EVENT  ||--o{ ROUND : "shared weekend (opt-in)"
     SEASON ||--o{ CAR_ENTRY : "fields"
     SEASON ||--o{ REGISTRATION : "enrolls"
     SEASON ||--o{ ROSTER_RULE : "constrains"
@@ -117,11 +118,25 @@ erDiagram
 > Classes are modeled per championship (stable across its seasons). If a
 > championship restructures classes between years, version via a new `class` row.
 
+**`event`** — a physical race weekend shared across championships (ADR-0007)
+| col | type | notes |
+|---|---|---|
+| id | bigint PK | |
+| name | text | e.g. "Rolex 24 At Daytona" |
+| circuit | text | |
+| starts_at / ends_at | timestamptz | the weekend bounds |
+
+> A top-level calendar entity (not under championship/season): it spans them. Championships
+> **opt in** by attaching a `round` (`round.event_id`), each with its own `quali_start`. Backs the
+> cross-championship calendar with no client-side dedup. `name`/`circuit`/dates are **also kept on
+> `round`** as a display cache so `RoundDto` stays flat for existing consumers (ADR-0007 D3).
+
 **`round`** — a race weekend/event
 | col | type | notes |
 |---|---|---|
 | id | bigint PK | |
 | season_id | bigint FK → season | |
+| **event_id** | bigint FK → event | **nullable** — the shared weekend this round opts into (ADR-0007); NULL = standalone |
 | name | text | e.g. "Rolex 24 At Daytona" |
 | circuit | text | |
 | sequence | int | UNIQUE(season_id, sequence) — order in season |

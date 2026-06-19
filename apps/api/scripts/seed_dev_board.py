@@ -28,7 +28,9 @@ def req(method, path, body=None, query=None):
             return resp.status, (json.loads(t) if t else None)
     except urllib.error.HTTPError as e:
         t = e.read().decode()
-        return e.code, (json.loads(t) if t[:1] in '{[' else t)
+        # NB: `t[:1] in '{['` is True for an empty body ('' is a substring of any str),
+        # which would json.loads('') and crash on empty error responses (e.g. a 409 on re-run).
+        return e.code, (json.loads(t) if t[:1] in ('{', '[') else t)
 
 
 req('POST', '/auth/dev-login', query={'subject': 'dev-admin'})  # admin session
@@ -106,10 +108,19 @@ add_car(GTD, '120', 'Vasser Sullivan', 11.5, [('Aaron Telitz', 3.0), ('Frankie M
 s, res = req('POST', f'/rounds/{ROUND}/prices', {'prices': prices})
 print(f'prices upsert ({s}): {res}')
 
-# --- cap to $120M ---
+# --- shared event (ADR-0007): the physical weekend round 1 opts into. Idempotent by name. ---
+_, events = req('GET', '/events')
+event = next((e for e in (events or []) if e['name'] == 'Rolex 24 At Daytona'), None)
+if event is None:
+    _, event = req('POST', '/events', {'name': 'Rolex 24 At Daytona',
+                                       'circuit': 'Daytona International Speedway',
+                                       'startsAt': None, 'endsAt': None})
+EVENT_ID = event['id']
+
+# --- cap to $120M + link round 1 to the Daytona event ---
 _, rnd = req('GET', f'/rounds/{ROUND}')
 req('PUT', f'/rounds/{ROUND}', {'name': rnd['name'], 'circuit': rnd['circuit'],
                                 'sequence': rnd['sequence'], 'qualiStart': rnd['qualiStart'],
                                 'startsAt': rnd['startsAt'], 'endsAt': rnd['endsAt'],
-                                'salaryCap': 120})
+                                'salaryCap': 120, 'eventId': EVENT_ID})
 print('seed complete')

@@ -32,11 +32,28 @@ public class Class
     public Championship Championship { get; set; } = null!;
 }
 
+/// <summary>
+/// A physical race weekend shared across championships (ADR-0007). Carries the shared weekend
+/// identity; championships opt in by attaching a <see cref="Round"/> (each with its own quali time).
+/// </summary>
+public class Event
+{
+    public long Id { get; set; }
+    public required string Name { get; set; }
+    public string? Circuit { get; set; }
+    public DateTime? StartsAt { get; set; }
+    public DateTime? EndsAt { get; set; }
+
+    public ICollection<Round> Rounds { get; set; } = new List<Round>();
+}
+
 /// <summary>A race weekend / event. <see cref="QualiStart"/> is THE lock boundary (ADR-0002).</summary>
 public class Round
 {
     public long Id { get; set; }
     public long SeasonId { get; set; }
+    /// <summary>Optional shared weekend this round opts into (ADR-0007); null = standalone.</summary>
+    public long? EventId { get; set; }
     public required string Name { get; set; }
     public string? Circuit { get; set; }
     public int Sequence { get; set; }
@@ -50,6 +67,7 @@ public class Round
     public decimal SalaryCap { get; set; }
 
     public Season Season { get; set; } = null!;
+    public Event? Event { get; set; }
     public ICollection<Session> Sessions { get; set; } = new List<Session>();
 }
 

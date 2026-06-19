@@ -75,6 +75,21 @@ export function useAllSeasons() {
   })
 }
 
+// ---- Events (shared weekends, ADR-0007) ----
+export type EventDto = components['schemas']['EventDto']
+
+/** All shared race weekends, each carrying the championships (rounds) opted into it. Public. */
+export function useEvents() {
+  return useQuery({
+    queryKey: ['events'],
+    queryFn: async () => {
+      const { data, error } = await api.GET('/events')
+      if (error) throw error
+      return data ?? []
+    },
+  })
+}
+
 // ---- Standings / leaderboards (F3) ----
 export type LeaderboardEntry = components['schemas']['LeaderboardEntry']
 export type SeasonLeaderboard = components['schemas']['SeasonLeaderboardResponse']

@@ -85,6 +85,7 @@ app.MapAuthEndpoints();
 app.MapChampionshipEndpoints();
 app.MapSeasonEndpoints();
 app.MapClassEndpoints();
+app.MapEventEndpoints();
 app.MapRoundEndpoints();
 app.MapSessionEndpoints();
 app.MapDriverEndpoints();
