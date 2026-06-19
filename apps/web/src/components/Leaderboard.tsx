@@ -38,34 +38,69 @@ export function Leaderboard({
 
   return (
     <div className="overflow-hidden rounded-[4px] border border-line bg-surface">
-      <div className={`grid ${cols} items-center border-b border-line bg-surface-3 px-[18px] py-[10px] font-display text-[11px] tracking-[0.1em] uppercase text-muted-2`}>
-        <span>#</span>
-        <span>Team</span>
-        {showName && <span>Player</span>}
-        <span className="text-right">Points</span>
-        <span className="text-right">Rounds</span>
+      {/* sm+ : the full grid table */}
+      <div className="hidden sm:block">
+        <div className={`grid ${cols} items-center border-b border-line bg-surface-3 px-[18px] py-[10px] font-display text-[11px] tracking-[0.1em] uppercase text-muted-2`}>
+          <span>#</span>
+          <span>Team</span>
+          {showName && <span>Player</span>}
+          <span className="text-right">Points</span>
+          <span className="text-right">Rounds</span>
+        </div>
+        {entries.map((e) => {
+          const mine = myRegistrationId != null && e.registrationId === myRegistrationId
+          return (
+            <div
+              key={e.registrationId}
+              className={`grid ${cols} items-center border-b border-surface-2 px-[18px] py-[13px] ${
+                mine ? 'border-l-[3px] border-l-brand bg-brand/[0.06]' : ''
+              }`}
+            >
+              <span className={`font-mono text-[16px] font-bold ${rankColor(e.rank)}`}>{e.rank}</span>
+              <span className="flex items-center gap-2 truncate font-display text-[15px] font-bold uppercase tracking-[0.02em] text-ink">
+                <span className={`h-[15px] w-[4px] flex-none [transform:skewX(-14deg)] ${mine ? 'bg-brand' : 'bg-line-3'}`} />
+                <span className="truncate">{e.teamName}</span>
+                {mine && <span className="flex-none rounded-[2px] bg-brand px-[6px] py-[1px] font-mono text-[9px] tracking-[0.08em] text-ink">YOU</span>}
+              </span>
+              {showName && <span className="truncate font-sans text-[12px] text-muted">{e.name ?? '—'}</span>}
+              <span className="text-right font-mono text-[15px] font-semibold text-ink">{e.points.toFixed(1)}</span>
+              <span className="text-right font-mono text-[12px] text-muted-2">{e.roundsScored}</span>
+            </div>
+          )
+        })}
       </div>
-      {entries.map((e) => {
-        const mine = myRegistrationId != null && e.registrationId === myRegistrationId
-        return (
-          <div
-            key={e.registrationId}
-            className={`grid ${cols} items-center border-b border-surface-2 px-[18px] py-[13px] ${
-              mine ? 'border-l-[3px] border-l-brand bg-brand/[0.06]' : ''
-            }`}
-          >
-            <span className={`font-mono text-[16px] font-bold ${rankColor(e.rank)}`}>{e.rank}</span>
-            <span className="flex items-center gap-2 truncate font-display text-[15px] font-bold uppercase tracking-[0.02em] text-ink">
-              <span className={`h-[15px] w-[4px] flex-none [transform:skewX(-14deg)] ${mine ? 'bg-brand' : 'bg-line-3'}`} />
-              <span className="truncate">{e.teamName}</span>
-              {mine && <span className="flex-none rounded-[2px] bg-brand px-[6px] py-[1px] font-mono text-[9px] tracking-[0.08em] text-ink">YOU</span>}
-            </span>
-            {showName && <span className="truncate font-sans text-[12px] text-muted">{e.name ?? '—'}</span>}
-            <span className="text-right font-mono text-[15px] font-semibold text-ink">{e.points.toFixed(1)}</span>
-            <span className="text-right font-mono text-[12px] text-muted-2">{e.roundsScored}</span>
-          </div>
-        )
-      })}
+
+      {/* < sm : each entry reflows into a card (rank · team + meta · points) */}
+      <div className="sm:hidden">
+        {entries.map((e) => {
+          const mine = myRegistrationId != null && e.registrationId === myRegistrationId
+          return (
+            <div
+              key={e.registrationId}
+              className={`flex items-center gap-3 border-b border-surface-2 px-4 py-3 ${
+                mine ? 'border-l-[3px] border-l-brand bg-brand/[0.06]' : ''
+              }`}
+            >
+              <span className={`w-7 shrink-0 text-center font-mono text-[18px] font-bold ${rankColor(e.rank)}`}>{e.rank}</span>
+              <div className="min-w-0 flex-1">
+                <div className="flex items-center gap-2">
+                  <span className={`h-[14px] w-[4px] flex-none [transform:skewX(-14deg)] ${mine ? 'bg-brand' : 'bg-line-3'}`} />
+                  <span className="truncate font-display text-[15px] font-bold uppercase tracking-[0.02em] text-ink">{e.teamName}</span>
+                  {mine && <span className="flex-none rounded-[2px] bg-brand px-[6px] py-[1px] font-mono text-[9px] tracking-[0.08em] text-ink">YOU</span>}
+                </div>
+                <div className="mt-[3px] flex items-center gap-1.5 truncate font-mono text-[11px] text-muted-2">
+                  <span>{e.roundsScored} {e.roundsScored === 1 ? 'round' : 'rounds'}</span>
+                  {showName && e.name && <span className="truncate text-muted">· {e.name}</span>}
+                </div>
+              </div>
+              <div className="shrink-0 text-right">
+                <div className="font-mono text-[17px] font-bold leading-none text-ink">{e.points.toFixed(1)}</div>
+                <div className="mt-[3px] font-mono text-[9px] uppercase tracking-[0.1em] text-muted-2">pts</div>
+              </div>
+            </div>
+          )
+        })}
+      </div>
     </div>
   )
 }
