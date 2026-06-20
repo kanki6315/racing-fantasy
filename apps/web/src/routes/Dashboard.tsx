@@ -11,18 +11,27 @@ import {
   useMyLeagues,
   usePrices,
   useRoster,
-  useRounds,
-  type EventDto,
   type League,
 } from '../api/queries'
 import { useCountdown } from '../lib/useCountdown'
 import { mockTrend } from '../lib/demoStats'
 import { Demo } from '../components/Demo'
 import { CreateLeagueModal, JoinByCodeModal } from '../components/LeagueModals'
+import { RegisterModal } from '../components/RegisterModal'
 import { EntityThumb } from '../components/EntityThumb'
 import { DriverLineup } from '../components/DriverLineup'
 
 type Registration = Me['registrations'][number]
+
+type PickRound = { id: number; name: string; qualiStart: string }
+type PickRow = { reg: Registration; round: PickRound; champName: string; champOrder: number }
+type PickCard = {
+  eventId: number
+  eventName: string
+  eventCircuit: string | null
+  startsAt: string | null
+  rows: PickRow[]
+}
 
 /** The player home (F3): your-picks status per series + your leagues + discover. */
 export function Dashboard() {
@@ -33,13 +42,7 @@ export function Dashboard() {
   const events = useEvents()
   const [createOpen, setCreateOpen] = useState(false)
   const [joinOpen, setJoinOpen] = useState(false)
-
-  // eventId → event, so a picks card can show the other championships sharing its weekend (ADR-0007).
-  const eventById = useMemo(() => {
-    const m = new Map<number, EventDto>()
-    for (const e of events.data ?? []) m.set(e.id, e)
-    return m
-  }, [events.data])
+  const [joinSeasonId, setJoinSeasonId] = useState<number | null>(null)
 
   const seasonInfo = useMemo(() => {
     return (seasonId: number) => {
@@ -48,6 +51,50 @@ export function Dashboard() {
       return { champName: c?.name ?? 'Championship', year: s?.year }
     }
   }, [seasons.data, champs.data])
+
+  // Championships the user hasn't registered for → a "join" pill seeded to that champ's latest season.
+  const joinable = useMemo(() => {
+    const regList = user?.registrations ?? []
+    const allSeasons = seasons.data ?? []
+    const registeredChampIds = new Set(
+      regList.map((r) => allSeasons.find((s) => s.id === r.seasonId)?.championshipId),
+    )
+    return (champs.data ?? [])
+      .filter((c) => !registeredChampIds.has(c.id))
+      .map((c) => {
+        const season = allSeasons
+          .filter((s) => s.championshipId === c.id)
+          .sort((a, b) => b.year - a.year)[0]
+        return season ? { champId: c.id, name: c.name, seasonId: season.id, year: season.year } : null
+      })
+      .filter((x): x is { champId: number; name: string; seasonId: number; year: number } => x != null)
+  }, [user?.registrations, seasons.data, champs.data])
+
+  // Picks are grouped by the open event (ADR-0008 picksOpen): one card per released weekend, one row per
+  // championship the user is registered in for it. No open events → "no picks to be made" (off-season).
+  const picksCards = useMemo<PickCard[]>(() => {
+    const regList = user?.registrations ?? []
+    const cards: PickCard[] = []
+    for (const e of events.data ?? []) {
+      if (!e.picksOpen) continue
+      const rows: PickRow[] = []
+      for (const er of e.rounds) {
+        const reg = regList.find((r) => r.seasonId === er.seasonId)
+        if (!reg) continue
+        rows.push({
+          reg,
+          round: { id: er.roundId, name: er.roundName, qualiStart: er.qualiStart },
+          champName: er.championshipName,
+          champOrder: er.championshipOrder,
+        })
+      }
+      if (rows.length === 0) continue
+      rows.sort((a, b) => a.champOrder - b.champOrder)
+      cards.push({ eventId: e.id, eventName: e.name, eventCircuit: e.circuit, startsAt: e.startsAt, rows })
+    }
+    cards.sort((a, b) => (a.startsAt ?? '').localeCompare(b.startsAt ?? '') || a.eventName.localeCompare(b.eventName))
+    return cards
+  }, [user?.registrations, events.data])
 
   if (!user) return null
   const regs = user.registrations
@@ -63,17 +110,35 @@ export function Dashboard() {
           {regs.length} series · {leagues.length} leagues · {regs[0] ? seasonInfo(regs[0].seasonId).year : '—'}
         </div>
 
-        <div className="mb-[11px] font-display text-[11px] tracking-[0.12em] uppercase text-muted-2">Your Picks</div>
+        <div className="mb-[11px] font-display text-[11px] tracking-[0.12em] uppercase text-muted-2">Championships</div>
         <div className="flex flex-col gap-1">
-          {regs.map((r, i) => (
-            <div key={r.id} className={`flex items-center justify-between rounded-[3px] px-[13px] py-[10px] ${i === 0 ? 'border border-brand bg-surface-2' : ''}`}>
+          {regs.map((r) => (
+            <div key={r.id} className="flex items-center justify-between gap-2 rounded-[3px] border border-success/50 bg-success/[0.06] px-[13px] py-[10px]">
               <span className="flex items-center gap-2 font-display text-[13px] font-semibold uppercase tracking-[0.04em] text-ink">
                 <span className="h-[15px] w-[4px] flex-none bg-brand [transform:skewX(-14deg)]" />
                 {seasonInfo(r.seasonId).champName}
               </span>
+              <svg className="h-[15px] w-[15px] flex-none text-success" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round" aria-label="Signed up">
+                <path d="M5 13l4 4L19 7" />
+              </svg>
             </div>
           ))}
           {regs.length === 0 && <div className="font-sans text-[12px] text-muted">No series yet.</div>}
+          {joinable.map((j) => (
+            <button
+              key={j.champId}
+              onClick={() => setJoinSeasonId(j.seasonId)}
+              className="flex items-center justify-between gap-2 rounded-[3px] border border-dotted border-[#a855f7] bg-[#a855f7]/[0.06] px-[13px] py-[10px] text-left transition-colors hover:border-[#c084fc] hover:bg-[#a855f7]/[0.1] cursor-pointer"
+            >
+              <span className="flex items-center gap-2 font-display text-[13px] font-semibold uppercase tracking-[0.04em] text-ink-2">
+                <span className="h-[15px] w-[4px] flex-none bg-[#a855f7] [transform:skewX(-14deg)]" />
+                {j.name}
+              </span>
+              <span className="flex-none font-display text-[11px] font-bold uppercase tracking-[0.06em] text-[#c084fc]">
+                Sign Up
+              </span>
+            </button>
+          ))}
         </div>
 
         <div className="my-5 h-px bg-line" />
@@ -97,19 +162,16 @@ export function Dashboard() {
         <div className="flex flex-wrap items-center gap-x-[11px] gap-y-1 px-4 pb-1 pt-[22px] sm:px-[26px]">
           <h1 className="font-display text-[22px] font-extrabold italic uppercase text-ink">Your Picks</h1>
           <span className="hidden rounded-full border border-lmp2/35 bg-lmp2/10 px-[10px] py-[3px] font-sans text-[11px] text-lmp2-2 sm:inline-block">
-            One lineup per series — scored across all your leagues
+            One lineup per championship — scored across all your leagues
           </span>
         </div>
 
         <div className="flex flex-col gap-3 px-4 py-[10px] sm:px-[26px]">
-          {regs.map((r) => (
-            <RegistrationCard
-              key={r.id}
-              reg={r}
-              champName={seasonInfo(r.seasonId).champName}
-              eventById={eventById}
-            />
-          ))}
+          {picksCards.length === 0 ? (
+            <EmptyPicks />
+          ) : (
+            picksCards.map((card) => <PicksCard key={card.eventId} card={card} />)
+          )}
         </div>
 
         <div className="mx-4 mt-[22px] h-px bg-line sm:mx-[26px]" />
@@ -139,6 +201,9 @@ export function Dashboard() {
 
       {primarySeason != null && <CreateLeagueModal seasonId={primarySeason} open={createOpen} onOpenChange={setCreateOpen} />}
       <JoinByCodeModal open={joinOpen} onOpenChange={setJoinOpen} />
+      {joinSeasonId != null && (
+        <RegisterModal seasonId={joinSeasonId} open onOpenChange={(v) => { if (!v) setJoinSeasonId(null) }} />
+      )}
     </div>
   )
 }
@@ -152,32 +217,42 @@ function Row({ label, value, strong }: { label: string; value: number; strong?: 
   )
 }
 
-// ---- Your-picks card (resolves round + roster + names) ----
-function RegistrationCard({
-  reg,
-  champName,
-  eventById,
-}: {
-  reg: Registration
-  champName: string
-  eventById: Map<number, EventDto>
-}) {
-  const rounds = useRounds(reg.seasonId)
-  const round = rounds.data?.[0]
-  const roster = useRoster(reg.id, round?.id ?? 0)
-  const prices = usePrices(round?.id ?? 0)
-  const cd = useCountdown(round?.qualiStart)
+// ---- Empty state: no open event → nothing to pick (off-season). ----
+function EmptyPicks() {
+  return (
+    <div className="flex min-h-[150px] items-center justify-center rounded-[4px] border border-dashed border-line-2 bg-surface/30 px-6 py-14 text-center">
+      <span className="font-display text-[15px] font-semibold uppercase tracking-[0.1em] text-muted-2">
+        No picks to be made
+      </span>
+    </div>
+  )
+}
 
-  // Shared weekend (ADR-0007): all series racing this round's event (this one highlighted). Only
-  // meaningful when more than one series shares the weekend.
-  const event = round?.eventId != null ? eventById.get(round.eventId) : undefined
-  const weekendSeries = event
-    ? [...new Set(event.rounds.map((er) => er.championshipName))].map((name) => ({
-        name,
-        isActive: name === champName,
-      }))
-    : []
-  const sharedWeekend = weekendSeries.length > 1
+// ---- Your-picks card: one open event (ADR-0008), a row per championship the user is registered in. ----
+function PicksCard({ card }: { card: PickCard }) {
+  return (
+    <div className="overflow-hidden rounded-[4px] border border-line border-l-[3px] border-l-brand bg-surface">
+      <div className="flex flex-wrap items-center gap-x-3 gap-y-1 border-b border-line bg-surface-2/40 px-[15px] py-[10px]">
+        <span className="font-display text-[14px] font-bold uppercase tracking-[0.04em] text-ink">{card.eventName}</span>
+        {card.eventCircuit && <span className="font-sans text-[12px] text-muted">{card.eventCircuit}</span>}
+        <span className="ml-auto rounded-full border border-success/40 bg-success/10 px-[9px] py-[2px] font-mono text-[10px] uppercase tracking-[0.06em] text-success">
+          Picks Open
+        </span>
+      </div>
+      <div className="flex flex-col divide-y divide-line">
+        {card.rows.map((row) => (
+          <PicksRow key={row.reg.id} reg={row.reg} round={row.round} champName={row.champName} />
+        ))}
+      </div>
+    </div>
+  )
+}
+
+// ---- A single championship row within an event card (resolves roster + names for that round). ----
+function PicksRow({ reg, round, champName }: { reg: Registration; round: PickRound; champName: string }) {
+  const roster = useRoster(reg.id, round.id)
+  const prices = usePrices(round.id)
+  const cd = useCountdown(round.qualiStart)
 
   const locked = cd.locked || roster.data?.locked === true
   const picks = roster.data ? roster.data.main.length : 0
@@ -193,21 +268,24 @@ function RegistrationCard({
     if (m.target) bonusByPick.set(`${m.target.entityType}:${m.target.entityId}`, bonusLabel[m.kind] ?? '★')
 
   return (
-    <div className="overflow-hidden rounded-[4px] border border-line border-l-[3px] border-l-brand bg-surface">
-     <div className="flex flex-col items-stretch sm:flex-row">
+    <div className="flex flex-col items-stretch sm:flex-row">
       <div className="flex-none border-b border-line p-[15px] sm:w-[188px] sm:border-b-0 sm:border-r">
         <div className="flex items-start gap-2">
           <span className="mt-1 h-[18px] w-[5px] flex-none bg-brand [transform:skewX(-14deg)]" />
           <span className="font-display text-[17px] font-bold uppercase leading-tight text-ink">{champName}</span>
         </div>
-        <div className="mt-[7px] font-sans text-[12px] text-muted">{round ? round.name : '—'}</div>
+        <div className="mt-[7px] font-sans text-[12px] text-muted">{round.name}</div>
+        <div className="mt-[6px] flex items-center gap-1.5">
+          <span className="font-mono text-[9px] uppercase tracking-[0.1em] text-muted-2">Team</span>
+          <span className="truncate font-sans text-[12px] font-medium text-ink-2">{reg.teamName}</span>
+        </div>
         <div className={`mt-[9px] font-mono text-[11px] font-semibold ${status.c}`}>
           {locked ? 'LOCKED' : picks > 0 ? `LOCKS ${cd.text}` : 'NOT SET'}
         </div>
       </div>
 
       <div className="flex flex-1 flex-wrap items-center gap-2 p-[15px]">
-        {rounds.isLoading || roster.isLoading ? (
+        {roster.isLoading ? (
           <span className="font-sans text-[13px] text-muted-2">Loading lineup…</span>
         ) : roster.isError ? (
           <span className="font-sans text-[13px] text-danger">Couldn't load this lineup.</span>
@@ -220,7 +298,7 @@ function RegistrationCard({
                 <EntityThumb
                   entityType={p.entityType as 'Car' | 'Driver'}
                   entityId={p.entityId}
-                  roundId={round?.id ?? 0}
+                  roundId={round.id}
                   shape={p.entityType === 'Car' ? 'wide' : 'square'}
                   className="w-11"
                 />
@@ -243,42 +321,20 @@ function RegistrationCard({
             )
           })
         ) : (
-          <span className="font-sans text-[13px] text-muted">No picks yet for {round?.name ?? 'this round'}.</span>
+          <span className="font-sans text-[13px] text-muted">No picks yet for {round.name}.</span>
         )}
       </div>
 
       <div className="flex flex-none items-center border-t border-line p-[15px] sm:border-t-0">
-        {round && (
-          <Link
-            to={`/pick/${round.id}`}
-            className={`flex h-[38px] w-full items-center justify-center rounded-[3px] px-[18px] font-display text-[14px] font-semibold uppercase tracking-[0.04em] sm:w-auto ${
-              status.t === 'TO DO' ? 'bg-brand font-bold italic text-ink' : 'border border-line-2 text-ink-2'
-            }`}
-          >
-            {locked ? 'View Lineup' : picks > 0 ? 'Edit Picks' : 'Make Picks →'}
-          </Link>
-        )}
+        <Link
+          to={`/pick/${round.id}`}
+          className={`flex h-[38px] w-full items-center justify-center rounded-[3px] px-[18px] font-display text-[14px] font-semibold uppercase tracking-[0.04em] sm:w-auto ${
+            status.t === 'TO DO' ? 'bg-brand font-bold italic text-ink' : 'border border-line-2 text-ink-2'
+          }`}
+        >
+          {locked ? 'View Lineup' : picks > 0 ? 'Edit Picks' : 'Make Picks →'}
+        </Link>
       </div>
-     </div>
-
-      {/* Shared-weekend strip: every series racing this event, this one highlighted (ADR-0007). */}
-      {sharedWeekend && (
-        <div className="flex flex-wrap items-center gap-x-2 gap-y-1 border-t border-line bg-surface-2/40 px-[15px] py-[9px]">
-          <span className="font-display text-[10px] tracking-[0.1em] uppercase text-muted-2">
-            {event?.name ?? 'This weekend'}
-          </span>
-          {weekendSeries.map((s) => (
-            <span
-              key={s.name}
-              className={`rounded-[2px] border px-[7px] py-[2px] font-sans text-[11px] ${
-                s.isActive ? 'border-brand/50 bg-brand/10 text-brand-3' : 'border-line-2 bg-surface-3 text-ink-2'
-              }`}
-            >
-              {s.name}
-            </span>
-          ))}
-        </div>
-      )}
     </div>
   )
 }
