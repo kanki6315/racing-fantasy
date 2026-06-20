@@ -288,7 +288,8 @@ export function useRoster(registrationId: number | undefined, roundId: number) {
         params: { path: { registrationId: registrationId!, roundId } },
       })
       if (error) throw error
-      return data!
+      // 204 (no roster saved yet) → empty body. Return null, not undefined, or TanStack Query throws.
+      return data ?? null
     },
   })
 }
