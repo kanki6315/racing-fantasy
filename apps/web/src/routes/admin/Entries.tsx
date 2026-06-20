@@ -67,6 +67,7 @@ function CarEntriesTab({ seasonId }: { seasonId: number }) {
   const { data: cars = [] } = useCarEntries(seasonId, filterClass === 'all' ? undefined : filterClass)
   const { data: links = [] } = useEntryDrivers()
   const [sel, setSel] = useState<number | null>(null)
+  const [bulk, setBulk] = useState(false)
   const selected = cars.find((c) => c.id === sel) ?? null
 
   const driverCount = useMemo(() => {
@@ -76,7 +77,11 @@ function CarEntriesTab({ seasonId }: { seasonId: number }) {
   }, [links])
 
   return (
-    <div className="grid grid-cols-1 gap-5 lg:grid-cols-[1.55fr_1fr]">
+    <div className="grid gap-5">
+      {bulk && (
+        <CarEntryBulkGrid seasonId={seasonId} classes={classes} onClose={() => setBulk(false)} />
+      )}
+      <div className="grid grid-cols-1 gap-5 lg:grid-cols-[1.55fr_1fr]">
       <div className="rounded-[6px] border border-line bg-surface">
         <div className="flex flex-wrap items-center gap-2 border-b border-line px-4 py-3">
           <button
@@ -101,9 +106,17 @@ function CarEntriesTab({ seasonId }: { seasonId: number }) {
               {c.name}
             </button>
           ))}
-          <GhostButton onClick={() => setSel(null)} className="ml-auto">
-            + New
-          </GhostButton>
+          <div className="ml-auto flex items-center gap-2">
+            <GhostButton
+              onClick={() => {
+                setBulk((b) => !b)
+                setSel(null)
+              }}
+            >
+              Bulk add
+            </GhostButton>
+            <GhostButton onClick={() => setSel(null)}>+ New</GhostButton>
+          </div>
         </div>
         {cars.length === 0 ? (
           <div className="p-4">
@@ -138,6 +151,7 @@ function CarEntriesTab({ seasonId }: { seasonId: number }) {
         car={selected}
         onSaved={setSel}
       />
+      </div>
     </div>
   )
 }
@@ -253,6 +267,7 @@ function DriversTab() {
   const [search, setSearch] = useState('')
   const { data: drivers = [] } = useDrivers(search || undefined)
   const [editing, setEditing] = useState<DriverDto | 'new' | null>(null)
+  const [bulk, setBulk] = useState(false)
 
   return (
     <div className="grid gap-4">
@@ -263,9 +278,27 @@ function DriversTab() {
           placeholder="Search drivers…"
           className="w-64"
         />
-        <PrimaryButton onClick={() => setEditing('new')}>+ Add Driver</PrimaryButton>
+        <div className="flex items-center gap-2">
+          <GhostButton
+            onClick={() => {
+              setBulk((b) => !b)
+              setEditing(null)
+            }}
+          >
+            Bulk add
+          </GhostButton>
+          <PrimaryButton
+            onClick={() => {
+              setEditing('new')
+              setBulk(false)
+            }}
+          >
+            + Add Driver
+          </PrimaryButton>
+        </div>
       </div>
 
+      {bulk && <DriverBulkGrid onClose={() => setBulk(false)} />}
       {editing && <DriverForm driver={editing === 'new' ? null : editing} onClose={() => setEditing(null)} />}
 
       <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-4">
@@ -466,5 +499,295 @@ function LineupsTab({ seasonId }: { seasonId: number }) {
           </div>
         ))}
     </div>
+  )
+}
+
+// ===================== Bulk add =====================
+
+type BulkRowStatus = { ok: boolean; message?: string }
+type DriverRow = { fullName: string; country: string }
+type CarRow = { number: string; teamName: string }
+
+type BulkColumn<Row> = {
+  key: keyof Row & string
+  label: string
+  placeholder?: string
+  /** Tailwind width/flex class for the cell, e.g. 'w-24' or 'flex-1'. */
+  width?: string
+}
+
+/** Pulls a short message out of a thrown ProblemDetails-ish error. */
+function errMessage(reason: unknown): string {
+  if (reason && typeof reason === 'object') {
+    const p = reason as { detail?: string; title?: string }
+    return p.detail ?? p.title ?? 'Failed'
+  }
+  return 'Failed'
+}
+
+function summaryText(created: number, failed: number): string {
+  return `Created ${created}${failed ? ` · ${failed} failed` : ''}`
+}
+
+/** Turns settled mutation results into the next grid state: succeeded rows drop, failed rows stay with their error. */
+function collect<Row>(results: PromiseSettledResult<unknown>[], filled: Row[], blank: Row) {
+  let created = 0
+  const failedRows: Row[] = []
+  const status: Record<number, BulkRowStatus> = {}
+  results.forEach((res, idx) => {
+    if (res.status === 'fulfilled') created++
+    else {
+      status[failedRows.length] = { ok: false, message: errMessage(res.reason) }
+      failedRows.push(filled[idx])
+    }
+  })
+  return { rows: [...failedRows, { ...blank }], status, created, failed: failedRows.length }
+}
+
+/** Spreadsheet-style grid that always keeps one trailing blank row (no "add row" click needed). */
+function BulkGrid<Row extends Record<string, string>>({
+  columns,
+  rows,
+  onChange,
+  blank,
+  status,
+}: {
+  columns: BulkColumn<Row>[]
+  rows: Row[]
+  onChange: (rows: Row[]) => void
+  blank: Row
+  status?: Record<number, BulkRowStatus>
+}) {
+  const isBlank = (r: Row) => columns.every((c) => (r[c.key] ?? '').trim() === '')
+
+  const normalize = (next: Row[]): Row[] => {
+    const out = [...next]
+    while (out.length > 1 && isBlank(out[out.length - 1]) && isBlank(out[out.length - 2])) out.pop()
+    if (out.length === 0 || !isBlank(out[out.length - 1])) out.push({ ...blank })
+    return out
+  }
+
+  const setCell = (i: number, key: keyof Row, value: string) =>
+    onChange(normalize(rows.map((r, idx) => (idx === i ? { ...r, [key]: value } : r))))
+
+  const removeRow = (i: number) => onChange(normalize(rows.filter((_, idx) => idx !== i)))
+
+  return (
+    <div className="overflow-hidden rounded-[4px] border border-line">
+      <div className="flex items-center gap-2 border-b border-line bg-surface-2 px-3 py-2">
+        <span className="w-6 shrink-0" />
+        {columns.map((c) => (
+          <span
+            key={c.key}
+            className={`font-mono text-[9px] tracking-[0.12em] uppercase text-muted-2 ${c.width ?? 'flex-1'}`}
+          >
+            {c.label}
+          </span>
+        ))}
+        <span className="w-44 shrink-0" />
+      </div>
+      {rows.map((r, i) => {
+        const st = status?.[i]
+        const last = i === rows.length - 1
+        return (
+          <div key={i} className="flex items-center gap-2 border-b border-line px-3 py-[5px] last:border-b-0">
+            <span className="w-6 shrink-0 text-right font-mono text-[10px] text-muted-2">{i + 1}</span>
+            {columns.map((c) => (
+              <div key={c.key} className={c.width ?? 'flex-1'}>
+                <TextInput
+                  value={r[c.key]}
+                  onChange={(e) => setCell(i, c.key, e.target.value)}
+                  placeholder={c.placeholder}
+                  className="!h-8"
+                />
+              </div>
+            ))}
+            <div className="flex w-44 shrink-0 items-center justify-end gap-2">
+              {st && (
+                <span className={`font-mono text-[10px] ${st.ok ? 'text-success' : 'text-danger'}`}>
+                  {st.ok ? '✓ added' : st.message}
+                </span>
+              )}
+              {!isBlank(r) && !last && (
+                <button
+                  type="button"
+                  onClick={() => removeRow(i)}
+                  aria-label="Remove row"
+                  className="font-mono text-[14px] leading-none text-muted-2 hover:text-danger"
+                >
+                  ×
+                </button>
+              )}
+            </div>
+          </div>
+        )
+      })}
+    </div>
+  )
+}
+
+/** Shared panel chrome for a bulk-add grid: title, summary, and a Create N / Close footer. */
+function BulkPanel({
+  title,
+  count,
+  pending,
+  submitDisabled,
+  summary,
+  onSubmit,
+  onClose,
+  children,
+}: {
+  title: string
+  count: number
+  pending: boolean
+  submitDisabled?: boolean
+  summary: string | null
+  onSubmit: () => void
+  onClose: () => void
+  children: React.ReactNode
+}) {
+  return (
+    <div className="rounded-[6px] border border-line bg-surface p-4">
+      <div className="mb-3 flex items-center justify-between">
+        <h2 className="font-mono text-[10px] tracking-[0.14em] uppercase text-muted-2">{title}</h2>
+        {summary && <span className="font-mono text-[11px] text-muted">{summary}</span>}
+      </div>
+      {children}
+      <div className="mt-3 flex items-center justify-end gap-2">
+        <GhostButton onClick={onClose}>Close</GhostButton>
+        <PrimaryButton onClick={onSubmit} disabled={count === 0 || pending || submitDisabled}>
+          Create {count}
+        </PrimaryButton>
+      </div>
+    </div>
+  )
+}
+
+function DriverBulkGrid({ onClose }: { onClose: () => void }) {
+  const blank: DriverRow = { fullName: '', country: '' }
+  const [rows, setRows] = useState<DriverRow[]>([{ ...blank }])
+  const [status, setStatus] = useState<Record<number, BulkRowStatus>>({})
+  const [summary, setSummary] = useState<string | null>(null)
+  const create = useCreateDriver()
+
+  const filled = rows.filter((r) => r.fullName.trim() !== '')
+
+  const handleChange = (next: DriverRow[]) => {
+    setRows(next)
+    setStatus({})
+    setSummary(null)
+  }
+
+  const submit = async () => {
+    const results = await Promise.allSettled(
+      filled.map((r) => create.mutateAsync({ fullName: r.fullName.trim(), country: r.country.trim() || null })),
+    )
+    const c = collect(results, filled, blank)
+    setRows(c.rows)
+    setStatus(c.status)
+    setSummary(summaryText(c.created, c.failed))
+  }
+
+  return (
+    <BulkPanel
+      title="Bulk Add Drivers"
+      count={filled.length}
+      pending={create.isPending}
+      summary={summary}
+      onSubmit={submit}
+      onClose={onClose}
+    >
+      <BulkGrid
+        columns={[
+          { key: 'fullName', label: 'Full Name', placeholder: 'Felipe Nasr', width: 'flex-[2]' },
+          { key: 'country', label: 'Country', placeholder: 'BRA', width: 'w-28' },
+        ]}
+        rows={rows}
+        onChange={handleChange}
+        blank={blank}
+        status={status}
+      />
+    </BulkPanel>
+  )
+}
+
+function CarEntryBulkGrid({
+  seasonId,
+  classes,
+  onClose,
+}: {
+  seasonId: number
+  classes: { id: number; name: string; color?: string | null }[]
+  onClose: () => void
+}) {
+  const blank: CarRow = { number: '', teamName: '' }
+  const [rows, setRows] = useState<CarRow[]>([{ ...blank }])
+  const [classId, setClassId] = useState<number | ''>('')
+  const [status, setStatus] = useState<Record<number, BulkRowStatus>>({})
+  const [summary, setSummary] = useState<string | null>(null)
+  const create = useCreateCarEntry()
+
+  const filled = rows.filter((r) => r.number.trim() !== '' && r.teamName.trim() !== '')
+
+  const handleChange = (next: CarRow[]) => {
+    setRows(next)
+    setStatus({})
+    setSummary(null)
+  }
+
+  const submit = async () => {
+    if (classId === '') return
+    const results = await Promise.allSettled(
+      filled.map((r) =>
+        create.mutateAsync({ seasonId, classId, number: r.number.trim(), teamName: r.teamName.trim() }),
+      ),
+    )
+    const c = collect(results, filled, blank)
+    setRows(c.rows)
+    setStatus(c.status)
+    setSummary(summaryText(c.created, c.failed))
+  }
+
+  return (
+    <BulkPanel
+      title="Bulk Add Car Entries"
+      count={filled.length}
+      pending={create.isPending}
+      submitDisabled={classId === ''}
+      summary={summary}
+      onSubmit={submit}
+      onClose={onClose}
+    >
+      <div className="mb-3 flex items-end gap-2">
+        <div className="max-w-xs flex-1">
+          <Field label="Class (applies to all rows)">
+            <Select
+              value={classId}
+              onChange={(e) => setClassId(e.target.value === '' ? '' : Number(e.target.value))}
+            >
+              <option value="">Select class…</option>
+              {classes.map((c) => (
+                <option key={c.id} value={c.id}>
+                  {c.name}
+                </option>
+              ))}
+            </Select>
+          </Field>
+        </div>
+        {classId !== '' && (
+          <ClassSwatch hex={classMeta(classes.find((c) => c.id === classId)?.name, classes.find((c) => c.id === classId)?.color).hex} />
+        )}
+      </div>
+      <BulkGrid
+        columns={[
+          { key: 'number', label: 'Number', placeholder: '7', width: 'w-24' },
+          { key: 'teamName', label: 'Team Name', placeholder: 'Porsche Penske', width: 'flex-1' },
+        ]}
+        rows={rows}
+        onChange={handleChange}
+        blank={blank}
+        status={status}
+      />
+    </BulkPanel>
   )
 }
