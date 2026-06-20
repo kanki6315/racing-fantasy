@@ -1,15 +1,11 @@
 import * as Dialog from '@radix-ui/react-dialog'
 
-// Placeholder copy until the real policy is written — enough paragraphs to prove the body scrolls.
-const LOREM = [
-  'Lorem ipsum dolor sit amet, consectetur adipiscing elit. Praesent euismod, nisl eget consectetur sagittis, nisl nunc consectetur nisi, euismod consectetur nisl nunc euismod nisi. Sed euismod, nisl eget consectetur sagittis, nisl nunc consectetur nisi.',
-  'Curabitur pretium tincidunt lacus. Nulla gravida orci a odio. Nullam varius, turpis et commodo pharetra, est eros bibendum elit, nec luctus magna felis sollicitudin mauris. Integer in mauris eu nibh euismod gravida.',
-  'Duis ac tellus et risus vulputate vehicula. Donec lobortis risus a elit. Etiam tempor. Ut ullamcorper, ligula eu tempor congue, eros est euismod turpis, id tincidunt sapien risus a quam. Maecenas fermentum consequat mi.',
-  'Donec fermentum. Pellentesque malesuada nulla a mi. Duis sapien sem, aliquet nec, commodo eget, consequat quis, neque. Aliquam faucibus, elit ut dictum aliquet, felis nisl adipiscing sapien, sed malesuada diam lacus eget erat.',
-  'Cras mollis scelerisque nunc. Nullam arcu. Aliquam consequat. Curabitur augue lorem, dapibus quis, laoreet et, pretium ac, nisi. Aenean magna nisl, mollis quis, molestie eu, feugiat in, orci. In hac habitasse platea dictumst.',
-  'Vivamus euismod mauris. In ut quam vitae odio lacinia tincidunt. Praesent ut ligula non mi varius sagittis. Cras sagittis. Phasellus nec dui vitae tortor tincidunt pulvinar. Nam quis nulla. Integer malesuada.',
-  'Nam at tortor in tellus interdum sagittis. Aliquam purus turpis, dignissim quis, gravida a, convallis ac, velit. Quisque ullamcorper placerat ipsum. Cras nibh. Morbi vel justo vitae lacus tincidunt ultrices.',
-  'Lorem ipsum dolor sit amet, consectetur adipiscing elit. Integer nec odio. Praesent libero. Sed cursus ante dapibus diam. Sed nisi. Nulla quis sem at nibh elementum imperdiet. Duis sagittis ipsum.',
+const PARAGRAPHS = [
+  'I spent 10 years post-college-graduation working as a Software Engineer in AdTech and FinTech (mainly Backend Java) before I quit to focus on broadcasting.',
+  'I’ve worked with AI in those last few years and saw it get increasingly competent. But it still requires assistance to get things right.',
+  'I had begun writing the API by hand but ended up using that as a baseline for AI to base its patterns around. Several decisions (such as how to collect minimal data from users) require a human to ensure that the “correct” choice is made without sycophantic flattery.',
+  'I am a terrible front-end developer, and that is where AI has been most transformative in enabling me to bring this to life quickly.',
+  'All hosting decisions and setup were performed by hand.',
 ]
 
 /** Footer "help from AI" link rendered as a dismissible modal with a scrollable body. */
@@ -38,7 +34,7 @@ export function AiPolicyModal({ triggerClassName }: { triggerClassName?: string 
           </div>
 
           <div className="flex flex-col gap-4 overflow-y-auto px-7 py-[22px]">
-            {LOREM.map((p, i) => (
+            {PARAGRAPHS.map((p, i) => (
               <p key={i} className="font-sans text-[13px] leading-[1.7] text-muted">
                 {p}
               </p>
