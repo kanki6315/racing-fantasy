@@ -19,6 +19,7 @@ import { useCountdown } from '../lib/useCountdown'
 import { mockTrend } from '../lib/demoStats'
 import { Demo } from '../components/Demo'
 import { CreateLeagueModal, JoinByCodeModal } from '../components/LeagueModals'
+import { RegisterModal } from '../components/RegisterModal'
 import { EntityThumb } from '../components/EntityThumb'
 import { DriverLineup } from '../components/DriverLineup'
 
@@ -33,6 +34,7 @@ export function Dashboard() {
   const events = useEvents()
   const [createOpen, setCreateOpen] = useState(false)
   const [joinOpen, setJoinOpen] = useState(false)
+  const [joinSeasonId, setJoinSeasonId] = useState<number | null>(null)
 
   // eventId → event, so a picks card can show the other championships sharing its weekend (ADR-0007).
   const eventById = useMemo(() => {
@@ -49,6 +51,24 @@ export function Dashboard() {
     }
   }, [seasons.data, champs.data])
 
+  // Championships the user hasn't registered for → a "join" pill seeded to that champ's latest season.
+  const joinable = useMemo(() => {
+    const regList = user?.registrations ?? []
+    const allSeasons = seasons.data ?? []
+    const registeredChampIds = new Set(
+      regList.map((r) => allSeasons.find((s) => s.id === r.seasonId)?.championshipId),
+    )
+    return (champs.data ?? [])
+      .filter((c) => !registeredChampIds.has(c.id))
+      .map((c) => {
+        const season = allSeasons
+          .filter((s) => s.championshipId === c.id)
+          .sort((a, b) => b.year - a.year)[0]
+        return season ? { champId: c.id, name: c.name, seasonId: season.id, year: season.year } : null
+      })
+      .filter((x): x is { champId: number; name: string; seasonId: number; year: number } => x != null)
+  }, [user?.registrations, seasons.data, champs.data])
+
   if (!user) return null
   const regs = user.registrations
   const leagues = myLeagues.data ?? []
@@ -63,17 +83,35 @@ export function Dashboard() {
           {regs.length} series · {leagues.length} leagues · {regs[0] ? seasonInfo(regs[0].seasonId).year : '—'}
         </div>
 
-        <div className="mb-[11px] font-display text-[11px] tracking-[0.12em] uppercase text-muted-2">Your Picks</div>
+        <div className="mb-[11px] font-display text-[11px] tracking-[0.12em] uppercase text-muted-2">Championships</div>
         <div className="flex flex-col gap-1">
-          {regs.map((r, i) => (
-            <div key={r.id} className={`flex items-center justify-between rounded-[3px] px-[13px] py-[10px] ${i === 0 ? 'border border-brand bg-surface-2' : ''}`}>
+          {regs.map((r) => (
+            <div key={r.id} className="flex items-center justify-between gap-2 rounded-[3px] border border-success/50 bg-success/[0.06] px-[13px] py-[10px]">
               <span className="flex items-center gap-2 font-display text-[13px] font-semibold uppercase tracking-[0.04em] text-ink">
                 <span className="h-[15px] w-[4px] flex-none bg-brand [transform:skewX(-14deg)]" />
                 {seasonInfo(r.seasonId).champName}
               </span>
+              <svg className="h-[15px] w-[15px] flex-none text-success" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round" aria-label="Signed up">
+                <path d="M5 13l4 4L19 7" />
+              </svg>
             </div>
           ))}
           {regs.length === 0 && <div className="font-sans text-[12px] text-muted">No series yet.</div>}
+          {joinable.map((j) => (
+            <button
+              key={j.champId}
+              onClick={() => setJoinSeasonId(j.seasonId)}
+              className="flex items-center justify-between gap-2 rounded-[3px] border border-dotted border-[#a855f7] bg-[#a855f7]/[0.06] px-[13px] py-[10px] text-left transition-colors hover:border-[#c084fc] hover:bg-[#a855f7]/[0.1] cursor-pointer"
+            >
+              <span className="flex items-center gap-2 font-display text-[13px] font-semibold uppercase tracking-[0.04em] text-ink-2">
+                <span className="h-[15px] w-[4px] flex-none bg-[#a855f7] [transform:skewX(-14deg)]" />
+                {j.name}
+              </span>
+              <span className="flex-none font-display text-[11px] font-bold uppercase tracking-[0.06em] text-[#c084fc]">
+                Sign Up
+              </span>
+            </button>
+          ))}
         </div>
 
         <div className="my-5 h-px bg-line" />
@@ -139,6 +177,9 @@ export function Dashboard() {
 
       {primarySeason != null && <CreateLeagueModal seasonId={primarySeason} open={createOpen} onOpenChange={setCreateOpen} />}
       <JoinByCodeModal open={joinOpen} onOpenChange={setJoinOpen} />
+      {joinSeasonId != null && (
+        <RegisterModal seasonId={joinSeasonId} open onOpenChange={(v) => { if (!v) setJoinSeasonId(null) }} />
+      )}
     </div>
   )
 }
