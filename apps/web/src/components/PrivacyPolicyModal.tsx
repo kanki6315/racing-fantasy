@@ -1,15 +1,178 @@
 import * as Dialog from '@radix-ui/react-dialog'
 
-// Placeholder copy until the real policy is written — enough paragraphs to prove the body scrolls.
-const LOREM = [
-  'Lorem ipsum dolor sit amet, consectetur adipiscing elit. Praesent euismod, nisl eget consectetur sagittis, nisl nunc consectetur nisi, euismod consectetur nisl nunc euismod nisi. Sed euismod, nisl eget consectetur sagittis, nisl nunc consectetur nisi.',
-  'Curabitur pretium tincidunt lacus. Nulla gravida orci a odio. Nullam varius, turpis et commodo pharetra, est eros bibendum elit, nec luctus magna felis sollicitudin mauris. Integer in mauris eu nibh euismod gravida.',
-  'Duis ac tellus et risus vulputate vehicula. Donec lobortis risus a elit. Etiam tempor. Ut ullamcorper, ligula eu tempor congue, eros est euismod turpis, id tincidunt sapien risus a quam. Maecenas fermentum consequat mi.',
-  'Donec fermentum. Pellentesque malesuada nulla a mi. Duis sapien sem, aliquet nec, commodo eget, consequat quis, neque. Aliquam faucibus, elit ut dictum aliquet, felis nisl adipiscing sapien, sed malesuada diam lacus eget erat.',
-  'Cras mollis scelerisque nunc. Nullam arcu. Aliquam consequat. Curabitur augue lorem, dapibus quis, laoreet et, pretium ac, nisi. Aenean magna nisl, mollis quis, molestie eu, feugiat in, orci. In hac habitasse platea dictumst.',
-  'Vivamus euismod mauris. In ut quam vitae odio lacinia tincidunt. Praesent ut ligula non mi varius sagittis. Cras sagittis. Phasellus nec dui vitae tortor tincidunt pulvinar. Nam quis nulla. Integer malesuada.',
-  'Nam at tortor in tellus interdum sagittis. Aliquam purus turpis, dignissim quis, gravida a, convallis ac, velit. Quisque ullamcorper placerat ipsum. Cras nibh. Morbi vel justo vitae lacus tincidunt ultrices.',
-  'Lorem ipsum dolor sit amet, consectetur adipiscing elit. Integer nec odio. Praesent libero. Sed cursus ante dapibus diam. Sed nisi. Nulla quis sem at nibh elementum imperdiet. Duis sagittis ipsum.',
+const CONTACT_EMAIL = 'fantasy@arjunakankipati.com'
+
+type Block =
+  | { type: 'p'; text: string }
+  | { type: 'ul'; items: string[] }
+
+type Section = { heading: string; blocks: Block[] }
+
+const SECTIONS: Section[] = [
+  {
+    heading: 'Who we are',
+    blocks: [
+      {
+        type: 'p',
+        text: 'IMSA Fantasy is a free, community-run fantasy game by Arjuna Kankipati. This policy explains what personal data we collect when you use the app, why we collect it, and the choices you have. We are the data controller for the information described here. It is not affiliated with or endorsed by IMSA.',
+      },
+      {
+        type: 'p',
+        text: `If you have any questions about this policy or your data, contact us at ${CONTACT_EMAIL}.`,
+      },
+    ],
+  },
+  {
+    heading: 'Data we collect',
+    blocks: [
+      {
+        type: 'p',
+        text: 'We deliberately keep the amount of personal data we hold small. When you sign in with Google and play, we collect:',
+      },
+      {
+        type: 'ul',
+        items: [
+          'Account identity from Google — a stable Google account identifier (your "sub"), your name, and your email address. We request only the openid, email, and profile scopes. We do not receive or store your Google password, and we do not keep any Google access or refresh tokens.',
+          'A session cookie — a single first-party cookie (imsa.session) set after you sign in, used only to keep you logged in.',
+        ],
+      },
+      {
+        type: 'p',
+        text: 'When you participate in fantasy game play, we collect:',
+      },
+      {
+        type: 'ul',
+        items: [
+          'Your fantasy team name — a name you choose yourself when you register for a championship season. This is the only identifier shown publicly.',
+          'Your gameplay data — your registrations, round-by-round roster picks and bonus selections, scores, standings, and any fantasy leagues you create or join.',
+        ],
+      },
+      {
+        type: 'p',
+        text: 'We do not collect passwords, payment information, or location data, and we do not use third-party advertising or analytics trackers.',
+      },
+    ],
+  },
+  {
+    heading: 'How we use your data',
+    blocks: [
+      {
+        type: 'ul',
+        items: [
+          'To create and operate your account and let you sign in.',
+          'To run the game — record your picks, calculate scores, and produce season and league standings.',
+          'To send you essential, transactional messages about the game, such as reminders that picks are open or about to lock. We do not send marketing email without your opt-in consent. You can opt-out of transactional emails.',
+          'To keep the service secure and prevent abuse.',
+        ],
+      },
+      {
+        type: 'p',
+        text: 'Our legal basis for processing this data is performance of our agreement with you to provide the game and your account. The session cookie is strictly necessary to provide a service you actively requested by signing in, so it does not require a consent banner.',
+      },
+    ],
+  },
+  {
+    heading: 'Who can see your information',
+    blocks: [
+      {
+        type: 'ul',
+        items: [
+          'Your team name is shown on public leaderboards and in any league you join. Public standings are pseudonymous — they show your team name, never your real name or email.',
+          'Your real name is shown only to fellow members of a private league you belong to, alongside your team name. It is never shown on public or global standings.',
+          'Your email address is never shown or shared with other users — only to you.',
+        ],
+      },
+    ],
+  },
+  {
+    heading: 'Sharing and third parties',
+    blocks: [
+      {
+        type: 'p',
+        text: 'We do not sell your personal data or share it for advertising. We rely on a small number of service providers to run the app:',
+      },
+      {
+        type: 'ul',
+        items: [
+          'Google, as the sign-in provider, authenticates you and supplies the account identity described above. Your use of Google sign-in is also governed by Google’s own privacy policy.',
+          'Our hosting providers store and serve the application and database. They process data on our behalf to operate the service.',
+        ],
+      },
+      {
+        type: 'p',
+        text: 'We may disclose information if required by law, or to protect the rights, safety, and security of our users and the service.',
+      },
+    ],
+  },
+  {
+    heading: 'Data retention',
+    blocks: [
+      {
+        type: 'p',
+        text: 'We keep your account and gameplay data for as long as your account is active. If you ask us to delete your account, we remove your personal data as described below. Routine backups are retained on their normal cycle and then expire.',
+      },
+    ],
+  },
+  {
+    heading: 'Your rights',
+    blocks: [
+      {
+        type: 'p',
+        text: 'Depending on where you live, you may have rights to access, correct, export, or delete your personal data, and to object to or restrict certain processing. You can exercise these rights at any time:',
+      },
+      {
+        type: 'ul',
+        items: [
+          'Access and portability — we can provide a copy of the account and gameplay data we hold about you.',
+          'Erasure — when you delete your account, we delete your account identity, name, and email, and we sever the link between you and your past gameplay. To preserve the integrity of historical standings, your past game records are kept in anonymized form, and your team name is replaced with a neutral label (for example, "Retired Team #1742"). Once anonymized, these records can no longer be linked back to you.',
+        ],
+      },
+      {
+        type: 'p',
+        text: `To make a request, or if you have a concern, email us at ${CONTACT_EMAIL}. You also have the right to lodge a complaint with your local data protection authority.`,
+      },
+    ],
+  },
+  {
+    heading: 'California residents — sale and sharing',
+    blocks: [
+      {
+        type: 'p',
+        text: 'We do not sell your personal information, and we do not share it for cross-context behavioral advertising, as those terms are defined under the California Consumer Privacy Act (CCPA/CPRA). Because we do not sell or share your information, no opt-out is required.',
+      },
+      {
+        type: 'p',
+        text: 'California residents also have the right to know, access, correct, and delete the personal information we hold, and the right not to be discriminated against for exercising these rights. You can exercise them as described in "Your rights" above.',
+      },
+    ],
+  },
+  {
+    heading: 'Cookies',
+    blocks: [
+      {
+        type: 'p',
+        text: 'We use a single first-party cookie, imsa.session, solely to keep you signed in. It is set only after you actively sign in, contains no tracking or advertising data, and is strictly necessary to operate the service. We do not use analytics or advertising cookies.',
+      },
+    ],
+  },
+  {
+    heading: 'Children',
+    blocks: [
+      {
+        type: 'p',
+        text: 'The game is not directed to children, and we do not knowingly collect personal data from children under the age of digital consent in their jurisdiction. If you believe a child has provided us with personal data, please contact us and we will delete it.',
+      },
+    ],
+  },
+  {
+    heading: 'Changes to this policy',
+    blocks: [
+      {
+        type: 'p',
+        text: 'We may update this policy from time to time. When we make material changes, we will update the "last updated" date above and, where appropriate, notify you in the app. A change log will be made available.',
+      },
+    ],
+  },
 ]
 
 /** Footer "Privacy Policy" link rendered as a dismissible modal with a scrollable body. */
@@ -37,11 +200,29 @@ export function PrivacyPolicyModal({ triggerClassName }: { triggerClassName?: st
             </Dialog.Close>
           </div>
 
-          <div className="flex flex-col gap-4 overflow-y-auto px-7 py-[22px]">
-            {LOREM.map((p, i) => (
-              <p key={i} className="font-sans text-[13px] leading-[1.7] text-muted">
-                {p}
-              </p>
+          <div className="flex flex-col gap-6 overflow-y-auto px-7 py-[22px]">
+            {SECTIONS.map((section) => (
+              <section key={section.heading} className="flex flex-col gap-2.5">
+                <h3 className="font-display text-[13px] font-bold uppercase tracking-[0.08em] text-ink">
+                  {section.heading}
+                </h3>
+                {section.blocks.map((block, i) =>
+                  block.type === 'p' ? (
+                    <p key={i} className="font-sans text-[13px] leading-[1.7] text-muted">
+                      {block.text}
+                    </p>
+                  ) : (
+                    <ul key={i} className="flex flex-col gap-2 pl-1">
+                      {block.items.map((item, j) => (
+                        <li key={j} className="flex gap-2.5 font-sans text-[13px] leading-[1.7] text-muted">
+                          <span aria-hidden="true" className="mt-[10px] h-[3px] w-[3px] flex-none rounded-full bg-brand" />
+                          <span>{item}</span>
+                        </li>
+                      ))}
+                    </ul>
+                  ),
+                )}
+              </section>
             ))}
           </div>
         </Dialog.Content>
