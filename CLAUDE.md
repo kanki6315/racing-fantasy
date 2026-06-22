@@ -120,7 +120,7 @@ pnpm build          # tsc typecheck + production build
 
 ## Auth (read this before building the UI)
 
-- **Cookie session** (`imsa.session`), set after Google OIDC sign-in. Google requests
+- **Cookie session** (`endurance.session`), set after Google OIDC sign-in. Google requests
   `openid email profile`; first login creates an `app_user` and stores `name`/`email` from the
   id_token (ADR-0004 **amendment 2026-06-17** — both private: name shows only to private-league
   members, email only to the holder; `team_name` is still the only public leaderboard identifier).

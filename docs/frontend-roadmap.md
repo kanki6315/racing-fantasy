@@ -41,7 +41,7 @@ utilitarian surfaces can lag behind scripts/Swagger.
 
 The first draft assumed the backend had no authentication. **It does now** — per
 [ADR-0004](adr/0004-authentication-and-data-minimization.md): cookie session
-(`imsa.session`), Google OIDC, and a Development-only `dev-login`. So F1 shrinks
+(`endurance.session`), Google OIDC, and a Development-only `dev-login`. So F1 shrinks
 from "may require backend auth work" to **wiring the existing cookie session into a
 thin `AuthContext`** (Google button → `GET /auth/login`, plus a dev-login affordance
 for local play). The only backend auth change we *are* making is additive — storing

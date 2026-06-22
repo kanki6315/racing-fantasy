@@ -10,7 +10,7 @@ const apiBase = import.meta.env.VITE_API_BASE_URL ?? '/api'
 
 /**
  * Cookie-session auth (ADR-0004). There is no client-side token: the browser holds the HttpOnly
- * `imsa.session` cookie and sends it automatically (client.ts sets credentials:'include'). The
+ * `endurance.session` cookie and sends it automatically (client.ts sets credentials:'include'). The
  * "auth state" is just the cached result of GET /auth/me — 200 ⇒ signed in, 401 ⇒ anonymous.
  */
 type AuthValue = {

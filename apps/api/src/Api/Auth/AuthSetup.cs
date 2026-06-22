@@ -27,7 +27,7 @@ public static class AuthSetup
         var auth = services.AddAuthentication(CookieAuthenticationDefaults.AuthenticationScheme)
             .AddCookie(o =>
             {
-                o.Cookie.Name = "imsa.session";
+                o.Cookie.Name = "endurance.session";
                 o.Cookie.SameSite = SameSiteMode.Lax;
                 o.Cookie.HttpOnly = true;
                 // Prod runs behind HTTPS (Railway) so the cookie must be Secure. Browsers treat
