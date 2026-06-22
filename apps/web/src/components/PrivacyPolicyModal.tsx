@@ -14,7 +14,7 @@ const SECTIONS: Section[] = [
     blocks: [
       {
         type: 'p',
-        text: 'IMSA Fantasy is a free, community-run fantasy game by Arjuna Kankipati. This policy explains what personal data we collect when you use the app, why we collect it, and the choices you have. We are the data controller for the information described here. It is not affiliated with or endorsed by IMSA.',
+        text: 'Endurance Fantasy is a free, community-run fantasy game by Arjuna Kankipati. This policy explains what personal data we collect when you use the app, why we collect it, and the choices you have. We are the data controller for the information described here. It is not affiliated with or endorsed by IMSA or any other racing series.',
       },
       {
         type: 'p',
@@ -33,7 +33,7 @@ const SECTIONS: Section[] = [
         type: 'ul',
         items: [
           'Account identity from Google — a stable Google account identifier (your "sub"), your name, and your email address. We request only the openid, email, and profile scopes. We do not receive or store your Google password, and we do not keep any Google access or refresh tokens.',
-          'A session cookie — a single first-party cookie (imsa.session) set after you sign in, used only to keep you logged in.',
+          'A session cookie — a single first-party cookie (endurance.session) set after you sign in, used only to keep you logged in.',
         ],
       },
       {
@@ -151,7 +151,7 @@ const SECTIONS: Section[] = [
     blocks: [
       {
         type: 'p',
-        text: 'We use a single first-party cookie, imsa.session, solely to keep you signed in. It is set only after you actively sign in, contains no tracking or advertising data, and is strictly necessary to operate the service. We do not use analytics or advertising cookies.',
+        text: 'We use a single first-party cookie, endurance.session, solely to keep you signed in. It is set only after you actively sign in, contains no tracking or advertising data, and is strictly necessary to operate the service. We do not use analytics or advertising cookies.',
       },
     ],
   },

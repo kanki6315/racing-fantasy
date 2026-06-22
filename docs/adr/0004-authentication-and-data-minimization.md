@@ -233,7 +233,7 @@ is unchanged: standings remain pseudonymous, and erasure still removes all PII.
   to the holder. Public standings stay pseudonymous, so the central trade-off
   analysis above (leaderboard integrity vs. residual identifiability on erasure) is
   unaffected.
-- **Cookie consent:** the `imsa.session` cookie needs **no consent banner**. It's set only
+- **Cookie consent:** the `endurance.session` cookie needs **no consent banner**. It's set only
   after the user actively signs in, is used solely for authentication/session, and is first-party
   with no tracking — i.e. "strictly necessary," which is exempt under the ePrivacy Directive
   (consent governs *storage on the device*, separately from GDPR's lawful basis for the data).

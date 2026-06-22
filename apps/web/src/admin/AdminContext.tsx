@@ -30,7 +30,7 @@ type AdminCtx = {
 }
 
 const Ctx = createContext<AdminCtx | null>(null)
-const LS_KEY = 'imsa.admin.selection'
+const LS_KEY = 'endurance.admin.selection'
 
 function loadStored(): { championshipId?: number; seasonId?: number; roundId?: number } {
   try {
