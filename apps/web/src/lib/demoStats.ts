@@ -19,8 +19,7 @@ export function mockPickPct(entityId: number): number {
 }
 
 export const demoStats = {
-  global: { players: 7482, leagues: 312 },
-
+  // Landing "Players"/"Leagues" tiles are now API-backed via GET /stats (see useGlobalStats).
   // Admin Registrations summary tiles — no aggregate pick-set / league-count endpoints yet.
   registrations: { picksSetPct: 80, privateLeagues: 412 },
 }
