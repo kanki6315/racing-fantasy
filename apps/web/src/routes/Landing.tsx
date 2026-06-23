@@ -1,12 +1,10 @@
 import { Fragment, useMemo, useState } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
-import { demoStats } from '../lib/demoStats'
-import { Demo } from '../components/Demo'
 import { Leaderboard } from '../components/Leaderboard'
 import { RegisterModal } from '../components/RegisterModal'
 import { ErrorBox, SkeletonTable } from './LeagueStandings'
 import { useAuth } from '../auth/AuthContext'
-import { useActiveSeason, useSeasonLeaderboard, useRounds, useEvents } from '../api/queries'
+import { useActiveSeason, useSeasonLeaderboard, useRounds, useEvents, useGlobalStats } from '../api/queries'
 import { useCountdown } from '../lib/useCountdown'
 
 /** One weekend on the unified calendar (ADR-0007), driven by the Event API — every series racing it. */
@@ -342,17 +340,23 @@ function CalendarRow({ item }: { item: CalItem }) {
 
 /** Bottom of the Landing: the real season pool (top rows) + demo stat tiles. */
 function GlobalLeaderboard({ seasonId, myRegistrationId }: { seasonId?: number; myRegistrationId?: number }) {
-  const { global } = demoStats
   const lb = useSeasonLeaderboard(seasonId)
   const top = (lb.data?.entries ?? []).slice(0, 8)
+  const stats = useGlobalStats()
 
   return (
     <div className="flex flex-col gap-6 border-t border-line bg-bg px-4 py-7 sm:px-[26px] lg:flex-row">
       {/* stat tiles (mocked) */}
       <div className="flex shrink-0 gap-3 lg:w-[300px] lg:flex-col">
         <div className="mb-1 hidden font-display text-[11px] tracking-[0.14em] uppercase text-muted-2 lg:block">// SEASON_PULSE</div>
-        <Tile label="Players" value={global.players.toLocaleString()} />
-        <Tile label="Leagues" value={global.leagues.toLocaleString()} />
+        <Tile
+          label="Players"
+          value={stats.data ? stats.data.players.toLocaleString() : '—'}
+        />
+        <Tile
+          label="Leagues"
+          value={stats.data ? stats.data.leagues.toLocaleString() : '—'}
+        />
       </div>
 
       {/* global leaderboard (real) */}
@@ -383,9 +387,7 @@ function Tile({ label, value }: { label: string; value: string }) {
   return (
     <div className="flex-1 rounded-[3px] border border-line border-l-[3px] border-l-brand bg-surface px-4 py-[14px]">
       <div className="font-display text-[11px] tracking-[0.12em] uppercase text-muted-2">{label}</div>
-      <Demo>
-        <div className="mt-1 font-mono text-[26px] font-bold text-ink">{value}</div>
-      </Demo>
+      <div className="mt-1 font-mono text-[26px] font-bold text-ink">{value}</div>
     </div>
   )
 }

@@ -136,6 +136,21 @@ export function useRoundLeaderboard(roundId: number | undefined) {
   })
 }
 
+// ---- Global stats (landing tiles) ----
+export type GlobalStats = components['schemas']['GlobalStats']
+
+export function useGlobalStats() {
+  return useQuery({
+    queryKey: ['global-stats'],
+    staleTime: 5 * 60_000, // matches the server cache TTL; the figures are allowed to be slightly stale
+    queryFn: async () => {
+      const { data, error } = await api.GET('/stats')
+      if (error) throw error
+      return data!
+    },
+  })
+}
+
 // ---- Leagues (F3) ----
 export type League = components['schemas']['LeagueDto']
 export type LeagueLeaderboard = components['schemas']['LeagueLeaderboardResponse']
