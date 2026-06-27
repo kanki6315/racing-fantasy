@@ -20,6 +20,10 @@ const key = (p: { entityType: string; entityId: number }) => `${p.entityType}:${
 
 type Target = { entityType: 'Car' | 'Driver'; entityId: number }
 
+// Selection-board sort keys, all from fields already on PriceItem. `manufacturer` is intentionally
+// absent until the entry-list PDF importer surfaces it on the price board.
+type SortKey = 'number' | 'price' | 'name'
+
 // appliesTo values the pick UI can target. MainPick = any roster pick (DOUBLE_POINTS_TEAM, team series);
 // Driver = the roster's driver picks (CAPTAIN, driver-based series like MX-5). The series' price board
 // determines whether picks are teams or drivers, so each modifier is offered on the series it fits.
@@ -516,6 +520,10 @@ function SelectionPanel({
   setClassFilter: (classId: number | null) => void
 }) {
   const [search, setSearch] = useState('')
+  // Board sort. `null` = the series default (number for team series, price-desc for driver series),
+  // resolved each render so it survives the prices-still-loading first paint. Manufacturer is a
+  // planned future key once the entry-list importer surfaces it on PriceItem.
+  const [sort, setSort] = useState<{ key: SortKey; dir: 1 | -1 } | null>(null)
 
   const q = search.trim().toLowerCase()
   // Team series if the board has cars; otherwise a driver-based series (MX-5 Cup) picks drivers.
@@ -528,12 +536,34 @@ function SelectionPanel({
   const multiClass = classList.length > 1
   const classColorById = new Map(classList.map((c) => [c.classId, c.color]))
 
-  // Cars order by race number (numeric-aware so "#04" sorts before "#7"); driver series keep price order.
-  const list = pool
-    .filter((p) => !q || (p.displayName ?? '').toLowerCase().includes(q))
-    .sort((a, b) =>
-      teamBased ? (a.number ?? '').localeCompare(b.number ?? '', undefined, { numeric: true }) : b.price - a.price,
-    )
+  // Drivers have no race number, so that key only exists for team series; the default sorts cars by
+  // number (numeric-aware so "#04" < "#7") and driver series by price, high to low.
+  const sortOptions: { key: SortKey; label: string }[] = [
+    ...(teamBased ? [{ key: 'number' as const, label: 'Number' }] : []),
+    { key: 'price' as const, label: 'Price' },
+    { key: 'name' as const, label: 'Name' },
+  ]
+  const activeSort = sort ?? (teamBased ? { key: 'number' as const, dir: 1 as const } : { key: 'price' as const, dir: -1 as const })
+  // Clicking the active key flips direction; switching key picks that key's natural default direction
+  // (number/name ascending, price descending — most expensive first).
+  const onSort = (key: SortKey) =>
+    setSort((cur) => {
+      const eff = cur ?? activeSort
+      if (eff.key === key) return { key, dir: eff.dir === 1 ? -1 : 1 }
+      return { key, dir: key === 'price' ? -1 : 1 }
+    })
+  // Car display names bake in the race number ("#31 Cadillac Whelen"), so a name sort strips that
+  // leading "#<num> " token to order by the actual team/driver name (a no-op for unprefixed names).
+  const sortName = (p: PriceItem) => (p.displayName ?? '').replace(/^#\S+\s+/, '')
+  const compare = (a: PriceItem, b: PriceItem) => {
+    let r: number
+    if (activeSort.key === 'price') r = a.price - b.price
+    else if (activeSort.key === 'name') r = sortName(a).localeCompare(sortName(b))
+    else r = (a.number ?? '').localeCompare(b.number ?? '', undefined, { numeric: true })
+    return r * activeSort.dir
+  }
+
+  const list = pool.filter((p) => !q || (p.displayName ?? '').toLowerCase().includes(q)).sort(compare)
 
   return (
     <div className="flex w-full flex-col bg-surface-3">
@@ -569,6 +599,26 @@ function SelectionPanel({
                 }`}
               >
                 {label}
+              </button>
+            )
+          })}
+        </div>
+        <div className="flex flex-wrap items-center gap-[7px]">
+          <span className="font-display text-[11px] uppercase tracking-[0.1em] text-muted-2">Sort</span>
+          {sortOptions.map((opt) => {
+            const active = activeSort.key === opt.key
+            return (
+              <button
+                key={opt.key}
+                type="button"
+                onClick={() => onSort(opt.key)}
+                aria-label={`Sort by ${opt.label}${active ? (activeSort.dir === 1 ? ', ascending' : ', descending') : ''}`}
+                className={`flex items-center gap-1 rounded-full border px-3 py-[5px] font-display text-[12px] font-semibold uppercase tracking-[0.04em] cursor-pointer ${
+                  active ? 'border-brand text-ink' : 'border-line-2 text-muted'
+                }`}
+              >
+                {opt.label}
+                {active && <span className="font-mono text-[10px] leading-none">{activeSort.dir === 1 ? '↑' : '↓'}</span>}
               </button>
             )
           })}
