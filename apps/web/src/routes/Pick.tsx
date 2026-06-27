@@ -45,6 +45,13 @@ export function Pick() {
   // Small-screen view toggle: the pit lane and the selection board stack into one column and switch
   // via a segmented control (desktop shows both side by side, so this is ignored at lg+).
   const [mobileTab, setMobileTab] = useState<'lineup' | 'board'>('lineup')
+  // Class filter for the selection board, lifted here so an empty pit-lane slot can drive it: clicking
+  // an "Add a … pick" prompt focuses the board on that class (and, on mobile, flips to the board tab).
+  const [classFilter, setClassFilter] = useState<number | null>(null)
+  const focusClass = (classId: number) => {
+    setClassFilter(classId)
+    setMobileTab('board')
+  }
 
   // Seed the draft from the saved roster once both it and the price board (for display names) load.
   useEffect(() => {
@@ -307,6 +314,7 @@ export function Pick() {
             roundId={rid}
             locked={locked}
             onRemovePick={removePick}
+            onFocusClass={focusClass}
             modifierRules={modifierRules}
             modifiers={modifiers}
             mainPicks={selected}
@@ -326,6 +334,8 @@ export function Pick() {
             roundId={rid}
             locked={locked}
             onAddPick={addPick}
+            classFilter={classFilter}
+            setClassFilter={setClassFilter}
           />
         </div>
       </div>
@@ -340,6 +350,7 @@ function PitLane({
   roundId,
   locked,
   onRemovePick,
+  onFocusClass,
   modifierRules,
   modifiers,
   mainPicks,
@@ -350,6 +361,7 @@ function PitLane({
   roundId: number
   locked: boolean
   onRemovePick: (item: PriceItem) => void
+  onFocusClass: (classId: number) => void
   modifierRules: { kind: string; maxCount: number; appliesTo: string }[]
   modifiers: Map<string, Target>
   mainPicks: PriceItem[]
@@ -407,10 +419,16 @@ function PitLane({
                   </div>
                 ))}
                 {Array.from({ length: emptySlots }).map((_, i) => (
-                  <div key={`empty-${i}`} className="flex items-center gap-3 rounded-[4px] border border-dashed border-line-3 px-4 py-5 text-muted">
+                  <button
+                    key={`empty-${i}`}
+                    type="button"
+                    disabled={locked}
+                    onClick={() => onFocusClass(c.classId)}
+                    className={`flex w-full items-center gap-3 rounded-[4px] border border-dashed border-line-3 px-4 py-5 text-left text-muted ${locked ? 'cursor-not-allowed' : 'cursor-pointer hover:border-line-2'}`}
+                  >
                     <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke={m.hex} strokeWidth="2"><circle cx="12" cy="12" r="10" /><path d="M12 8v8M8 12h8" /></svg>
                     <span className="font-display text-[15px] font-bold uppercase" style={{ color: m.hex }}>Add a {m.label} pick</span>
-                  </div>
+                  </button>
                 ))}
               </div>
             </div>
@@ -484,6 +502,8 @@ function SelectionPanel({
   roundId,
   locked,
   onAddPick,
+  classFilter,
+  setClassFilter,
 }: {
   prices: PriceItem[]
   classList: { classId: number; name: string | null; color?: string | null }[]
@@ -492,9 +512,10 @@ function SelectionPanel({
   roundId: number
   locked: boolean
   onAddPick: (item: PriceItem) => void
+  classFilter: number | null
+  setClassFilter: (classId: number | null) => void
 }) {
   const [search, setSearch] = useState('')
-  const [classFilter, setClassFilter] = useState<number | null>(null)
 
   const q = search.trim().toLowerCase()
   // Team series if the board has cars; otherwise a driver-based series (MX-5 Cup) picks drivers.
