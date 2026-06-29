@@ -520,6 +520,54 @@ export function useScoreRound(roundId: number) {
   })
 }
 
+// ---- Scoring rulesets (versioned rank → points tables per source, season-scoped) ----
+export type RulesetDto = components['schemas']['RulesetDto']
+export type RulesetDetailDto = components['schemas']['RulesetDetailDto']
+export type ScoringSource = components['schemas']['ScoringSource']
+
+export function useScoringRulesets(seasonId?: number) {
+  return useQuery({
+    queryKey: ['admin', 'scoring-rulesets', seasonId ?? 'all'] as const,
+    enabled: seasonId != null,
+    queryFn: async () => {
+      const { data, error } = await api.GET('/seasons/{seasonId}/scoring-rulesets', {
+        params: { path: { seasonId: seasonId! } },
+      })
+      if (error) throw error
+      return data ?? []
+    },
+  })
+}
+
+/** Full rank→points table for one ruleset; used to load an existing version into the editor. */
+export function useRulesetDetail(id?: number) {
+  return useQuery({
+    queryKey: ['admin', 'scoring-ruleset', id ?? 0] as const,
+    enabled: id != null && id > 0,
+    queryFn: async () => {
+      const { data, error } = await api.GET('/scoring-rulesets/{id}', { params: { path: { id: id! } } })
+      if (error) throw error
+      return data!
+    },
+  })
+}
+
+/** Publish a new ruleset version for a (season, source); activating archives the prior active one. */
+export function useCreateRuleset(seasonId: number) {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: async (body: components['schemas']['CreateRuleset']) => {
+      const { data, error } = await api.POST('/seasons/{seasonId}/scoring-rulesets', {
+        params: { path: { seasonId } },
+        body,
+      })
+      if (error) throw error
+      return data!
+    },
+    onSuccess: () => invalidate(qc, ['admin', 'scoring-rulesets']),
+  })
+}
+
 // ---- Prices (bulk upsert) ----
 /** Bulk-upsert the whole round price board. The GET ['prices', roundId] cache is invalidated on success. */
 export function useSavePrices(roundId: number) {
