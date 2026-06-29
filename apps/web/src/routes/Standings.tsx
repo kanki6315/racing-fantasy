@@ -105,8 +105,10 @@ export function Standings() {
             myRegistrationId={myRegId}
             // Drill into a player's lineup only from a per-round board, where the round is unambiguous
             // (and, being scored, already locked). The season "Total" view has no single round to show.
+            // Gated on auth: the detail page is RequireAuth, so don't offer the link (or its hover) to
+            // logged-out visitors — they'd only be bounced home.
             rowHref={
-              typeof tab === 'number'
+              user && typeof tab === 'number'
                 ? (e) => `/standings/team/${e.registrationId}/round/${tab}`
                 : undefined
             }
