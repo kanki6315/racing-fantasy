@@ -15,13 +15,13 @@ public static class ClassEndpoints
         group.MapGet("/", async (long? championshipId, FantasyDbContext db) =>
             Results.Ok(await db.Classes
                 .Where(c => championshipId == null || c.ChampionshipId == championshipId)
-                .OrderBy(c => c.Name)
-                .Select(c => new ClassDto(c.Id, c.ChampionshipId, c.Name, c.Color)).ToListAsync()))
+                .OrderBy(c => c.SortOrder).ThenBy(c => c.Name)
+                .Select(c => new ClassDto(c.Id, c.ChampionshipId, c.Name, c.Color, c.SortOrder)).ToListAsync()))
             .Produces<List<ClassDto>>();
 
         group.MapGet("/{id:long}", async (long id, FantasyDbContext db) =>
             await db.Classes.FindAsync(id) is { } c
-                ? Results.Ok(new ClassDto(c.Id, c.ChampionshipId, c.Name, c.Color))
+                ? Results.Ok(new ClassDto(c.Id, c.ChampionshipId, c.Name, c.Color, c.SortOrder))
                 : Results.NotFound())
             .Produces<ClassDto>();
 
@@ -31,10 +31,10 @@ public static class ClassEndpoints
                 return ApiResults.RefNotFound("championshipId");
             if (InvalidColor(dto.Color) is { } problem) return problem;
 
-            var c = new Class { ChampionshipId = dto.ChampionshipId, Name = dto.Name, Color = dto.Color };
+            var c = new Class { ChampionshipId = dto.ChampionshipId, Name = dto.Name, Color = dto.Color, SortOrder = dto.SortOrder };
             db.Add(c);
             await db.SaveChangesAsync();
-            return Results.Created($"/classes/{c.Id}", new ClassDto(c.Id, c.ChampionshipId, c.Name, c.Color));
+            return Results.Created($"/classes/{c.Id}", new ClassDto(c.Id, c.ChampionshipId, c.Name, c.Color, c.SortOrder));
         }).RequireAuthorization("Admin").Produces<ClassDto>(StatusCodes.Status201Created);
 
         group.MapPut("/{id:long}", async (long id, UpdateClass dto, FantasyDbContext db) =>
@@ -44,8 +44,9 @@ public static class ClassEndpoints
             if (c is null) return Results.NotFound();
             c.Name = dto.Name;
             c.Color = dto.Color;
+            c.SortOrder = dto.SortOrder;
             await db.SaveChangesAsync();
-            return Results.Ok(new ClassDto(c.Id, c.ChampionshipId, c.Name, c.Color));
+            return Results.Ok(new ClassDto(c.Id, c.ChampionshipId, c.Name, c.Color, c.SortOrder));
         }).RequireAuthorization("Admin").Produces<ClassDto>();
 
         group.MapDelete("/{id:long}", async (long id, FantasyDbContext db) =>
@@ -72,6 +73,6 @@ public static class ClassEndpoints
             });
 }
 
-public record ClassDto(long Id, long ChampionshipId, string Name, string? Color);
-public record CreateClass(long ChampionshipId, string Name, string? Color);
-public record UpdateClass(string Name, string? Color);
+public record ClassDto(long Id, long ChampionshipId, string Name, string? Color, int SortOrder);
+public record CreateClass(long ChampionshipId, string Name, string? Color, int SortOrder = 0);
+public record UpdateClass(string Name, string? Color, int SortOrder = 0);

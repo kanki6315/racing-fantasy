@@ -22,7 +22,7 @@ public static class RosterRulesResolver
             .Where(r => r.SeasonId == round.SeasonId && (r.RoundId == null || r.RoundId == round.Id))
             .ToListAsync();
         var classes = await db.Classes.Where(c => runningClassIds.Contains(c.Id))
-            .ToDictionaryAsync(c => c.Id, c => new { c.Name, c.Color });
+            .ToDictionaryAsync(c => c.Id, c => new { c.Name, c.Color, c.SortOrder });
 
         var mainClasses = rules
             .Where(r => r.SlotType == SlotType.Main && r.ClassId is { } cid && runningClassIds.Contains(cid))
@@ -37,7 +37,9 @@ public static class RosterRulesResolver
                     classes.GetValueOrDefault(rule.ClassId!.Value)?.Color,
                     rule.MinPicks, rule.MaxPicks);
             })
-            .OrderBy(c => c.Name)
+            // Admin-set class rank first (racing order: GTP, LMP2, GTD PRO, GTD), name as the tiebreak.
+            .OrderBy(c => classes.GetValueOrDefault(c.ClassId)?.SortOrder ?? 0)
+            .ThenBy(c => c.Name)
             .ToList();
 
         var modifiers = (await db.RosterModifierRules.Where(r => r.SeasonId == round.SeasonId).ToListAsync())

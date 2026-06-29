@@ -250,6 +250,7 @@ function ClassesTab() {
                 <span className="font-display text-[14px] font-semibold uppercase tracking-[0.02em] text-ink">
                   {c.name}
                 </span>
+                <span className="ml-auto font-mono text-[10px] text-muted-2">#{c.sortOrder}</span>
               </ListRow>
             )
           })
@@ -271,6 +272,7 @@ function ClassForm({
 }) {
   const [name, setName] = useState(cls?.name ?? '')
   const [color, setColor] = useState(cls?.color ?? '')
+  const [order, setOrder] = useState(String(cls?.sortOrder ?? 0))
   const create = useCreateClass()
   const update = useUpdateClass()
   const del = useDeleteClass()
@@ -281,7 +283,7 @@ function ClassForm({
   const swatchHex = color || fallback.hex // empty color → name-derived palette
 
   const save = async () => {
-    const body = { name, color: color || null }
+    const body = { name, color: color || null, sortOrder: Number(order) || 0 }
     if (cls) await update.mutateAsync({ id: cls.id, body })
     else {
       const created = await create.mutateAsync({ championshipId, ...body })
@@ -319,6 +321,16 @@ function ClassForm({
           {hexError && (
             <span className="mt-1 block font-sans text-[11px] text-danger">Must be a #RRGGBB hex code.</span>
           )}
+        </Field>
+        <Field label="Order">
+          <TextInput
+            value={order}
+            onChange={(e) => setOrder(e.target.value)}
+            placeholder="0"
+            inputMode="numeric"
+            className="w-28"
+          />
+          <p className="mt-1 font-sans text-[11px] text-muted">Lower sorts first — sets the racing order (GTP, LMP2, GTD PRO, GTD) on the pick board, picks view and admin.</p>
         </Field>
         <div className="flex items-center gap-2 rounded-[4px] border border-line bg-surface-3 px-3 py-2">
           <ClassSwatch hex={swatchHex} />
