@@ -64,6 +64,13 @@ export function LeagueStandings() {
             entries={lb.data?.entries ?? []}
             myRegistrationId={myRegId}
             showName={isPrivate}
+            // Same as the season standings board: drill into a team's lineup only from a per-round view
+            // (the round is unambiguous and, being scored, locked). Season-total rows don't link.
+            rowHref={
+              user && typeof tab === 'number'
+                ? (e) => `/standings/team/${e.registrationId}/round/${tab}`
+                : undefined
+            }
             emptyMessage={
               tab === 'season'
                 ? 'No standings yet — they fill in once a round is scored.'
