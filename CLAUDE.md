@@ -235,6 +235,12 @@ pnpm build          # tsc typecheck + production build
   roster-rules class entries carry it; `classMeta(name, color?)` (`apps/web/src/lib/classMeta.ts`) prefers
   the stored color and falls back to the name-keyed GTP/LMP2/GTD PRO/GTD palette when null. Honored on the
   player pick board and admin Catalog/Entries/Prices badges (the ingestion preview stays on the fallback).
+- **Class sort order is DB-backed and admin-editable (done).** `class.sort_order` (int, default 0;
+  mirrors `championship.sort_order`) sets class display order. `GET /classes` and the roster-rules
+  resolver order by it then name, so the pick board, the standings **picks view**, and admin all show
+  the racing order (GTP, LMP2, GTD PRO, GTD) instead of alphabetical. Editable via the admin Catalog
+  class form (Order field). ⚠️ Existing rows default to 0 (alphabetical) until an admin sets values;
+  prod needs `dotnet ef database update` (migration `AddClassSortOrder`).
 - **Phase 6** (observability/hardening) is intentionally **deferred** — see roadmap.
 
 ## Design docs to read for depth
