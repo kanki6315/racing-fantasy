@@ -1,3 +1,5 @@
+import type { ElementType } from 'react'
+import { Link } from 'react-router-dom'
 import type { LeaderboardEntry } from '../api/queries'
 
 /** Podium accent for the top three ranks; everyone else is plain ink. */
@@ -18,11 +20,14 @@ export function Leaderboard({
   myRegistrationId,
   showName = false,
   emptyMessage = 'No standings yet — rows appear once a round is scored.',
+  rowHref,
 }: {
   entries: LeaderboardEntry[]
   myRegistrationId?: number
   showName?: boolean
   emptyMessage?: string
+  /** When set, each row links to this URL — used to drill into a player's picks for a scored round. */
+  rowHref?: (entry: LeaderboardEntry) => string
 }) {
   if (entries.length === 0) {
     return (
@@ -49,12 +54,15 @@ export function Leaderboard({
         </div>
         {entries.map((e) => {
           const mine = myRegistrationId != null && e.registrationId === myRegistrationId
+          const href = rowHref?.(e)
+          const Row: ElementType = href ? Link : 'div'
           return (
-            <div
+            <Row
               key={e.registrationId}
+              {...(href ? { to: href } : {})}
               className={`grid ${cols} items-center border-b border-surface-2 px-[18px] py-[13px] ${
                 mine ? 'border-l-[3px] border-l-brand bg-brand/[0.06]' : ''
-              }`}
+              } ${href ? 'transition-colors hover:bg-surface-2' : ''}`}
             >
               <span className={`font-mono text-[16px] font-bold ${rankColor(e.rank)}`}>{e.rank}</span>
               <span className="flex items-center gap-2 truncate font-display text-[15px] font-bold uppercase tracking-[0.02em] text-ink">
@@ -65,7 +73,7 @@ export function Leaderboard({
               {showName && <span className="truncate font-sans text-[12px] text-muted">{e.name ?? '—'}</span>}
               <span className="text-right font-mono text-[15px] font-semibold text-ink">{e.points.toFixed(1)}</span>
               <span className="text-right font-mono text-[12px] text-muted-2">{e.roundsScored}</span>
-            </div>
+            </Row>
           )
         })}
       </div>
@@ -74,12 +82,15 @@ export function Leaderboard({
       <div className="sm:hidden">
         {entries.map((e) => {
           const mine = myRegistrationId != null && e.registrationId === myRegistrationId
+          const href = rowHref?.(e)
+          const Row: ElementType = href ? Link : 'div'
           return (
-            <div
+            <Row
               key={e.registrationId}
+              {...(href ? { to: href } : {})}
               className={`flex items-center gap-3 border-b border-surface-2 px-4 py-3 ${
                 mine ? 'border-l-[3px] border-l-brand bg-brand/[0.06]' : ''
-              }`}
+              } ${href ? 'transition-colors active:bg-surface-2' : ''}`}
             >
               <span className={`w-7 shrink-0 text-center font-mono text-[18px] font-bold ${rankColor(e.rank)}`}>{e.rank}</span>
               <div className="min-w-0 flex-1">
@@ -97,7 +108,7 @@ export function Leaderboard({
                 <div className="font-mono text-[17px] font-bold leading-none text-ink">{e.points.toFixed(1)}</div>
                 <div className="mt-[3px] font-mono text-[9px] uppercase tracking-[0.1em] text-muted-2">pts</div>
               </div>
-            </div>
+            </Row>
           )
         })}
       </div>

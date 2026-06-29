@@ -103,6 +103,13 @@ export function Standings() {
           <Leaderboard
             entries={active$.data?.entries ?? []}
             myRegistrationId={myRegId}
+            // Drill into a player's lineup only from a per-round board, where the round is unambiguous
+            // (and, being scored, already locked). The season "Total" view has no single round to show.
+            rowHref={
+              typeof tab === 'number'
+                ? (e) => `/standings/team/${e.registrationId}/round/${tab}`
+                : undefined
+            }
             emptyMessage={
               tab === 'season'
                 ? 'The season pool is empty — standings appear once the first round is scored.'

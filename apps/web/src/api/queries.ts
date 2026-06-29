@@ -247,6 +247,7 @@ export type PriceItem = components['schemas']['PriceItem']
 export type RosterResponse = components['schemas']['RosterResponse']
 export type RosterError = components['schemas']['RosterErrorResponse']
 export type PutRosterRequest = components['schemas']['PutRosterRequest']
+export type PlayerPicks = components['schemas']['PlayerPicksResponse']
 
 export function useRounds(seasonId: number | undefined) {
   return useQuery({
@@ -305,6 +306,24 @@ export function useRoster(registrationId: number | undefined, roundId: number) {
       if (error) throw error
       // 204 (no roster saved yet) → empty body. Return null, not undefined, or TanStack Query throws.
       return data ?? null
+    },
+  })
+}
+
+/**
+ * Read-only view of ANOTHER player's picks + scores for a round (standings drill-in). Public to any
+ * signed-in user, but the API only returns picks once the round is locked (else 409 not_locked).
+ */
+export function usePlayerPicks(registrationId: number | undefined, roundId: number | undefined) {
+  return useQuery({
+    queryKey: ['player-picks', registrationId, roundId],
+    enabled: registrationId != null && roundId != null && roundId > 0,
+    queryFn: async () => {
+      const { data, error } = await api.GET('/registrations/{registrationId}/rounds/{roundId}/picks', {
+        params: { path: { registrationId: registrationId!, roundId: roundId! } },
+      })
+      if (error) throw error
+      return data!
     },
   })
 }

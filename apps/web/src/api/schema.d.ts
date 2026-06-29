@@ -2373,6 +2373,53 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/registrations/{registrationId}/rounds/{roundId}/picks": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    registrationId: number;
+                    roundId: number;
+                };
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description OK */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["PlayerPicksResponse"];
+                    };
+                };
+                /** @description Conflict */
+                409: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["PlayerPicksError"];
+                    };
+                };
+            };
+        };
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/rounds/{roundId}/qualifying-results/import": {
         parameters: {
             query?: never;
@@ -3272,6 +3319,40 @@ export interface components {
             /** Format: int64 */
             classId: number;
             scores: components["schemas"]["SourceScoreDto"][];
+        };
+        PlayerModifierDto: {
+            kind: string;
+            target: null | components["schemas"]["EntityRef"];
+            /** Format: double */
+            points: number;
+        };
+        PlayerPickDto: {
+            entityType: components["schemas"]["EntityType"];
+            /** Format: int64 */
+            entityId: number;
+            /** Format: int64 */
+            classId: number;
+            /** Format: double */
+            price: number;
+            /** Format: double */
+            points: number;
+            scores: components["schemas"]["SourceScoreDto"][];
+        };
+        PlayerPicksError: {
+            error: string;
+            message?: null | string;
+        };
+        PlayerPicksResponse: {
+            /** Format: int64 */
+            registrationId: number;
+            teamName: string;
+            /** Format: int64 */
+            roundId: number;
+            locked: boolean;
+            /** Format: double */
+            total: number;
+            main: components["schemas"]["PlayerPickDto"][];
+            modifiers: components["schemas"]["PlayerModifierDto"][];
         };
         PriceInput: {
             entityType: components["schemas"]["EntityType"];
