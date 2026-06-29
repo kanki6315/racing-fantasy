@@ -35,6 +35,11 @@ public class Class
     /// <summary>Identity color as a #RRGGBB hex string, or null to fall back to the client-derived palette.</summary>
     public string? Color { get; set; }
 
+    /// <summary>Display rank within a championship (lower sorts first; mirrors <see cref="Championship"/>'s
+    /// sort_order). Drives class order everywhere classes are listed — pick board, picks view, admin —
+    /// so the racing order (GTP, LMP2, GTD PRO, GTD) can be expressed instead of falling back to name.</summary>
+    public int SortOrder { get; set; }
+
     public Championship Championship { get; set; } = null!;
 }
 

@@ -2998,6 +2998,8 @@ export interface components {
             championshipId: number;
             name: string;
             color: null | string;
+            /** Format: int32 */
+            sortOrder: number;
         };
         CompositionViolation: {
             class: null | string;
@@ -3030,6 +3032,11 @@ export interface components {
             championshipId: number;
             name: string;
             color: null | string;
+            /**
+             * Format: int32
+             * @default 0
+             */
+            sortOrder: number;
         };
         CreateDriver: {
             fullName: string;
@@ -3640,6 +3647,11 @@ export interface components {
         UpdateClass: {
             name: string;
             color: null | string;
+            /**
+             * Format: int32
+             * @default 0
+             */
+            sortOrder: number;
         };
         UpdateDriver: {
             fullName: string;
