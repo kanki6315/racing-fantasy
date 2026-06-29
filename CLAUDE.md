@@ -112,7 +112,17 @@ pnpm build          # tsc typecheck + production build
 - **Image display** needs `VITE_IMAGE_BASE_URL` in `apps/web/.env` (the CloudFront base URL); without it
   the upload helpers return null and slots fall back to a placeholder. Admin console is at `/admin/*`
   (needs an admin — Google sign-in as an allowlisted subject, or `POST /auth/dev-login?subject=dev-admin`).
-- **Mocked stats** (pick %, trend, tiles, counts) live only in `src/lib/demoStats.ts` and render via `<Demo>`.
+- **Public stats are mostly API-backed now.** The dedicated **Stats page** (`/stats` → `routes/Stats.tsx`)
+  reads `GET /rounds/{id}/stats` (public, lock-gated → `409 not_locked` until quali, cached 5 min) and shows,
+  for a Champ → Year → Round selection, three **top-10** breakdowns — **Most Picked / Top Scorers / Best
+  Value** — each filterable by **class**, plus a field-score + bonus-usage strip. The endpoint returns the
+  **full per-entity breakdown** (`entities[]`: ownership %, points, price per picked car/driver) + all bonus
+  kinds (`modifiers[]`); the client derives the top-10s and class filter. **Leaderboard movement (▲▼)** is
+  real: `LeaderboardEntry.movement` (round-over-round cumulative rank delta, computed in
+  `Standings.ComputeMovement`) drives the season + league season boards and the Dashboard league trend.
+  **Still mocked** (in `src/lib/demoStats.ts`, via `<Demo>`): the admin price board's per-row pick %
+  (`mockPickPct` — a pre-lock screen, where real ownership is deliberately hidden) and the
+  registration/landing tiles.
 - **End-to-end types:** the API annotates response schemas (`.Produces<T>()`), so request *and* response
   DTOs flow from `schema.d.ts` (`components['schemas']`). Re-run `pnpm gen:api` after API contract changes.
   (Catalog, entries, prices, users, ingestion, and scoring are annotated as of the F4/A4 passes; the

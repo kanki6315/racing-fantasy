@@ -105,5 +105,6 @@ app.MapLeaderboardEndpoints();
 app.MapLeagueEndpoints();
 app.MapImageEndpoints();
 app.MapStatsEndpoints();
+app.MapRoundStatsEndpoints();
 
 app.Run();
