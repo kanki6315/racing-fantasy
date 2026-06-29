@@ -175,6 +175,13 @@ pnpm build          # tsc typecheck + production build
 - **Scores/standings:** `GET /rounds/{id}/scores` (admin), `GET /seasons/{id}/leaderboard` (global, public),
   `GET /rounds/{id}/leaderboard`. The Standings page composes these behind a **Championship → Year → Round**
   filter (ADR-0008); the Total | round sub-filter (`RoundFilter`) is shared with league boards.
+- **View another player's picks (standings drill-in):** `GET /registrations/{registrationId}/rounds/{roundId}/picks`
+  (any signed-in user — **no ownership check**, unlike the roster GET; gated on lock → `409 not_locked` until
+  quali starts so lineups can't be copied early). Returns `{ teamName, total, main:[{entityType,entityId,classId,
+  price,points,scores:[{source,points,ruleVersion}]}], modifiers:[{kind,target,points}] }` — reuses the same
+  `Score`/`RoundTotal` data as the admin scores endpoint (no schema change). On the player UI, **round-board**
+  leaderboard rows link to the read-only `/standings/team/:registrationId/round/:roundId` page (Total-view rows
+  don't); it reuses the pick page's pit-lane look (`EntityThumb`/`DriverLineup`) with points + Q/R breakdown.
 - **Leagues:** `POST /leagues`, `GET /leagues?seasonId=&mine=`, `GET /leagues/{id}`,
   `POST /leagues/{id}/join?joinCode=`, `POST /leagues/{id}/leave`, `DELETE /leagues/{id}`,
   `GET /leagues/{id}/leaderboard[?roundId=]` (private = members-only; `roundId` narrows to a single round).
@@ -235,3 +242,17 @@ pnpm build          # tsc typecheck + production build
 Start with [docs/README.md](docs/README.md). For frontend work: [docs/frontend-roadmap.md](docs/frontend-roadmap.md)
 (phases F0–F5, MVP cut, auth dependency) and [ADR-0004](docs/adr/0004-authentication-and-data-minimization.md)
 (/ -0005 leagues) for the auth + team-name + league model the UI must reflect.
+
+## Design Context (Impeccable)
+
+Frontend design is governed by two root files in `apps/web/` (read before UI work):
+- **[PRODUCT.md](apps/web/PRODUCT.md)** — strategic: register (**product**), users, purpose, brand
+  personality (*precise, fast, premium* — between broadcast/telemetry and premium motorsport),
+  anti-references (generic SaaS, DraftKings/betting, cluttered timing software, toy/cartoonish),
+  and design principles.
+- **[DESIGN.md](apps/web/DESIGN.md)** — visual system (Stitch format): North Star **"The Timing
+  Screen"**, the near-black broadcast palette + class colors, Saira/Saira Condensed/Spline Sans Mono
+  typography, flat-void elevation, and component specs. Machine-readable tokens mirror `src/index.css`.
+
+The `/impeccable` skill (and its sub-commands) reads these. Visual variants run via `/impeccable live`
+(configured in `apps/web/.impeccable/`).

@@ -163,6 +163,60 @@ public static class RosterEndpoints
         .Produces<RosterErrorResponse>(StatusCodes.Status409Conflict)
         .Produces<RosterErrorResponse>(StatusCodes.Status422UnprocessableEntity);
 
+        // Read-only view of ANOTHER player's picks + their per-pick scores — the standings drill-in.
+        // Any signed-in user (the group's auth), but gated on lock: a roster is only revealed once
+        // qualifying has begun, so a rival's lineup can't be copied before picks close (409 not_locked
+        // otherwise). No ownership check — that's the whole point, unlike GET /roster above.
+        group.MapGet("/{roundId:long}/picks", async (long registrationId, long roundId, FantasyDbContext db) =>
+        {
+            var registration = await db.Registrations.FindAsync(registrationId);
+            if (registration is null) return Results.NotFound();
+            var round = await db.Rounds.FindAsync(roundId);
+            if (round is null) return Results.NotFound();
+
+            var roster = await db.Rosters.Include(r => r.Picks)
+                .Include(r => r.Modifiers).ThenInclude(m => m.TargetPick)
+                .FirstOrDefaultAsync(r => r.RegistrationId == registrationId && r.RoundId == roundId);
+
+            var locked = roster?.LockedAt is not null || DateTime.UtcNow >= round.QualiStart;
+            if (!locked)
+                return Results.Json(new PlayerPicksError("not_locked", "Picks are hidden until qualifying begins."),
+                    statusCode: StatusCodes.Status409Conflict);
+
+            var picks = roster?.Picks.Where(p => p.SlotType == SlotType.Main).ToList() ?? new List<Pick>();
+            var mods = roster?.Modifiers.ToList() ?? new List<RosterModifier>();
+            var pickIds = picks.Select(p => p.Id).ToList();
+            var modifierIds = mods.Select(m => m.Id).ToList();
+
+            // Same score lookup as the admin GET /rounds/{id}/scores, scoped to this one roster.
+            var scores = await db.Scores.Where(s =>
+                    (s.PickId != null && pickIds.Contains(s.PickId.Value)) ||
+                    (s.RosterModifierId != null && modifierIds.Contains(s.RosterModifierId.Value)))
+                .ToListAsync();
+            var byPick = scores.Where(s => s.PickId != null)
+                .GroupBy(s => s.PickId!.Value).ToDictionary(g => g.Key, g => g.ToList());
+            var byModifier = scores.Where(s => s.RosterModifierId != null)
+                .GroupBy(s => s.RosterModifierId!.Value).ToDictionary(g => g.Key, g => g.ToList());
+            var total = await db.RoundTotals
+                .Where(rt => rt.RegistrationId == registrationId && rt.RoundId == roundId)
+                .Select(rt => (decimal?)rt.Points).FirstOrDefaultAsync() ?? 0m;
+
+            var mainDtos = picks.Select(p =>
+            {
+                var ss = (byPick.GetValueOrDefault(p.Id) ?? new List<Score>())
+                    .Select(s => new SourceScoreDto(s.Source, s.Points, s.RuleVersion)).ToList();
+                return new PlayerPickDto(p.EntityType, p.EntityId, p.ClassId, p.PriceAtLock, ss.Sum(x => x.Points), ss);
+            }).ToList();
+
+            var modDtos = mods.Select(m => new PlayerModifierDto(
+                m.Kind,
+                m.TargetPick is { } tp ? new EntityRef(tp.EntityType.ToString(), tp.EntityId) : null,
+                (byModifier.GetValueOrDefault(m.Id) ?? new List<Score>()).Sum(s => s.Points))).ToList();
+
+            return Results.Ok(new PlayerPicksResponse(
+                registration.Id, registration.TeamName, roundId, locked, total, mainDtos, modDtos));
+        }).Produces<PlayerPicksResponse>().Produces<PlayerPicksError>(StatusCodes.Status409Conflict);
+
         return app;
     }
 
@@ -215,6 +269,19 @@ public record RosterResponse(
 
 public record RosterPickDto(EntityType EntityType, long EntityId, long ClassId, decimal Price);
 public record RosterModifierDto(string Kind, EntityRef? Target);
+
+/// <summary>
+/// Read-only disclosure of one player's locked roster + the points each pick scored, for the
+/// standings drill-in. <see cref="PlayerPickDto.Scores"/> reuses <see cref="SourceScoreDto"/>
+/// (defined alongside the admin scores endpoint) so the quali/race breakdown matches.
+/// </summary>
+public record PlayerPicksResponse(
+    long RegistrationId, string TeamName, long RoundId, bool Locked, decimal Total,
+    List<PlayerPickDto> Main, List<PlayerModifierDto> Modifiers);
+public record PlayerPickDto(
+    EntityType EntityType, long EntityId, long ClassId, decimal Price, decimal Points, List<SourceScoreDto> Scores);
+public record PlayerModifierDto(string Kind, EntityRef? Target, decimal Points);
+public record PlayerPicksError(string Error, string? Message = null);
 
 /// <summary>
 /// Unified roster PUT error body (409/422). <see cref="Error"/> is the discriminator
