@@ -5,6 +5,7 @@ import { ComingSoon } from './routes/ComingSoon'
 import { Dashboard } from './routes/Dashboard'
 import { Pick } from './routes/Pick'
 import { Standings } from './routes/Standings'
+import { Stats } from './routes/Stats'
 import { TeamPicks } from './routes/TeamPicks'
 import { LeagueStandings } from './routes/LeagueStandings'
 import { RequireAuth } from './auth/RequireAuth'
@@ -35,7 +36,7 @@ export const router = createBrowserRouter([
         path: 'standings/team/:registrationId/round/:roundId',
         element: <RequireAuth><TeamPicks /></RequireAuth>,
       },
-      { path: 'stats', element: <ComingSoon title="Stats" /> },
+      { path: 'stats', element: <Stats /> },
       { path: '*', element: <ComingSoon title="Not Found" subtitle="That page doesn't exist" /> },
     ],
   },

@@ -14,8 +14,6 @@ import {
   type League,
 } from '../api/queries'
 import { useCountdown } from '../lib/useCountdown'
-import { mockTrend } from '../lib/demoStats'
-import { Demo } from '../components/Demo'
 import { CreateLeagueModal, JoinByCodeModal } from '../components/LeagueModals'
 import { RegisterModal } from '../components/RegisterModal'
 import { EntityThumb } from '../components/EntityThumb'
@@ -345,7 +343,8 @@ function LeagueRow({ league, me }: { league: League; me: Me }) {
   const myReg = me.registrations.find((r) => r.seasonId === league.seasonId)
   const myRow = lb.data?.entries.find((e) => e.registrationId === myReg?.id)
   const rank = myRow?.rank
-  const trend = mockTrend(league.id)
+  // Real round-over-round movement from the season league board (null until two rounds are scored).
+  const trend = myRow?.movement ?? null
   const initials = league.name.split(/\s+/).map((w) => w[0]).join('').slice(0, 2).toUpperCase()
 
   return (
@@ -362,14 +361,12 @@ function LeagueRow({ league, me }: { league: League; me: Me }) {
         <span className="text-center font-mono text-[16px] font-bold text-ink">
           {rank ?? '—'}<span className="text-[11px] text-muted-2">/{league.memberCount}</span>
         </span>
-        <Demo>
-          <span
-            aria-label={`Trend ${trend > 0 ? `up ${trend}` : trend < 0 ? `down ${-trend}` : 'unchanged'}`}
-            className={`block text-center font-mono text-[13px] ${trend > 0 ? 'text-success' : trend < 0 ? 'text-danger' : 'text-muted-2'}`}
-          >
-            {trend > 0 ? `▲ ${trend}` : trend < 0 ? `▼ ${-trend}` : '— 0'}
-          </span>
-        </Demo>
+        <span
+          aria-label={trend == null ? 'Trend unavailable' : `Trend ${trend > 0 ? `up ${trend}` : trend < 0 ? `down ${-trend}` : 'unchanged'}`}
+          className={`block text-center font-mono text-[13px] ${trend != null && trend > 0 ? 'text-success' : trend != null && trend < 0 ? 'text-danger' : 'text-muted-2'}`}
+        >
+          {trend == null ? '—' : trend > 0 ? `▲ ${trend}` : trend < 0 ? `▼ ${-trend}` : '— 0'}
+        </span>
         <span className="text-right">
           <Link to={`/leagues/${league.id}`} className="rounded-[3px] border border-line-2 px-[14px] py-[7px] font-display text-[13px] font-semibold uppercase tracking-[0.04em] text-ink-2">
             Standings
@@ -377,7 +374,7 @@ function LeagueRow({ league, me }: { league: League; me: Me }) {
         </span>
       </div>
 
-      {/* < sm : card (Trend dropped — it's mocked anyway) */}
+      {/* < sm : card (Trend column dropped for space) */}
       <div className="flex items-center gap-3 border-b border-surface-2 px-4 py-[14px] sm:hidden">
         <div className="flex h-9 w-9 flex-none items-center justify-center rounded-[5px] border border-line-3 bg-surface-2 font-display text-[14px] font-extrabold italic text-ink">{initials}</div>
         <div className="min-w-0 flex-1">

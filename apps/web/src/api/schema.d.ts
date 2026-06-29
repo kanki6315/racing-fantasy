@@ -252,6 +252,52 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/rounds/{roundId}/stats": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    roundId: number;
+                };
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description OK */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["RoundStatsResponse"];
+                    };
+                };
+                /** @description Conflict */
+                409: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["RoundStatsError"];
+                    };
+                };
+            };
+        };
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/auth/login": {
         parameters: {
             query?: never;
@@ -3149,6 +3195,22 @@ export interface components {
             /** Format: int64 */
             entityId: number;
         };
+        EntityStat: {
+            entityType: components["schemas"]["EntityType"];
+            /** Format: int64 */
+            entityId: number;
+            /** Format: int64 */
+            classId: number;
+            displayName: null | string;
+            /** Format: int32 */
+            pickCount: number;
+            /** Format: double */
+            pickPct: number;
+            /** Format: double */
+            points: null | number;
+            /** Format: double */
+            price: null | number;
+        };
         /** @enum {unknown} */
         EntityType: "Car" | "Driver";
         EntryDriverDto: {
@@ -3277,6 +3339,8 @@ export interface components {
             /** Format: int32 */
             roundsScored: number;
             name?: null | string;
+            /** Format: int32 */
+            movement?: null | number;
         };
         LeagueDto: {
             /** Format: int64 */
@@ -3311,6 +3375,19 @@ export interface components {
             kind: string;
             target: null | components["schemas"]["EntityRef"];
             scores: components["schemas"]["SourceScoreDto"][];
+        };
+        ModifierStat: {
+            kind: string;
+            /** Format: int32 */
+            usageCount: number;
+            /** Format: double */
+            usagePct: number;
+            topTargetEntityType: null | components["schemas"]["EntityType"];
+            /** Format: int64 */
+            topTargetEntityId: null | number;
+            topTargetName: null | string;
+            /** Format: double */
+            avgBonus: null | number;
         };
         ModifierViolation: {
             kind: string;
@@ -3547,6 +3624,22 @@ export interface components {
             /** Format: int64 */
             roundId: number;
             entries: components["schemas"]["LeaderboardEntry"][];
+        };
+        RoundStatsError: {
+            error: string;
+            message: string;
+        };
+        RoundStatsResponse: {
+            /** Format: int64 */
+            roundId: number;
+            /** Format: int32 */
+            rosters: number;
+            /** Format: double */
+            highScore: null | number;
+            /** Format: double */
+            avgScore: null | number;
+            entities: components["schemas"]["EntityStat"][];
+            modifiers: components["schemas"]["ModifierStat"][];
         };
         RulesetDetailDto: {
             /** Format: int64 */

@@ -165,22 +165,28 @@ public static class LeagueEndpoints
 
             // Default: season-wide pool (all of the league season's rounds). A roundId narrows the
             // board to that single round — it must belong to the league's season (else 404).
-            var roundIds = await db.Rounds.Where(r => r.SeasonId == league.SeasonId).Select(r => r.Id).ToListAsync();
+            var roundIds = await db.Rounds.Where(r => r.SeasonId == league.SeasonId)
+                .OrderBy(r => r.Sequence).Select(r => r.Id).ToListAsync();
+            var singleRound = roundId is not null;
             if (roundId is { } rid)
             {
                 if (!roundIds.Contains(rid)) return Results.NotFound();
                 roundIds = [rid];
             }
-            var rows = (await db.RoundTotals
-                    .Where(rt => roundIds.Contains(rt.RoundId) && memberRegIds.Contains(rt.RegistrationId)).ToListAsync())
+            var totals = await db.RoundTotals
+                .Where(rt => roundIds.Contains(rt.RoundId) && memberRegIds.Contains(rt.RegistrationId)).ToListAsync();
+            var rows = totals
                 .GroupBy(rt => rt.RegistrationId)
                 .Select(g => new Standings.Row(g.Key, g.Sum(x => x.Points), g.Count()))
                 .ToList();
 
             // Private boards are members-only (guarded above), so real names are shown only to fellow
-            // members (ADR-0004 amendment). Public/season boards stay team-name-only.
+            // members (ADR-0004 amendment). Public/season boards stay team-name-only. Movement (▲▼) is a
+            // cumulative-board concept, so only on the season-wide view — a single-round board has none.
             var includeNames = league.Visibility == LeagueVisibility.Private;
-            return Results.Ok(new LeagueLeaderboardResponse(id, league.Name, await Standings.RankAsync(db, rows, includeNames)));
+            var movement = singleRound ? null : Standings.ComputeMovement(totals, roundIds);
+            return Results.Ok(new LeagueLeaderboardResponse(
+                id, league.Name, await Standings.RankAsync(db, rows, includeNames, movement)));
         }).Produces<LeagueLeaderboardResponse>();
 
         return app;

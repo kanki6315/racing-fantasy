@@ -11,6 +11,21 @@ function rankColor(rank: number): string {
 }
 
 /**
+ * Round-over-round rank change on cumulative boards. `null` (single-round board, or a team's first
+ * scored round) renders nothing; `0` holds; ±n climbs/drops. Positive = moved up the table.
+ */
+function Movement({ value }: { value?: number | null }) {
+  if (value == null) return null
+  const label = value > 0 ? `up ${value}` : value < 0 ? `down ${-value}` : 'no change'
+  const tone = value > 0 ? 'text-success' : value < 0 ? 'text-danger' : 'text-muted-2'
+  return (
+    <span aria-label={`Moved ${label} since last round`} className={`font-mono text-[10px] leading-none ${tone}`}>
+      {value > 0 ? `▲${value}` : value < 0 ? `▼${-value}` : '—'}
+    </span>
+  )
+}
+
+/**
  * Shared standings table for every leaderboard surface (season, round, league, global).
  * `myRegistrationId` highlights the viewer's row; `showName` reveals the real name column
  * (members-only private leagues — the API only returns `name` when allowed).
@@ -38,8 +53,8 @@ export function Leaderboard({
   }
 
   const cols = showName
-    ? 'grid-cols-[52px_1fr_minmax(0,1fr)_110px_90px]'
-    : 'grid-cols-[52px_1fr_110px_90px]'
+    ? 'grid-cols-[64px_1fr_minmax(0,1fr)_110px_90px]'
+    : 'grid-cols-[64px_1fr_110px_90px]'
 
   return (
     <div className="overflow-hidden rounded-[4px] border border-line bg-surface">
@@ -64,7 +79,10 @@ export function Leaderboard({
                 mine ? 'border-l-[3px] border-l-brand bg-brand/[0.06]' : ''
               } ${href ? 'transition-colors hover:bg-surface-2' : ''}`}
             >
-              <span className={`font-mono text-[16px] font-bold ${rankColor(e.rank)}`}>{e.rank}</span>
+              <span className="flex items-baseline gap-1.5">
+                <span className={`font-mono text-[16px] font-bold ${rankColor(e.rank)}`}>{e.rank}</span>
+                <Movement value={e.movement} />
+              </span>
               <span className="flex items-center gap-2 truncate font-display text-[15px] font-bold uppercase tracking-[0.02em] text-ink">
                 <span className={`h-[15px] w-[4px] flex-none [transform:skewX(-14deg)] ${mine ? 'bg-brand' : 'bg-line-3'}`} />
                 <span className="truncate">{e.teamName}</span>
@@ -92,7 +110,10 @@ export function Leaderboard({
                 mine ? 'border-l-[3px] border-l-brand bg-brand/[0.06]' : ''
               } ${href ? 'transition-colors active:bg-surface-2' : ''}`}
             >
-              <span className={`w-7 shrink-0 text-center font-mono text-[18px] font-bold ${rankColor(e.rank)}`}>{e.rank}</span>
+              <span className="flex w-7 shrink-0 flex-col items-center gap-0.5">
+                <span className={`font-mono text-[18px] font-bold leading-none ${rankColor(e.rank)}`}>{e.rank}</span>
+                <Movement value={e.movement} />
+              </span>
               <div className="min-w-0 flex-1">
                 <div className="flex items-center gap-2">
                   <span className={`h-[14px] w-[4px] flex-none [transform:skewX(-14deg)] ${mine ? 'bg-brand' : 'bg-line-3'}`} />

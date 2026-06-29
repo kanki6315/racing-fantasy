@@ -136,6 +136,32 @@ export function useRoundLeaderboard(roundId: number | undefined) {
   })
 }
 
+// ---- Round Recap stats (post-lock public aggregates) ----
+export type RoundStats = components['schemas']['RoundStatsResponse']
+
+/**
+ * Round Recap aggregates (ownership %, best value, top bonus). The endpoint is lock-gated and returns
+ * 409 until qualifying begins — we swallow that into `null` so the recap simply doesn't render before
+ * lock, while real errors still surface. Cached client-side to match the 5-min server TTL.
+ */
+export function useRoundStats(roundId: number | undefined) {
+  return useQuery({
+    queryKey: ['round-stats', roundId],
+    enabled: roundId != null,
+    staleTime: 5 * 60_000,
+    queryFn: async () => {
+      const { data, error, response } = await api.GET('/rounds/{roundId}/stats', {
+        params: { path: { roundId: roundId! } },
+      })
+      if (error) {
+        if (response.status === 409) return null // not locked yet — stats stay hidden
+        throw error
+      }
+      return data!
+    },
+  })
+}
+
 // ---- Global stats (landing tiles) ----
 export type GlobalStats = components['schemas']['GlobalStats']
 
@@ -275,6 +301,7 @@ export function useRound(roundId: number) {
 export function useRosterRules(roundId: number) {
   return useQuery({
     queryKey: ['roster-rules', roundId],
+    enabled: roundId > 0,
     queryFn: async () => {
       const { data, error } = await api.GET('/rounds/{id}/roster-rules', { params: { path: { id: roundId } } })
       if (error) throw error
