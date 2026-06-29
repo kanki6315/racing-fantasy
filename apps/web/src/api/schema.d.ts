@@ -55,7 +55,9 @@ export interface paths {
                     headers: {
                         [name: string]: unknown;
                     };
-                    content?: never;
+                    content: {
+                        "application/json": components["schemas"]["RulesetDetailDto"];
+                    };
                 };
             };
         };
@@ -2523,7 +2525,9 @@ export interface paths {
                     headers: {
                         [name: string]: unknown;
                     };
-                    content?: never;
+                    content: {
+                        "application/json": components["schemas"]["RulesetDto"][];
+                    };
                 };
             };
         };
@@ -2543,12 +2547,14 @@ export interface paths {
                 };
             };
             responses: {
-                /** @description OK */
-                200: {
+                /** @description Created */
+                201: {
                     headers: {
                         [name: string]: unknown;
                     };
-                    content?: never;
+                    content: {
+                        "application/json": components["schemas"]["RulesetDto"];
+                    };
                 };
             };
         };
@@ -3454,6 +3460,33 @@ export interface components {
             roundId: number;
             entries: components["schemas"]["LeaderboardEntry"][];
         };
+        RulesetDetailDto: {
+            /** Format: int64 */
+            id: number;
+            /** Format: int64 */
+            seasonId: number;
+            source: components["schemas"]["ScoringSource"];
+            /** Format: int32 */
+            version: number;
+            status: components["schemas"]["RulesetStatus"];
+            /** Format: date-time */
+            effectiveFrom: string;
+            positionPoints: components["schemas"]["RankPoints"][];
+        };
+        RulesetDto: {
+            /** Format: int64 */
+            id: number;
+            /** Format: int64 */
+            seasonId: number;
+            source: components["schemas"]["ScoringSource"];
+            /** Format: int32 */
+            version: number;
+            status: components["schemas"]["RulesetStatus"];
+            /** Format: date-time */
+            effectiveFrom: string;
+        };
+        /** @enum {unknown} */
+        RulesetStatus: "Draft" | "Active" | "Archived";
         ScoreRoundResult: {
             /** Format: int64 */
             roundId: number;

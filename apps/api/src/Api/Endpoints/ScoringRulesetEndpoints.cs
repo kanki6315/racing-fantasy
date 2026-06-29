@@ -21,7 +21,8 @@ public static class ScoringRulesetEndpoints
                 .Where(r => r.SeasonId == seasonId && (source == null || r.Source == source))
                 .OrderBy(r => r.Source).ThenByDescending(r => r.Version)
                 .Select(r => new RulesetDto(r.Id, r.SeasonId, r.Source, r.Version, r.Status, r.EffectiveFrom))
-                .ToListAsync()));
+                .ToListAsync()))
+            .Produces<List<RulesetDto>>();
 
         seasonGroup.MapPost("/", async (long seasonId, CreateRuleset dto, FantasyDbContext db) =>
         {
@@ -56,7 +57,7 @@ public static class ScoringRulesetEndpoints
 
             return Results.Created($"/scoring-rulesets/{ruleset.Id}",
                 new RulesetDto(ruleset.Id, ruleset.SeasonId, ruleset.Source, ruleset.Version, ruleset.Status, ruleset.EffectiveFrom));
-        });
+        }).Produces<RulesetDto>(StatusCodes.Status201Created);
 
         app.MapGet("/scoring-rulesets/{id:long}", async (long id, FantasyDbContext db) =>
         {
@@ -65,7 +66,7 @@ public static class ScoringRulesetEndpoints
                 ? Results.NotFound()
                 : Results.Ok(new RulesetDetailDto(r.Id, r.SeasonId, r.Source, r.Version, r.Status, r.EffectiveFrom,
                     r.PositionPoints.OrderBy(p => p.Rank).Select(p => new RankPoints(p.Rank, p.Points)).ToList()));
-        }).WithTags("ScoringRulesets").RequireAuthorization("Admin");
+        }).WithTags("ScoringRulesets").RequireAuthorization("Admin").Produces<RulesetDetailDto>();
 
         return app;
     }

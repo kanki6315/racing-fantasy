@@ -11,6 +11,7 @@ const consoleNav = [
   { to: '/admin/entries', label: 'Entries' },
   { to: '/admin/prices', label: 'Prices' },
   { to: '/admin/results', label: 'Results' },
+  { to: '/admin/rulesets', label: 'Rulesets' },
   { to: '/admin/scoring', label: 'Scoring' },
 ]
 const governanceNav = [

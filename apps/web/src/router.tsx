@@ -18,6 +18,7 @@ import { Registrations } from './routes/admin/Registrations'
 import { UsersData } from './routes/admin/UsersData'
 import { Results } from './routes/admin/Results'
 import { Scoring } from './routes/admin/Scoring'
+import { Rulesets } from './routes/admin/Rulesets'
 
 export const router = createBrowserRouter([
   {
@@ -47,6 +48,7 @@ export const router = createBrowserRouter([
       { path: 'entries', element: <Entries /> },
       { path: 'prices', element: <Prices /> },
       { path: 'results', element: <Results /> },
+      { path: 'rulesets', element: <Rulesets /> },
       { path: 'scoring', element: <Scoring /> },
       { path: 'registrations', element: <Registrations /> },
       { path: 'users', element: <UsersData /> },
