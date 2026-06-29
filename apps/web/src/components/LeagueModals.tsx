@@ -152,6 +152,13 @@ export function JoinByCodeModal({ open, onOpenChange }: { open: boolean; onOpenC
               placeholder="ABCD1234"
               className="mt-5 h-12 w-full rounded-[4px] border border-line-2 bg-[#070809] px-[15px] font-mono text-[18px] font-bold tracking-[0.1em] text-ink outline-none placeholder:text-line-3"
             />
+            {/* Private-league members can see each other's real name (ADR-0004) — make that explicit before joining. */}
+            <div className="mt-4 flex items-start gap-2 rounded-[4px] border border-line-2 bg-[#070809] px-3 py-[10px]">
+              <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="#8a8f98" strokeWidth="2" className="mt-[1px] shrink-0"><circle cx="12" cy="12" r="10" /><path d="M12 16v-4M12 8h.01" /></svg>
+              <p className="font-sans text-[12px] leading-[1.5] text-muted">
+                Heads up — members of a private league can see <span className="text-ink-2">your name</span>, not just your team name.
+              </p>
+            </div>
             {join.isError && <p className="mt-3 font-sans text-[12px] text-danger">That code didn't match a league (or you're already in / not registered).</p>}
             <div className="mt-5 flex gap-3">
               <Dialog.Close className="h-11 rounded-[3px] border border-line-2 px-5 font-display text-[14px] font-semibold uppercase text-ink-2 cursor-pointer">Cancel</Dialog.Close>
