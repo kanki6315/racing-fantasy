@@ -1,0 +1,128 @@
+{
+  "schemaVersion": 2,
+  "generatedAt": "2026-06-19T00:00:00Z",
+  "title": "Design System: IMSA Fantasy",
+  "extensions": {
+    "colorMeta": {
+      "brand": { "role": "primary", "displayName": "IMSA Red", "canonical": "#e10600", "tonalRamp": ["#2a0100", "#560200", "#820300", "#ad0400", "#e10600", "#ff2d2d", "#ff5d5d", "#ffb3b3"] },
+      "bg": { "role": "neutral", "displayName": "Void", "canonical": "#0a0b0d", "tonalRamp": ["#0a0b0d", "#101317", "#16181c", "#1f242a", "#2a2d33", "#3a3f47", "#5c626b", "#8a8f98"] },
+      "ink": { "role": "neutral", "displayName": "Ink", "canonical": "#ffffff", "tonalRamp": ["#5c626b", "#8a8f98", "#c8ccd2", "#e6e8eb", "#ffffff"] },
+      "class-gtp": { "role": "secondary", "displayName": "GTP Red", "canonical": "#ff2d2d", "tonalRamp": ["#330909", "#5c1010", "#8a1818", "#b82020", "#e62828", "#ff2d2d", "#ff6b6b", "#ffb3b3"] },
+      "class-lmp2": { "role": "secondary", "displayName": "LMP2 Blue", "canonical": "#2e7dff", "tonalRamp": ["#0a1933", "#11295c", "#183a8a", "#1f4ab8", "#2663e6", "#2e7dff", "#6ba4ff", "#b3cdff"] },
+      "class-gtdpro": { "role": "secondary", "displayName": "GTD PRO Amber", "canonical": "#ffb400", "tonalRamp": ["#332400", "#5c4100", "#8a6100", "#b88000", "#e6a000", "#ffb400", "#ffc23d", "#ffe0a0"] },
+      "class-gtd": { "role": "secondary", "displayName": "GTD Green", "canonical": "#4ade80", "tonalRamp": ["#0c2818", "#13402a", "#1b5c3c", "#23784f", "#2e9461", "#4ade80", "#86efac", "#bbf7d0"] },
+      "warn": { "role": "tertiary", "displayName": "Warn Amber", "canonical": "#ffc23d", "tonalRamp": ["#332600", "#5c4400", "#8a6600", "#b88800", "#e6aa00", "#ffc23d", "#ffd573", "#ffe9b3"] },
+      "danger": { "role": "tertiary", "displayName": "Danger Red", "canonical": "#ff5d5d", "tonalRamp": ["#330d0d", "#5c1818", "#8a2424", "#b83030", "#e63c3c", "#ff5d5d", "#ff8c8c", "#ffc2c2"] }
+    },
+    "typographyMeta": {
+      "display": { "displayName": "Display", "purpose": "Page/hero titles and scoreboard headers. Saira Condensed, uppercase; italic reserved for the primary CTA only." },
+      "title": { "displayName": "Title", "purpose": "Nav links, button labels, table headers. Saira Condensed, uppercase, tracked." },
+      "body": { "displayName": "Body", "purpose": "Prose and helper text. Saira, regular. Cap measure at 65-75ch." },
+      "label": { "displayName": "Label / Numeral", "purpose": "Spline Sans Mono. Every micro-label and every comparable number; tabular by nature." }
+    },
+    "shadows": [
+      { "name": "overlay", "value": "0 30px 80px rgba(0,0,0,0.6)", "purpose": "Modals/dialogs lifting off the void." },
+      { "name": "popover", "value": "0 8px 24px rgba(0,0,0,0.5)", "purpose": "Dropdowns and tooltips." }
+    ],
+    "motion": [
+      { "name": "ease-color", "value": "ease", "purpose": "Fast (~150ms) color-only transitions for hover/active. No layout animation." }
+    ],
+    "breakpoints": [
+      { "name": "sm", "value": "640px" },
+      { "name": "md", "value": "768px" },
+      { "name": "lg", "value": "1024px" }
+    ]
+  },
+  "components": [
+    {
+      "name": "Primary Button",
+      "kind": "button",
+      "refersTo": "button-primary",
+      "description": "The one true action per view (e.g. SAVE ROSTER). Solid IMSA red, condensed uppercase.",
+      "html": "<button class=\"ds-btn-primary\">SAVE ROSTER</button>",
+      "css": ".ds-btn-primary { display:inline-flex; align-items:center; justify-content:center; height:44px; padding:0 20px; background:#e10600; color:#fff; font-family:'Saira Condensed',sans-serif; font-size:15px; font-weight:700; font-style:italic; letter-spacing:0.05em; text-transform:uppercase; border:none; border-radius:3px; cursor:pointer; transition:background .15s ease; } .ds-btn-primary:hover { background:#ff2d2d; } .ds-btn-primary:focus-visible { outline:2px solid #ff5d5d; outline-offset:2px; }"
+    },
+    {
+      "name": "Secondary Button",
+      "kind": "button",
+      "refersTo": "button-secondary",
+      "description": "Ghost action; hairline border, condensed uppercase, aligned to primary height.",
+      "html": "<button class=\"ds-btn-secondary\">CANCEL</button>",
+      "css": ".ds-btn-secondary { display:inline-flex; align-items:center; justify-content:center; height:44px; padding:0 20px; background:transparent; color:#c8ccd2; font-family:'Saira Condensed',sans-serif; font-size:14px; font-weight:600; letter-spacing:0.04em; text-transform:uppercase; border:1px solid #2a2d33; border-radius:3px; cursor:pointer; transition:border-color .15s ease, color .15s ease; } .ds-btn-secondary:hover { border-color:#3a3f47; color:#fff; } .ds-btn-secondary:focus-visible { outline:2px solid #ff5d5d; outline-offset:2px; }"
+    },
+    {
+      "name": "Card / Panel",
+      "kind": "card",
+      "refersTo": "card",
+      "description": "Primary content panel on the void. Flat at rest; separation is the hairline border.",
+      "html": "<div class=\"ds-card\"><div class=\"ds-card-title\">YOUR PICKS</div><div class=\"ds-card-body\">Build a roster under the salary cap before qualifying.</div></div>",
+      "css": ".ds-card { background:#101317; border:1px solid #1f242a; border-radius:6px; padding:16px; transition:border-color .15s ease; } .ds-card:hover { border-color:#2a2d33; } .ds-card-title { font-family:'Saira Condensed',sans-serif; font-size:14px; font-weight:600; letter-spacing:0.08em; text-transform:uppercase; color:#fff; } .ds-card-body { margin-top:8px; font-family:'Saira',sans-serif; font-size:13px; line-height:1.5; color:#c8ccd2; }"
+    },
+    {
+      "name": "Data Input",
+      "kind": "input",
+      "refersTo": "input",
+      "description": "Recessed near-black well with mono value text; reads like a data field.",
+      "html": "<input class=\"ds-input\" value=\"TEAM RADIO\" />",
+      "css": ".ds-input { height:48px; width:240px; padding:0 15px; background:#070809; color:#fff; font-family:'Spline Sans Mono',monospace; font-size:18px; font-weight:700; letter-spacing:0.1em; border:1px solid #2a2d33; border-radius:4px; outline:none; transition:border-color .15s ease; } .ds-input::placeholder { color:#3a3f47; } .ds-input:focus-visible { border-color:#3a3f47; outline:2px solid #ff5d5d; outline-offset:2px; }"
+    },
+    {
+      "name": "Status Pill",
+      "kind": "chip",
+      "refersTo": "chip",
+      "description": "Mono micro-label on a tinted wash of its own semantic hue; color is always paired with a dot + text.",
+      "html": "<span class=\"ds-pill\"><span class=\"ds-pill-dot\"></span>NOT REGISTERED</span>",
+      "css": ".ds-pill { display:inline-flex; align-items:center; gap:5px; height:20px; padding:0 8px; background:rgba(255,194,61,0.10); border:1px solid rgba(255,194,61,0.35); border-radius:3px; } .ds-pill-dot { width:5px; height:5px; border-radius:9999px; background:#ffc23d; } .ds-pill { font-family:'Spline Sans Mono',monospace; font-size:9px; letter-spacing:0.06em; color:#ffc23d; }"
+    },
+    {
+      "name": "Top Navigation",
+      "kind": "nav",
+      "refersTo": null,
+      "description": "Pure-black broadcast bar with a 2px IMSA-red bottom edge; condensed uppercase links, active underline.",
+      "html": "<nav class=\"ds-nav\"><a class=\"ds-nav-link ds-nav-active\">HOME</a><a class=\"ds-nav-link\">STANDINGS</a><a class=\"ds-nav-link\">STATS</a></nav>",
+      "css": ".ds-nav { display:flex; align-items:center; gap:24px; height:64px; padding:0 26px; background:#000; border-bottom:2px solid #e10600; } .ds-nav-link { display:flex; align-items:center; height:44px; border-bottom:2px solid transparent; font-family:'Saira Condensed',sans-serif; font-size:14px; font-weight:600; letter-spacing:0.08em; text-transform:uppercase; color:#8a8f98; text-decoration:none; cursor:pointer; transition:color .15s ease; } .ds-nav-link:hover { color:#c8ccd2; } .ds-nav-active { color:#fff; border-bottom-color:#e10600; }"
+    },
+    {
+      "name": "Broadcast Slash",
+      "kind": "custom",
+      "refersTo": null,
+      "description": "Skewed red leading accent — the angular motion mark of broadcast motorsport graphics. Deliberate punctuation, not on every heading.",
+      "html": "<div class=\"ds-slash-row\"><span class=\"ds-slash\"></span><span class=\"ds-slash-label\">QUALIFYING</span></div>",
+      "css": ".ds-slash-row { display:flex; align-items:center; gap:10px; } .ds-slash { width:6px; height:28px; background:#e10600; transform:skewX(-14deg); } .ds-slash-label { font-family:'Saira Condensed',sans-serif; font-size:18px; font-weight:700; letter-spacing:0.04em; text-transform:uppercase; color:#fff; }"
+    }
+  ],
+  "narrative": {
+    "northStar": "The Timing Screen",
+    "overview": "IMSA Fantasy looks like a live broadcast timing-and-scoring graphics package, executed with the restraint of a premium motorsport marque. The surface is a near-black void; content rides on it as crisp, slightly-elevated panels. The numbers - positions, prices, points, deltas - are the heroes, set in a tabular monospace so they align and scan like a timing screen. IMSA red is the single brand voice, spent sparingly on the things that matter. It is broadcast-fluent but never cluttered: generous gutters, clear hierarchy, one accent at a time. The result reads as precise, fast, premium - the focus of the grid before lights-out, not the noise of a casino floor.",
+    "keyCharacteristics": [
+      "Near-black broadcast canvas; content as crisp elevated panels, not floating cards.",
+      "Monospace numerals treated as first-class typography - the data IS the interface.",
+      "One accent (IMSA red) spent deliberately; racing-class colors reserved strictly for wayfinding.",
+      "Tight, engineered corners (2-8px) and hairline borders over heavy shadow.",
+      "Premium restraint: breathing room and hierarchy carry weight, not noise."
+    ],
+    "rules": [
+      { "name": "The One Red Rule", "body": "IMSA red is the only brand accent and appears on <=10% of any screen - the primary action, the live state, the nav bar. If two reds compete on a screen, one of them is wrong.", "section": "colors" },
+      { "name": "The Class-Color Reserve", "body": "GTP/LMP2/GTD PRO/GTD hues signify racing class and nothing else. Never borrow a class color for a button, a status, or decoration. Class is wayfinding; spending it elsewhere breaks the map.", "section": "colors" },
+      { "name": "The Tabular-Numeral Rule", "body": "Every number a player compares - position, price, points, delta - is set in Spline Sans Mono so columns align to the digit. Proportional numerals in a standings table are forbidden.", "section": "typography" },
+      { "name": "The Italic-Restraint Rule", "body": "Display italic is loud. Use it only on the primary CTA. Everywhere else, weight and case carry emphasis - not slant.", "section": "typography" },
+      { "name": "The Flat-Void Rule", "body": "In-page surfaces never cast shadows. Depth at rest is tonal layering plus a lightening border. A shadow on a card is a 2014 tell; if a panel looks like it's floating, flatten it.", "section": "elevation" }
+    ],
+    "dos": [
+      "Do set every comparable number (position, price, points, delta) in Spline Sans Mono, tabular - columns align to the digit.",
+      "Do keep IMSA red to <=10% of any screen: the primary action, the live state, the nav edge.",
+      "Do reserve GTP/LMP2/GTD PRO/GTD colors strictly for racing-class wayfinding, and always pair class/status color with text, icon, or position so it survives color-blindness.",
+      "Do convey depth with the tonal surface ramp + lightening hairline borders; keep in-page surfaces flat.",
+      "Do lead with breathing room - the premium register comes from generous gutters and clear hierarchy, not added ornament."
+    ],
+    "donts": [
+      "Don't build a generic SaaS dashboard - no cream/light surfaces, no identical icon-heading-text card grids, no big-number hero-metric template.",
+      "Don't drift toward the DraftKings betting aesthetic - no loud green-on-black, no odds-board clutter, no flashing CTAs or manufactured urgency.",
+      "Don't replicate cluttered timing software - density only where it earns its keep; never data-dump for its own sake.",
+      "Don't go toy or cartoonish - no mascots, no bubbly pill-rounded everything, no childish gamification. Corners stay tight (2-8px).",
+      "Don't use a border-left/border-right greater than 1px as a colored accent stripe on cards or rows.",
+      "Don't spend display italic or full-red beyond the single primary action per view.",
+      "Don't drop shadows on resting in-page surfaces - shadow is reserved for true overlays."
+    ]
+  }
+}
