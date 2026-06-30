@@ -178,7 +178,7 @@ export function Dashboard() {
             <span className="flex-none font-display text-[11px] font-bold uppercase tracking-[0.06em] text-muted-2">Off</span>
           )}
         </button>
-        <p className="mt-[7px] font-sans text-[11px] leading-[15px] text-muted-2">One email per race weekend when picks open.</p>
+        <p className="mt-[7px] font-sans text-[11px] leading-[15px] text-muted-2">One reminder before picks lock each race weekend.</p>
       </aside>
 
       {/* main */}

@@ -147,7 +147,7 @@ export function RegisterModal({
                   )}
                 </button>
                 <p className="mt-[7px] font-sans text-[11px] leading-[15px] text-muted-2">
-                  Email me when picks open — one per race weekend. Unsubscribe anytime.
+                  Email me before picks lock each race weekend — one email, unsubscribe anytime.
                 </p>
               </>
             )}

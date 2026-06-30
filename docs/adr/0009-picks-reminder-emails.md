@@ -39,8 +39,13 @@ several rounds across championships ([ADR-0007](0007-shared-events.md)) with dif
 ## Decision
 
 Build a single in-process background worker that sends **one reminder email per `event` per
-opted-in user**, via Amazon SES, rendered from an MJML-compiled HTML template, with the
-open-vs-close firing rule selected by **config**.
+opted-in user**, via Amazon SES, rendered from an MJML-compiled HTML template, firing
+**~24h before picks lock at qualifying**.
+
+> **Amendment (2026-06-29):** the firing rule was originally left as a config switch (at-open vs
+> N-hours-before-close) to defer the decision. We have since committed to **24h before close**, and
+> the `Reminders:Mode` switch and the at-open code path were removed — the single rule below is all
+> that ships. The rest of this ADR is unchanged.
 
 ### D1 — One in-process polling worker, mirroring `LockSweepService`
 
@@ -55,25 +60,20 @@ exists in this codebase, it survives restarts, retries are automatic on the next
 keeps the logic in one testable place. Railway runs a single API instance today; if that ever
 changes, the claim row (D3) makes concurrent workers safe without further work.
 
-### D2 — Firing rule is config-driven and derives from existing data (no new timestamp column)
+### D2 — Firing rule derives from existing data (no new timestamp column)
 
 ```
-Reminders:Mode             = AtOpen | HoursBeforeClose   // default: TBD — decided at deploy
-Reminders:HoursBeforeClose = 24
+Reminders:HoursBeforeClose = 24   // lead time before the weekend's earliest quali_start
 ```
 
-- **`AtOpen`** — due when `event.picks_open = true`.
-- **`HoursBeforeClose`** — due when `now() >= (MIN(round.quali_start) over the event's rounds) - HoursBeforeClose`.
-
-Both modes additionally require `picks_open = true` (never tell a player to pick when they
-can't) and that the deadline has not already passed. The weekend's deadline is the **earliest**
-`quali_start` among the event's rounds, so the reminder beats the first lock. Because both rules
-read columns that already exist, **the open-vs-close decision is deferred to a config value** and
-can be changed without a migration or redeploy of schema.
+An event is **due** when `now() >= (MIN(round.quali_start) over the event's rounds) - HoursBeforeClose`,
+it also requires `picks_open = true` (never tell a player to pick when they can't) and that the
+deadline has not already passed. The weekend's deadline is the **earliest** `quali_start` among the
+event's rounds, so the reminder beats the first lock. Because this reads only columns that already
+exist, **no scheduled "picks open at" timestamp is needed**.
 
 > Note: "24h before close" — i.e. before picks **lock at qualifying** — not "24h before open".
-> "Before open" would require a scheduled open time we deliberately do not model (IMSA entry
-> lists are never published weeks ahead, so `AtOpen` firing immediately on the toggle is correct).
+> "Before open" would require a scheduled open time we deliberately do not model.
 
 ### D3 — Single-send guaranteed by a claim table
 
@@ -193,7 +193,7 @@ delivery mechanism, keeping the feature additive and inside the current .NET dep
 - Email rendering must stay within Gmail's constraints (< 102 KB, tables, inline CSS) — verified per template change.
 
 **To revisit:**
-- **The default `Reminders:Mode`** — chosen at first deploy; revisit after observing open vs. completion rates.
+- **The `Reminders:HoursBeforeClose` lead time** (currently 24h) — revisit after observing completion rates.
 - **Already-picked suppression** — unnecessary now (nobody has picked when either rule fires), but if a "nudge the un-picked closer to lock" follow-up is added, filter recipients by missing roster.
 - **Per-round vs per-event emails** — settled as one per event at the earliest `quali_start`; revisit only if a single weekend's championships diverge enough to warrant separate emails.
 - **Broader notification preferences** — a single boolean now; generalize to a preferences table if more email types appear.
@@ -202,12 +202,12 @@ delivery mechanism, keeping the feature additive and inside the current .NET dep
 
 1. [ ] Schema: `event_reminder(event_id, user_id, sent_at)` unique `(event_id, user_id)`; `app_user.email_reminders_enabled bool not null default false`. Migration `AddPicksReminderEmails`.
 2. [ ] Domain/EF: `EventReminder` entity + config in `FantasyDbContext` (snake_case, FKs, unique index); `AppUser.EmailRemindersEnabled`.
-3. [ ] Config: `Reminders:{Mode,HoursBeforeClose}` and `Aws:Ses:{FromAddress,ReplyTo,Region}` options classes (mirror `ImageStorageOptions`, `IsConfigured` guard).
+3. [ ] Config: `Reminders:{HoursBeforeClose,WebBaseUrl,ApiBaseUrl,UnsubscribeSecret,Enabled}` and `Aws:Ses:{FromAddress,ReplyTo,Region}` options classes (mirror `ImageStorageOptions`, `IsConfigured` guard).
 4. [ ] `SesEmailSender` (`AWSSDK.SimpleEmailV2`) — send with `List-Unsubscribe`/`List-Unsubscribe-Post` headers; no-op-and-log when not configured.
 5. [ ] Template: `picks-reminder.mjml` + a build step compiling to `picks-reminder.html` (embedded resource); .NET token substitution. Gmail-verified (< 102 KB, tables, Arial fallback, dark-mode aware).
-6. [ ] `PicksReminderService : BackgroundService` (clone `LockSweepService`): due-event query per `Reminders:Mode` (gate on `picks_open` + earliest `quali_start`); claim-then-send per recipient.
+6. [ ] `PicksReminderService : BackgroundService` (clone `LockSweepService`): due-event query (gate on `picks_open` + within `HoursBeforeClose` of earliest `quali_start`); claim-then-send per recipient.
 7. [ ] Registration opt-in: `emailReminders` on the `POST /registrations` body → sets the user flag; unchecked checkbox + copy on the `/register` form; render checked if already enabled.
 8. [ ] Unsubscribe: `GET /email/unsubscribe?token=<signed>` → `enabled = false`; small account/dashboard re-enable toggle.
 9. [ ] API contracts: regenerate the frontend client (`pnpm gen:api`) for the registration body change.
-10. [ ] One-time ops: SES domain DKIM verify, SPF/DMARC DNS, request SES production access; set `Aws:Ses:*` + `Reminders:Mode` in Railway config.
+10. [ ] One-time ops: SES domain DKIM verify, SPF/DMARC DNS, request SES production access; set `Aws:Ses:*` + `Reminders:*` in Railway config.
 11. [ ] Docs: add `event_reminder` + `app_user.email_reminders_enabled` to [data-model.md](../data-model.md); index this ADR in [docs/README.md](../README.md).

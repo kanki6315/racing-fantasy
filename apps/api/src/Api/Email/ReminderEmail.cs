@@ -1,5 +1,4 @@
 using System.Reflection;
-using ImsaFantasy.Api.Workers;
 
 namespace ImsaFantasy.Api.Email;
 
@@ -11,37 +10,29 @@ public sealed record ReminderEmailModel(
     string UnsubscribeUrl);
 
 /// <summary>
-/// Builds the subject + HTML body for the picks-reminder email (ADR-0009 D6). The compiled MJML
-/// template (picks-reminder.html) is loaded once from embedded resources; tokens are filled per send.
-/// Both the subject and the in-body copy vary by <see cref="ReminderMode"/> (open vs closing soon).
+/// Builds the subject + HTML body for the picks-reminder email (ADR-0009 D6). The reminder fires
+/// ~24h before picks lock at qualifying, so the copy is a single "closing soon" voice. The compiled
+/// MJML template (picks-reminder.html) is loaded once from embedded resources; tokens filled per send.
 /// </summary>
 public static class ReminderEmail
 {
     private static readonly string Template = LoadTemplate();
 
-    /// <summary>The two subject lines (ADR-0009; wording chosen by the product owner).</summary>
-    public static string Subject(ReminderMode mode, string eventName) => mode == ReminderMode.HoursBeforeClose
-        ? $"Fantasy Picks for {eventName} are Closing Soon"
-        : $"Fantasy Picks for {eventName} are Open";
+    public static string Subject(string eventName) => $"Fantasy Picks for {eventName} are Closing Soon";
 
-    public static string RenderHtml(ReminderMode mode, ReminderEmailModel m)
+    public static string RenderHtml(ReminderEmailModel m)
     {
-        var closing = mode == ReminderMode.HoursBeforeClose;
         // quali_start is stored UTC; show it in US Eastern (IMSA races) with the correct EST/EDT label.
         var deadline = FormatEastern(m.CloseAtUtc);
 
         var tokens = new Dictionary<string, string>
         {
-            ["preheader"] = closing
-                ? $"Picks lock at qualifying — {deadline}."
-                : $"The pick board is open for {m.EventName}.",
-            ["statusLabel"] = closing ? "Picks closing soon" : "Picks open",
+            ["preheader"] = $"Picks lock at qualifying — {deadline}.",
+            ["statusLabel"] = "Picks closing soon",
             ["eventName"] = m.EventName,
-            ["intro"] = closing
-                ? $"Last chance to set your roster for {m.EventName} before picks lock at qualifying."
-                : $"The pick board is open for {m.EventName}. Set your roster before it locks at qualifying.",
+            ["intro"] = $"Last chance to set your roster for {m.EventName} before picks lock at qualifying.",
             ["deadlineLine"] = $"Picks lock at qualifying — {deadline}.",
-            ["ctaLabel"] = closing ? "Finish your picks" : "Set your picks",
+            ["ctaLabel"] = "Set your picks",
             ["ctaUrl"] = m.CtaUrl,
             ["unsubscribeUrl"] = m.UnsubscribeUrl,
         };

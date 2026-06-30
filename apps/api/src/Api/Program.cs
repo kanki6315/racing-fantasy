@@ -23,8 +23,10 @@ builder.Services.AddImageStorage(builder.Configuration);
 
 // Picks-reminder emails (ADR-0009): config-bound options. The SES sender + worker are registered
 // below; both no-op until configured/enabled.
-builder.Services.AddSingleton(
-    builder.Configuration.GetSection("Reminders").Get<ReminderOptions>() ?? new ReminderOptions());
+var reminderOptions = builder.Configuration.GetSection("Reminders").Get<ReminderOptions>() ?? new ReminderOptions();
+// The email CTA links to the player web app; default to the existing Web:Origin so it needn't be set twice.
+reminderOptions.WebBaseUrl ??= builder.Configuration["Web:Origin"];
+builder.Services.AddSingleton(reminderOptions);
 builder.Services.AddSingleton(
     builder.Configuration.GetSection("Aws:Ses").Get<ImsaFantasy.Api.Email.SesOptions>() ?? new ImsaFantasy.Api.Email.SesOptions());
 builder.Services.AddEmail();

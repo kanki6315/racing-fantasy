@@ -46,7 +46,7 @@ public sealed class PicksReminderService(
             logger.LogWarning("Picks-reminder worker enabled but idle — missing config: {Missing}.", string.Join(", ", missing));
             return false;
         }
-        logger.LogInformation("Picks-reminder worker started: mode={Mode}, poll={Poll}s.", options.Mode, options.PollSeconds);
+        logger.LogInformation("Picks-reminder worker started: {Hours}h before close, poll={Poll}s.", options.HoursBeforeClose, options.PollSeconds);
         return true;
     }
 
@@ -57,15 +57,16 @@ public sealed class PicksReminderService(
         var db = scope.ServiceProvider.GetRequiredService<FantasyDbContext>();
 
         // Candidate events: pick board released, with at least one round. Earliest quali_start is the
-        // weekend's close (ADR-0009 — one email per event, beating the first deadline).
+        // weekend's close (ADR-0009 — one email per event, beating the first deadline). Due once we're
+        // within HoursBeforeClose of that close and it hasn't locked yet.
         var open = await db.Events
             .Where(e => e.PicksOpen)
             .Select(e => new { e.Id, e.Name, Close = e.Rounds.Min(r => (DateTime?)r.QualiStart) })
             .ToListAsync(ct);
 
         var due = open.Where(e => e.Close is { } close
-                && now < close // not yet locked
-                && (options.Mode == ReminderMode.AtOpen || now >= close.AddHours(-options.HoursBeforeClose)))
+                && now < close                                   // not yet locked
+                && now >= close.AddHours(-options.HoursBeforeClose)) // within the lead window
             .ToList();
 
         foreach (var ev in due)
@@ -84,7 +85,7 @@ public sealed class PicksReminderService(
 
             if (recipients.Count == 0) continue;
 
-            var subject = ReminderEmail.Subject(options.Mode, ev.Name);
+            var subject = ReminderEmail.Subject(ev.Name);
             var sent = 0;
             foreach (var rec in recipients)
             {
@@ -117,7 +118,7 @@ public sealed class PicksReminderService(
         {
             var unsubscribeUrl = $"{options.ApiBaseUrl}/email/unsubscribe?token={tokens.Create(userId)}";
             var model = new ReminderEmailModel(eventName, closeUtc, options.WebBaseUrl!, unsubscribeUrl);
-            var body = ReminderEmail.RenderHtml(options.Mode, model);
+            var body = ReminderEmail.RenderHtml(model);
             var ok = await sender.SendAsync(new EmailMessage(email, subject, body, unsubscribeUrl), ct);
             if (!ok) throw new InvalidOperationException("email sender reported not-sent");
             return true;
