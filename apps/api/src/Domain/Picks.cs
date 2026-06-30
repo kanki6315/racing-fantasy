@@ -15,6 +15,9 @@ public class AppUser
     public required string ExternalSubject { get; set; }
     public string? Name { get; set; }
     public string? Email { get; set; }
+    /// <summary>Opt-in (default false) for the per-weekend picks-reminder email (ADR-0009). A user-level
+    /// preference across all the user's seasons; set at registration, cleared by one-click unsubscribe.</summary>
+    public bool EmailRemindersEnabled { get; set; }
     public DateTime CreatedAt { get; set; }
 
     public ICollection<Registration> Registrations { get; set; } = new List<Registration>();

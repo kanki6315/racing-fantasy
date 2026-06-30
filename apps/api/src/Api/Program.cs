@@ -1,6 +1,7 @@
 using System.Text.Json.Serialization;
 using ImsaFantasy.Api.Auth;
 using ImsaFantasy.Api.Common;
+using ImsaFantasy.Api.Email;
 using ImsaFantasy.Api.Endpoints;
 using ImsaFantasy.Api.Images;
 using ImsaFantasy.Api.Workers;
@@ -18,6 +19,14 @@ builder.Services.AddHostedService<LockSweepService>();
 builder.Services.AddScoped<ImsaFantasy.Api.Scoring.ScoringService>();
 builder.Services.AddImsaAuth(builder.Configuration);
 builder.Services.AddImageStorage(builder.Configuration);
+
+// Picks-reminder emails (ADR-0009): config-bound options. The SES sender + worker are registered
+// below; both no-op until configured/enabled.
+builder.Services.AddSingleton(
+    builder.Configuration.GetSection("Reminders").Get<ReminderOptions>() ?? new ReminderOptions());
+builder.Services.AddSingleton(
+    builder.Configuration.GetSection("Aws:Ses").Get<ImsaFantasy.Api.Email.SesOptions>() ?? new ImsaFantasy.Api.Email.SesOptions());
+builder.Services.AddEmail();
 
 // CORS: in prod the SPA lives on a different origin (fantasy.* → fantasyapi.*), so it needs an
 // explicit credentialed allowlist to send the session cookie. In dev the Vite proxy makes the

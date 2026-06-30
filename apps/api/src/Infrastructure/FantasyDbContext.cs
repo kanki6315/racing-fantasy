@@ -46,6 +46,9 @@ public partial class FantasyDbContext(DbContextOptions<FantasyDbContext> options
     public DbSet<League> Leagues => Set<League>();
     public DbSet<LeagueMembership> LeagueMemberships => Set<LeagueMembership>();
 
+    // Notifications
+    public DbSet<EventReminder> EventReminders => Set<EventReminder>();
+
     protected override void OnModelCreating(ModelBuilder b)
     {
         // ---- Enums stored as text (readable in the DB) ----
@@ -118,6 +121,9 @@ public partial class FantasyDbContext(DbContextOptions<FantasyDbContext> options
         b.Entity<RoundTotal>().HasIndex(x => new { x.RegistrationId, x.RoundId }).IsUnique();
         b.Entity<LeagueMembership>().HasIndex(x => new { x.LeagueId, x.RegistrationId }).IsUnique();
         b.Entity<League>().HasIndex(x => x.JoinCode).IsUnique();
+        // One reminder per (event, user) — the single-send guarantee (ADR-0009).
+        b.Entity<EventReminder>().HasIndex(x => new { x.EventId, x.UserId }).IsUnique();
+        b.Entity<AppUser>().Property(x => x.EmailRemindersEnabled).HasDefaultValue(false);
 
         // ---- Extra non-unique hot-path index not covered by a unique prefix ----
         b.Entity<Score>().HasIndex(x => x.RosterId);
@@ -140,6 +146,12 @@ public partial class FantasyDbContext(DbContextOptions<FantasyDbContext> options
             .HasForeignKey(x => x.RulesetId).OnDelete(DeleteBehavior.Cascade);
         b.Entity<LeagueMembership>().HasOne(m => m.League).WithMany(l => l.Members)
             .HasForeignKey(m => m.LeagueId).OnDelete(DeleteBehavior.Cascade);
+        // Reminder log is disposable telemetry of (event, user): cascade so erasure (ADR-0004 hard-deletes
+        // the user) and event deletion clean up their reminder rows instead of being blocked by Restrict.
+        b.Entity<EventReminder>().HasOne(x => x.User).WithMany()
+            .HasForeignKey(x => x.UserId).OnDelete(DeleteBehavior.Cascade);
+        b.Entity<EventReminder>().HasOne(x => x.Event).WithMany()
+            .HasForeignKey(x => x.EventId).OnDelete(DeleteBehavior.Cascade);
 
         ApplySnakeCaseNames(b);
     }
