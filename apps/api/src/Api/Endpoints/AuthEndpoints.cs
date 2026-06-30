@@ -48,7 +48,7 @@ public static class AuthEndpoints
             user.EmailRemindersEnabled = dto.Enabled;
             await db.SaveChangesAsync();
             return Results.Ok(new EmailRemindersResponse(user.EmailRemindersEnabled));
-        }).RequireAuthorization().Produces<EmailRemindersResponse>();
+        }).RequireAuthorization().RequireRateLimiting("email-prefs").Produces<EmailRemindersResponse>();
 
         group.MapPost("/logout", async (HttpContext http) =>
         {

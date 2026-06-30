@@ -1,4 +1,5 @@
 using System.Text.Json.Serialization;
+using System.Threading.RateLimiting;
 using ImsaFantasy.Api.Auth;
 using ImsaFantasy.Api.Common;
 using ImsaFantasy.Api.Email;
@@ -29,6 +30,17 @@ builder.Services.AddSingleton(
 builder.Services.AddEmail();
 builder.Services.AddSingleton<UnsubscribeTokenService>();
 builder.Services.AddHostedService<PicksReminderService>();
+
+// Rate-limit the email-preference toggle so it can't be hammered (ADR-0009). Per-user fixed window;
+// 5 changes/min is far above any human use but blocks scripted spam. Toggling never causes email
+// spam (the worker's per-event claim row prevents resends) — this just protects the endpoint.
+builder.Services.AddRateLimiter(o =>
+{
+    o.RejectionStatusCode = StatusCodes.Status429TooManyRequests;
+    o.AddPolicy("email-prefs", http => RateLimitPartition.GetFixedWindowLimiter(
+        http.User.GetUserId()?.ToString() ?? http.Connection.RemoteIpAddress?.ToString() ?? "anon",
+        _ => new FixedWindowRateLimiterOptions { PermitLimit = 5, Window = TimeSpan.FromMinutes(1), QueueLimit = 0 }));
+});
 
 // CORS: in prod the SPA lives on a different origin (fantasy.* → fantasyapi.*), so it needs an
 // explicit credentialed allowlist to send the session cookie. In dev the Vite proxy makes the
@@ -88,6 +100,7 @@ if (!string.IsNullOrEmpty(webOrigin))
 
 app.UseAuthentication();
 app.UseAuthorization();
+app.UseRateLimiter(); // after auth so policies can partition by the resolved user
 
 app.MapGet("/health", () => Results.Ok(new { status = "ok" })).WithTags("Meta");
 

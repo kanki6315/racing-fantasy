@@ -132,6 +132,9 @@ substitution at send time. This keeps **no Node dependency at runtime** — only
 - Every send includes `List-Unsubscribe` + `List-Unsubscribe-Post` headers (Gmail/Yahoo
   one-click requirement), an accurate From/Subject, and a physical address in the footer
   (CAN-SPAM). SPF + DKIM + DMARC on the sending subdomain are set up as a one-time op.
+- The authenticated preference toggle (`PUT /auth/me/email-reminders`) is **rate-limited per
+  user** (fixed window, 5/min) so it can't be hammered. Toggling never causes email spam — the
+  per-event claim row prevents resends — so this only protects the endpoint from request abuse.
 
 ## Options Considered
 
