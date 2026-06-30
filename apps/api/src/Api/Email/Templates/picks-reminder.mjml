@@ -47,7 +47,8 @@
       <mj-column>
         <mj-text font-size="12px" color="#5c626b" line-height="18px">
           You're receiving this because you opted into pick reminders for Endurance Fantasy.
-          <a href="{{unsubscribeUrl}}" style="color:#8a8f98; text-decoration:underline;">Unsubscribe</a>.
+          This inbox isn't monitored — to stop these, just
+          <a href="{{unsubscribeUrl}}" style="color:#8a8f98; text-decoration:underline;">unsubscribe</a>.
         </mj-text>
       </mj-column>
     </mj-section>
