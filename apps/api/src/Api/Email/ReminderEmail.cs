@@ -27,8 +27,8 @@ public static class ReminderEmail
     public static string RenderHtml(ReminderMode mode, ReminderEmailModel m)
     {
         var closing = mode == ReminderMode.HoursBeforeClose;
-        // quali_start is stored UTC; render it explicitly labelled to avoid timezone ambiguity.
-        var deadline = $"{m.CloseAtUtc:ddd, MMM d} at {m.CloseAtUtc:HH:mm} UTC";
+        // quali_start is stored UTC; show it in US Eastern (IMSA races) with the correct EST/EDT label.
+        var deadline = FormatEastern(m.CloseAtUtc);
 
         var tokens = new Dictionary<string, string>
         {
@@ -52,6 +52,23 @@ public static class ReminderEmail
             // & in a URL becomes the correct &amp; inside an href attribute.
             html = html.Replace("{{" + key + "}}", System.Net.WebUtility.HtmlEncode(value));
         return html;
+    }
+
+    private static readonly TimeZoneInfo Eastern = ResolveEastern();
+
+    private static TimeZoneInfo ResolveEastern()
+    {
+        foreach (var id in new[] { "America/New_York", "Eastern Standard Time" })
+            try { return TimeZoneInfo.FindSystemTimeZoneById(id); }
+            catch (TimeZoneNotFoundException) { /* try next id */ }
+        return TimeZoneInfo.Utc; // last resort — labelled UTC below
+    }
+
+    private static string FormatEastern(DateTime utc)
+    {
+        var et = TimeZoneInfo.ConvertTimeFromUtc(DateTime.SpecifyKind(utc, DateTimeKind.Utc), Eastern);
+        var abbr = Eastern == TimeZoneInfo.Utc ? "UTC" : Eastern.IsDaylightSavingTime(et) ? "EDT" : "EST";
+        return $"{et:ddd, MMM d} at {et:h:mm tt} {abbr}";
     }
 
     private static string LoadTemplate()

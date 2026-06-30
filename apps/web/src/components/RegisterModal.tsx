@@ -2,6 +2,7 @@ import { useState } from 'react'
 import * as Dialog from '@radix-ui/react-dialog'
 import { useNavigate } from 'react-router-dom'
 import { useRegister } from '../api/queries'
+import { useAuth } from '../auth/AuthContext'
 
 const MIN = 3
 const MAX = 32 // design caps at 32 (backend allows ≤40); '@' is rejected (it's the public identifier)
@@ -21,6 +22,9 @@ export function RegisterModal({
   const [reminders, setReminders] = useState(false) // opt-in (ADR-0009): unchecked by default
   const register = useRegister()
   const navigate = useNavigate()
+  const { user } = useAuth()
+  // Re-prompt every registration until they opt in; once opted in, hide it entirely (ADR-0009).
+  const showOptIn = !user?.emailRemindersEnabled
 
   const trimmed = name.trim()
   const hasAt = trimmed.includes('@')
@@ -118,19 +122,27 @@ export function RegisterModal({
               </div>
             </div>
 
-            {/* Picks-reminder opt-in (ADR-0009) — unchecked by default */}
-            <label className="mt-[14px] flex cursor-pointer items-start gap-[11px] rounded-[4px] border border-line bg-[#070809] px-[15px] py-[13px]">
-              <input
-                type="checkbox"
-                checked={reminders}
-                onChange={(e) => setReminders(e.target.checked)}
-                className="mt-[2px] h-[16px] w-[16px] flex-none accent-brand cursor-pointer"
-              />
-              <span className="font-sans text-[12px] leading-[17px] text-muted">
-                Email me when picks open for each race weekend — at most one email per weekend.
-                Unsubscribe anytime.
-              </span>
-            </label>
+            {/* Picks-reminder opt-in (ADR-0009) — unchecked by default; hidden once already opted in.
+                Styled as a pill (skewed brand accent) to match the championship rows. */}
+            {showOptIn && (
+              <label
+                className={`mt-[14px] flex cursor-pointer items-start gap-[11px] rounded-[3px] border px-[15px] py-[13px] ${
+                  reminders ? 'border-success/50 bg-success/[0.06]' : 'border-line-2 bg-[#070809]'
+                }`}
+              >
+                <span className={`mt-[1px] h-[16px] w-[4px] flex-none [transform:skewX(-14deg)] ${reminders ? 'bg-brand' : 'bg-line-3'}`} />
+                <input
+                  type="checkbox"
+                  checked={reminders}
+                  onChange={(e) => setReminders(e.target.checked)}
+                  className="mt-[2px] h-[16px] w-[16px] flex-none accent-brand cursor-pointer"
+                />
+                <span className="font-sans text-[12px] leading-[17px] text-muted">
+                  Email me when picks open for each race weekend — at most one email per weekend.
+                  Unsubscribe anytime.
+                </span>
+              </label>
+            )}
           </div>
 
           <div className="mt-[22px] flex items-center gap-[11px] border-t border-line bg-[#0b0c0f] px-7 pb-6 pt-[22px]">

@@ -158,18 +158,27 @@ export function Dashboard() {
 
         <div className="my-5 h-px bg-line" />
         <div className="mb-[11px] font-display text-[11px] tracking-[0.12em] uppercase text-muted-2">Notifications</div>
-        <label className="flex cursor-pointer items-start gap-[10px]">
-          <input
-            type="checkbox"
-            checked={user.emailRemindersEnabled}
-            disabled={updateReminders.isPending}
-            onChange={(e) => updateReminders.mutate(e.target.checked)}
-            className="mt-[2px] h-[16px] w-[16px] flex-none accent-brand cursor-pointer"
-          />
-          <span className="font-sans text-[12px] leading-[16px] text-muted">
-            Email me when picks open for each race weekend.
+        <button
+          onClick={() => updateReminders.mutate(!user.emailRemindersEnabled)}
+          disabled={updateReminders.isPending}
+          aria-pressed={user.emailRemindersEnabled}
+          className={`flex w-full items-center justify-between gap-2 rounded-[3px] border px-[13px] py-[10px] text-left cursor-pointer ${
+            user.emailRemindersEnabled ? 'border-success/50 bg-success/[0.06]' : 'border-dotted border-line-3 bg-surface-2'
+          }`}
+        >
+          <span className="flex items-center gap-2 font-display text-[13px] font-semibold uppercase tracking-[0.04em] text-ink-2">
+            <span className={`h-[15px] w-[4px] flex-none [transform:skewX(-14deg)] ${user.emailRemindersEnabled ? 'bg-brand' : 'bg-line-3'}`} />
+            Email Reminders
           </span>
-        </label>
+          {user.emailRemindersEnabled ? (
+            <svg className="h-[15px] w-[15px] flex-none text-success" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round" aria-label="On">
+              <path d="M5 13l4 4L19 7" />
+            </svg>
+          ) : (
+            <span className="flex-none font-display text-[11px] font-bold uppercase tracking-[0.06em] text-muted-2">Off</span>
+          )}
+        </button>
+        <p className="mt-[7px] font-sans text-[11px] leading-[15px] text-muted-2">One email per race weekend when picks open.</p>
       </aside>
 
       {/* main */}

@@ -21,7 +21,7 @@ public static class EmailEndpoints
         {
             var ok = await Unsubscribe(token, tokens, db);
             return Results.Content(Page(ok
-                ? "You've been unsubscribed from IMSA Fantasy pick reminders."
+                ? "You've been unsubscribed from Endurance Fantasy pick reminders."
                 : "This unsubscribe link is invalid."), "text/html");
         });
 
@@ -44,10 +44,10 @@ public static class EmailEndpoints
     // Static copy only (no token echoed), so no injection surface. On-brand near-black confirmation page.
     private static string Page(string message) => $"""
         <!doctype html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
-        <title>IMSA Fantasy</title></head>
+        <title>Endurance Fantasy</title></head>
         <body style="margin:0;background:#0a0b0d;color:#c8ccd2;font-family:Arial,Helvetica,sans-serif;">
           <div style="max-width:480px;margin:64px auto;padding:0 24px;">
-            <div style="font-size:13px;letter-spacing:2px;color:#8a8f98;font-weight:bold;">IMSA <span style="color:#e10600;">FANTASY</span></div>
+            <div style="font-size:13px;letter-spacing:2px;color:#c8ccd2;font-weight:bold;">ENDURANCE <span style="color:#e10600;">FANTASY</span></div>
             <p style="font-size:16px;line-height:24px;margin-top:24px;">{message}</p>
           </div>
         </body></html>
