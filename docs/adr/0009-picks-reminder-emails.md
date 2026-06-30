@@ -100,8 +100,9 @@ form a player fills: the registration flow** (`POST /registrations`, the `/regis
 Registering for a season is effectively "signing up to play." An **unchecked** checkbox there
 ("Email me when picks open for each race weekend — at most one per weekend, unsubscribe anytime")
 sets the user flag; `POST /registrations` gains an optional `emailReminders` bool. Because the
-flag is user-level, it renders checked if already enabled, and a small account/dashboard toggle
-plus the one-click unsubscribe (D7) let users change it later.
+flag is user-level, the checkbox **re-prompts on every registration until the user opts in, then
+is hidden entirely** once enabled. A small account/dashboard toggle plus the one-click unsubscribe
+(D7) let users change it later.
 
 ### D5 — Send via Amazon SES, reusing the AWS config pattern
 
@@ -116,7 +117,8 @@ this volume.
 
 Gmail is the rendering constraint: table-based layout, **fully inlined CSS**, no external
 stylesheets, total HTML **< 102 KB** (or Gmail clips it), no flexbox/grid, web fonts unreliable
-(design for an Arial/sans fallback), and Gmail dark-mode color inversion to account for.
+(design for an Arial/sans fallback), and Gmail dark-mode color inversion to account for. The pick
+deadline renders in **US Eastern (EST/EDT)** to match IMSA's schedule, not UTC.
 
 Author `picks-reminder.mjml`; **compile to `picks-reminder.html` at build time** (MJML emits
 bulletproof, inlined, table-based HTML) with `{{tokens}}` (`raceName`, `deadline`, `pickUrl`,
