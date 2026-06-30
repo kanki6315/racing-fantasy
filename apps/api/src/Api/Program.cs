@@ -31,6 +31,7 @@ builder.Services.AddSingleton(
     builder.Configuration.GetSection("Aws:Ses").Get<ImsaFantasy.Api.Email.SesOptions>() ?? new ImsaFantasy.Api.Email.SesOptions());
 builder.Services.AddEmail();
 builder.Services.AddSingleton<UnsubscribeTokenService>();
+builder.Services.AddScoped<ImsaFantasy.Api.Email.SesEventProcessor>();
 builder.Services.AddHostedService<PicksReminderService>();
 
 // Rate-limit the email-preference toggle so it can't be hammered (ADR-0009). Per-user fixed window;

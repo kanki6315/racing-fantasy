@@ -25,6 +25,24 @@ public static class EmailEndpoints
                 : "This unsubscribe link is invalid."), "text/html");
         });
 
+        // SES bounce/complaint events via SNS (ADR-0010). SNS posts text/plain, so read the raw body;
+        // the processor verifies the signature + topic before acting.
+        group.MapPost("/ses-events", async (HttpRequest request, SesEventProcessor processor, CancellationToken ct) =>
+        {
+            using var reader = new StreamReader(request.Body);
+            return await processor.HandleAsync(await reader.ReadToEndAsync(ct), ct);
+        });
+
+        // Development-only: feed a raw SES event JSON straight into the processor (no SNS envelope /
+        // signature) to exercise record + suppression locally. Mirrors the dev-login shortcut.
+        group.MapPost("/ses-events/dev-simulate", async (HttpRequest request, SesEventProcessor processor, IWebHostEnvironment env, CancellationToken ct) =>
+        {
+            if (!env.IsDevelopment()) return Results.NotFound();
+            using var reader = new StreamReader(request.Body);
+            await processor.RecordAsync(await reader.ReadToEndAsync(ct), $"dev-{Guid.NewGuid()}", ct);
+            return Results.Ok();
+        });
+
         return app;
     }
 

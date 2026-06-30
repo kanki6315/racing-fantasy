@@ -18,6 +18,9 @@ public class AppUser
     /// <summary>Opt-in (default false) for the per-weekend picks-reminder email (ADR-0009). A user-level
     /// preference across all the user's seasons; set at registration, cleared by one-click unsubscribe.</summary>
     public bool EmailRemindersEnabled { get; set; }
+    /// <summary>System-level email suppression (ADR-0010): set on a permanent bounce or complaint. Separate
+    /// from <see cref="EmailRemindersEnabled"/> — the user can't toggle past it. Null = not suppressed.</summary>
+    public DateTime? EmailSuppressedAt { get; set; }
     public DateTime CreatedAt { get; set; }
 
     public ICollection<Registration> Registrations { get; set; } = new List<Registration>();

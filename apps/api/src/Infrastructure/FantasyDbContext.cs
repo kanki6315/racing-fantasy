@@ -48,6 +48,7 @@ public partial class FantasyDbContext(DbContextOptions<FantasyDbContext> options
 
     // Notifications
     public DbSet<EventReminder> EventReminders => Set<EventReminder>();
+    public DbSet<EmailEvent> EmailEvents => Set<EmailEvent>();
 
     protected override void OnModelCreating(ModelBuilder b)
     {
@@ -124,6 +125,16 @@ public partial class FantasyDbContext(DbContextOptions<FantasyDbContext> options
         // One reminder per (event, user) — the single-send guarantee (ADR-0009).
         b.Entity<EventReminder>().HasIndex(x => new { x.EventId, x.UserId }).IsUnique();
         b.Entity<AppUser>().Property(x => x.EmailRemindersEnabled).HasDefaultValue(false);
+        // Bounce/complaint events (ADR-0010): jsonb payload; dedupe SNS redelivery on (sns_message_id, email).
+        b.Entity<EmailEvent>().Property(x => x.Raw).HasColumnType("jsonb");
+        b.Entity<EmailEvent>().Property(x => x.Type).HasMaxLength(16);
+        b.Entity<EmailEvent>().Property(x => x.Subtype).HasMaxLength(64);
+        b.Entity<EmailEvent>().Property(x => x.Email).HasMaxLength(320);
+        b.Entity<EmailEvent>().Property(x => x.SesMessageId).HasMaxLength(255);
+        b.Entity<EmailEvent>().Property(x => x.SnsMessageId).HasMaxLength(255);
+        b.Entity<EmailEvent>().HasIndex(x => new { x.SnsMessageId, x.Email })
+            .IsUnique().HasFilter("sns_message_id IS NOT NULL");
+        b.Entity<EmailEvent>().HasIndex(x => x.Email);
 
         // ---- Extra non-unique hot-path index not covered by a unique prefix ----
         b.Entity<Score>().HasIndex(x => x.RosterId);
@@ -152,6 +163,10 @@ public partial class FantasyDbContext(DbContextOptions<FantasyDbContext> options
             .HasForeignKey(x => x.UserId).OnDelete(DeleteBehavior.Cascade);
         b.Entity<EventReminder>().HasOne(x => x.Event).WithMany()
             .HasForeignKey(x => x.EventId).OnDelete(DeleteBehavior.Cascade);
+        // Bounce/complaint record links to a user by resolved email; cascade so erasure removes it (and its
+        // stored email) too. UserId is nullable (an event may arrive for an address with no matching user).
+        b.Entity<EmailEvent>().HasOne(x => x.User).WithMany()
+            .HasForeignKey(x => x.UserId).OnDelete(DeleteBehavior.Cascade);
 
         ApplySnakeCaseNames(b);
     }

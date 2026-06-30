@@ -11,8 +11,9 @@ public sealed record EmailMessage(string ToAddress, string Subject, string HtmlB
 
 public interface IEmailSender
 {
-    /// <summary>Sends the message; returns false (and logs) without throwing when SES is unconfigured.</summary>
-    Task<bool> SendAsync(EmailMessage message, CancellationToken ct = default);
+    /// <summary>Sends the message; returns the SES messageId, or null (and logs) without throwing when
+    /// SES is unconfigured. The messageId correlates later bounce/complaint events to the send (ADR-0010).</summary>
+    Task<string?> SendAsync(EmailMessage message, CancellationToken ct = default);
 }
 
 /// <summary>
@@ -40,12 +41,12 @@ public sealed class SesEmailSender : IEmailSender, IDisposable
         }
     }
 
-    public async Task<bool> SendAsync(EmailMessage m, CancellationToken ct = default)
+    public async Task<string?> SendAsync(EmailMessage m, CancellationToken ct = default)
     {
         if (_ses is null)
         {
             _log.LogWarning("SES not configured; skipping email to {To}.", m.ToAddress);
-            return false;
+            return null;
         }
 
         var headers = new List<MessageHeader>();
@@ -58,6 +59,8 @@ public sealed class SesEmailSender : IEmailSender, IDisposable
         var req = new SendEmailRequest
         {
             FromEmailAddress = _o.FromAddress,
+            // The configuration set is what makes SES publish bounce/complaint events (ADR-0010).
+            ConfigurationSetName = string.IsNullOrWhiteSpace(_o.ConfigurationSetName) ? null : _o.ConfigurationSetName,
             Destination = new Destination { ToAddresses = [m.ToAddress] },
             ReplyToAddresses = string.IsNullOrWhiteSpace(_o.ReplyTo) ? null : [_o.ReplyTo],
             Content = new EmailContent
@@ -73,7 +76,7 @@ public sealed class SesEmailSender : IEmailSender, IDisposable
 
         var resp = await _ses.SendEmailAsync(req, ct);
         _log.LogInformation("Sent email to {To} (SES messageId {Id}).", m.ToAddress, resp.MessageId);
-        return true;
+        return resp.MessageId;
     }
 
     public void Dispose() => _ses?.Dispose();

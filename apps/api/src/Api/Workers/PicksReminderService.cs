@@ -76,6 +76,7 @@ public sealed class PicksReminderService(
             var recipients = await db.Registrations
                 .Where(r => r.UserId != null
                     && r.User!.EmailRemindersEnabled
+                    && r.User.EmailSuppressedAt == null              // bounce/complaint suppression (ADR-0010)
                     && r.User.Email != null
                     && r.Season.Rounds.Any(rd => rd.EventId == ev.Id)
                     && !db.EventReminders.Any(er => er.EventId == ev.Id && er.UserId == r.UserId))
@@ -119,8 +120,10 @@ public sealed class PicksReminderService(
             var unsubscribeUrl = $"{options.ApiBaseUrl}/email/unsubscribe?token={tokens.Create(userId)}";
             var model = new ReminderEmailModel(eventName, closeUtc, options.WebBaseUrl!, unsubscribeUrl);
             var body = ReminderEmail.RenderHtml(model);
-            var ok = await sender.SendAsync(new EmailMessage(email, subject, body, unsubscribeUrl), ct);
-            if (!ok) throw new InvalidOperationException("email sender reported not-sent");
+            var messageId = await sender.SendAsync(new EmailMessage(email, subject, body, unsubscribeUrl), ct);
+            if (messageId is null) throw new InvalidOperationException("email sender reported not-sent");
+            claim.SesMessageId = messageId;          // correlate future bounce/complaint to this send (ADR-0010)
+            await db.SaveChangesAsync(ct);
             return true;
         }
         catch (Exception ex)

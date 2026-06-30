@@ -16,5 +16,10 @@ public sealed class SesOptions
     public string? AccessKeyId { get; set; }
     public string? SecretAccessKey { get; set; }
 
+    /// <summary>SES configuration set attached to each send so bounces/complaints are published (ADR-0010).</summary>
+    public string? ConfigurationSetName { get; set; }
+    /// <summary>The SNS topic ARN that delivers those events — the webhook only acts on messages from it (ADR-0010 D5).</summary>
+    public string? EventsTopicArn { get; set; }
+
     public bool IsConfigured => !string.IsNullOrWhiteSpace(FromAddress) && !string.IsNullOrWhiteSpace(Region);
 }
