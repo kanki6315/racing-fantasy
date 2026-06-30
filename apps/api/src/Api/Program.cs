@@ -27,6 +27,8 @@ builder.Services.AddSingleton(
 builder.Services.AddSingleton(
     builder.Configuration.GetSection("Aws:Ses").Get<ImsaFantasy.Api.Email.SesOptions>() ?? new ImsaFantasy.Api.Email.SesOptions());
 builder.Services.AddEmail();
+builder.Services.AddSingleton<UnsubscribeTokenService>();
+builder.Services.AddHostedService<PicksReminderService>();
 
 // CORS: in prod the SPA lives on a different origin (fantasy.* → fantasyapi.*), so it needs an
 // explicit credentialed allowlist to send the session cookie. In dev the Vite proxy makes the
@@ -115,5 +117,6 @@ app.MapLeagueEndpoints();
 app.MapImageEndpoints();
 app.MapStatsEndpoints();
 app.MapRoundStatsEndpoints();
+app.MapEmailEndpoints();
 
 app.Run();

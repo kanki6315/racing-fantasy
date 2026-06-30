@@ -18,6 +18,7 @@ export function RegisterModal({
 }) {
   const [name, setName] = useState('')
   const [touched, setTouched] = useState(false)
+  const [reminders, setReminders] = useState(false) // opt-in (ADR-0009): unchecked by default
   const register = useRegister()
   const navigate = useNavigate()
 
@@ -35,7 +36,7 @@ export function RegisterModal({
       return
     }
     try {
-      await register.mutateAsync({ seasonId, teamName: trimmed })
+      await register.mutateAsync({ seasonId, teamName: trimmed, emailReminders: reminders })
       onOpenChange(false)
       navigate('/dashboard')
     } catch {
@@ -116,6 +117,20 @@ export function RegisterModal({
                 </span>
               </div>
             </div>
+
+            {/* Picks-reminder opt-in (ADR-0009) — unchecked by default */}
+            <label className="mt-[14px] flex cursor-pointer items-start gap-[11px] rounded-[4px] border border-line bg-[#070809] px-[15px] py-[13px]">
+              <input
+                type="checkbox"
+                checked={reminders}
+                onChange={(e) => setReminders(e.target.checked)}
+                className="mt-[2px] h-[16px] w-[16px] flex-none accent-brand cursor-pointer"
+              />
+              <span className="font-sans text-[12px] leading-[17px] text-muted">
+                Email me when picks open for each race weekend — at most one email per weekend.
+                Unsubscribe anytime.
+              </span>
+            </label>
           </div>
 
           <div className="mt-[22px] flex items-center gap-[11px] border-t border-line bg-[#0b0c0f] px-7 pb-6 pt-[22px]">

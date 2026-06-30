@@ -20,6 +20,11 @@
     </ItemGroup>
 
     <ItemGroup>
+        <!-- Compiled MJML email template (ADR-0009). Source: Email/Templates/picks-reminder.mjml. -->
+        <EmbeddedResource Include="Email/Templates/picks-reminder.html" />
+    </ItemGroup>
+
+    <ItemGroup>
         <ProjectReference Include="..\Domain\ImsaFantasy.Domain.csproj" />
         <ProjectReference Include="..\Infrastructure\ImsaFantasy.Infrastructure.csproj" />
     </ItemGroup>

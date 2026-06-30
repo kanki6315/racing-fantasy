@@ -1,0 +1,55 @@
+<!--
+  Source for the picks-reminder email (ADR-0009 D6). This .mjml is the source of truth; the compiled
+  picks-reminder.html is the embedded resource the API sends. Recompile after edits with the dev step:
+
+      cd apps/api/src/Api/Email/Templates
+      npx -y mjml@4 picks-reminder.mjml -o picks-reminder.html
+
+  Then commit both files. {{tokens}} are filled by ReminderEmail.RenderHtml at send time. Keep it
+  Gmail-safe: tables + inline CSS (MJML handles this), < 102KB, Arial fallback (no web fonts), and
+  legible if a client inverts for dark mode.
+-->
+<mjml>
+  <mj-head>
+    <mj-preview>{{preheader}}</mj-preview>
+    <mj-attributes>
+      <mj-all font-family="Arial, Helvetica, sans-serif" />
+      <mj-text color="#c8ccd2" font-size="15px" line-height="22px" />
+    </mj-attributes>
+  </mj-head>
+  <mj-body background-color="#0a0b0d">
+    <mj-section padding="32px 24px 10px">
+      <mj-column>
+        <mj-text font-size="13px" letter-spacing="2px" color="#8a8f98" font-weight="bold">
+          IMSA <span style="color:#e10600;">FANTASY</span>
+        </mj-text>
+      </mj-column>
+    </mj-section>
+
+    <mj-section background-color="#101317" border="1px solid #1f242a" border-radius="10px">
+      <mj-column padding="28px 28px">
+        <mj-text font-size="12px" letter-spacing="2px" color="#ff2d2d" font-weight="bold" text-transform="uppercase">
+          {{statusLabel}}
+        </mj-text>
+        <mj-text font-size="26px" line-height="30px" color="#ffffff" font-weight="bold" padding-top="6px">
+          {{eventName}}
+        </mj-text>
+        <mj-text padding-top="12px">{{intro}}</mj-text>
+        <mj-text color="#8a8f98" font-size="14px" padding-top="6px">{{deadlineLine}}</mj-text>
+        <mj-button href="{{ctaUrl}}" background-color="#e10600" color="#ffffff" font-size="15px"
+                   font-weight="bold" border-radius="8px" align="left" inner-padding="14px 28px" padding-top="24px">
+          {{ctaLabel}}
+        </mj-button>
+      </mj-column>
+    </mj-section>
+
+    <mj-section padding="20px 24px 36px">
+      <mj-column>
+        <mj-text font-size="12px" color="#5c626b" line-height="18px">
+          You're receiving this because you opted into pick reminders for IMSA Fantasy.
+          <a href="{{unsubscribeUrl}}" style="color:#8a8f98; text-decoration:underline;">Unsubscribe</a>.
+        </mj-text>
+      </mj-column>
+    </mj-section>
+  </mj-body>
+</mjml>

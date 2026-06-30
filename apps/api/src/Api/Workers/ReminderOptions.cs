@@ -38,4 +38,7 @@ public sealed class ReminderOptions
 
     /// <summary>Base URL of this API, for the one-click unsubscribe link (no trailing slash).</summary>
     public string? ApiBaseUrl { get; set; }
+
+    /// <summary>HMAC secret for signing unsubscribe tokens. Required to send (links must be verifiable).</summary>
+    public string? UnsubscribeSecret { get; set; }
 }

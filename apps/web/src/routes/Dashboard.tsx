@@ -11,6 +11,7 @@ import {
   useMyLeagues,
   usePrices,
   useRoster,
+  useUpdateEmailReminders,
   type League,
 } from '../api/queries'
 import { useCountdown } from '../lib/useCountdown'
@@ -38,6 +39,7 @@ export function Dashboard() {
   const seasons = useAllSeasons()
   const myLeagues = useMyLeagues()
   const events = useEvents()
+  const updateReminders = useUpdateEmailReminders()
   const [createOpen, setCreateOpen] = useState(false)
   const [joinOpen, setJoinOpen] = useState(false)
   const [joinSeasonId, setJoinSeasonId] = useState<number | null>(null)
@@ -153,6 +155,21 @@ export function Dashboard() {
         <button onClick={() => setJoinOpen(true)} className="mt-[10px] flex h-[42px] w-full items-center justify-center rounded-[3px] border border-line-2 font-display text-[15px] font-semibold uppercase tracking-[0.05em] text-ink-2 cursor-pointer">
           Join with Code
         </button>
+
+        <div className="my-5 h-px bg-line" />
+        <div className="mb-[11px] font-display text-[11px] tracking-[0.12em] uppercase text-muted-2">Notifications</div>
+        <label className="flex cursor-pointer items-start gap-[10px]">
+          <input
+            type="checkbox"
+            checked={user.emailRemindersEnabled}
+            disabled={updateReminders.isPending}
+            onChange={(e) => updateReminders.mutate(e.target.checked)}
+            className="mt-[2px] h-[16px] w-[16px] flex-none accent-brand cursor-pointer"
+          />
+          <span className="font-sans text-[12px] leading-[16px] text-muted">
+            Email me when picks open for each race weekend.
+          </span>
+        </label>
       </aside>
 
       {/* main */}

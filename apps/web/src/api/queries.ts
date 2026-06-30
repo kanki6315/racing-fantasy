@@ -54,12 +54,25 @@ export function useActiveSeason() {
 export function useRegister() {
   const qc = useQueryClient()
   return useMutation({
-    mutationFn: async (input: { seasonId: number; teamName: string }) => {
+    mutationFn: async (input: { seasonId: number; teamName: string; emailReminders: boolean }) => {
       const { data, error } = await api.POST('/registrations', { body: input })
       if (error) throw error
       return data as Registration
     },
     // Refetch identity so registrations[] (and the registrationId for picks) is current.
+    onSuccess: () => qc.invalidateQueries({ queryKey: qk.me }),
+  })
+}
+
+/** Account-level toggle for picks-reminder emails (ADR-0009). Refetches /auth/me on success. */
+export function useUpdateEmailReminders() {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: async (enabled: boolean) => {
+      const { data, error } = await api.PUT('/auth/me/email-reminders', { body: { enabled } })
+      if (error) throw error
+      return data
+    },
     onSuccess: () => qc.invalidateQueries({ queryKey: qk.me }),
   })
 }
