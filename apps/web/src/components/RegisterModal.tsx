@@ -122,26 +122,34 @@ export function RegisterModal({
               </div>
             </div>
 
-            {/* Picks-reminder opt-in (ADR-0009) — unchecked by default; hidden once already opted in.
-                Styled as a pill (skewed brand accent) to match the championship rows. */}
+            {/* Picks-reminder opt-in (ADR-0009) — off by default; hidden once already opted in. Same
+                pill as the dashboard Notifications toggle (skewed brand accent + check/OFF indicator). */}
             {showOptIn && (
-              <label
-                className={`mt-[14px] flex cursor-pointer items-start gap-[11px] rounded-[3px] border px-[15px] py-[13px] ${
-                  reminders ? 'border-success/50 bg-success/[0.06]' : 'border-line-2 bg-[#070809]'
-                }`}
-              >
-                <span className={`mt-[1px] h-[16px] w-[4px] flex-none [transform:skewX(-14deg)] ${reminders ? 'bg-brand' : 'bg-line-3'}`} />
-                <input
-                  type="checkbox"
-                  checked={reminders}
-                  onChange={(e) => setReminders(e.target.checked)}
-                  className="mt-[2px] h-[16px] w-[16px] flex-none accent-brand cursor-pointer"
-                />
-                <span className="font-sans text-[12px] leading-[17px] text-muted">
-                  Email me when picks open for each race weekend — at most one email per weekend.
-                  Unsubscribe anytime.
-                </span>
-              </label>
+              <>
+                <button
+                  type="button"
+                  onClick={() => setReminders((v) => !v)}
+                  aria-pressed={reminders}
+                  className={`mt-[14px] flex w-full items-center justify-between gap-2 rounded-[3px] border px-[13px] py-[10px] text-left cursor-pointer ${
+                    reminders ? 'border-success/50 bg-success/[0.06]' : 'border-dotted border-line-3 bg-surface-2'
+                  }`}
+                >
+                  <span className="flex items-center gap-2 font-display text-[13px] font-semibold uppercase tracking-[0.04em] text-ink-2">
+                    <span className={`h-[15px] w-[4px] flex-none [transform:skewX(-14deg)] ${reminders ? 'bg-brand' : 'bg-line-3'}`} />
+                    Email Reminders
+                  </span>
+                  {reminders ? (
+                    <svg className="h-[15px] w-[15px] flex-none text-success" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round" aria-label="On">
+                      <path d="M5 13l4 4L19 7" />
+                    </svg>
+                  ) : (
+                    <span className="flex-none font-display text-[11px] font-bold uppercase tracking-[0.06em] text-muted-2">Off</span>
+                  )}
+                </button>
+                <p className="mt-[7px] font-sans text-[11px] leading-[15px] text-muted-2">
+                  Email me when picks open — one per race weekend. Unsubscribe anytime.
+                </p>
+              </>
             )}
           </div>
 
