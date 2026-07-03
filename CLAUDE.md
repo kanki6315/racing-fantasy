@@ -48,15 +48,18 @@ admin) still pending.
 
 ## Email (SES): picks reminders + bounce handling
 
-**Shipped + deployed 2026-07-03** ([ADR-0009](docs/adr/0009-picks-reminder-emails.md) reminders,
-[ADR-0010](docs/adr/0010-ses-bounce-complaint-handling.md) bounce/complaint handling). One **opt-in**
-reminder email per race weekend, sent **~24h before pick lock** (`Reminders:HoursBeforeClose`, before
-the event's earliest `round.quali_start`, gated on `event.picks_open`) by the `PicksReminderService`
-worker (clones `LockSweepService`; `event_reminder` claim table with a unique `(event_id, user_id)`
-index = single-send). Rendered from an **MJML** template compiled to an embedded `picks-reminder.html`
-(recompile with `npx -y mjml@4 …`), Gmail-safe. Sent via **Amazon SES** (`SesEmailSender`,
-AWSSDK.SimpleEmailV2) from a **pure no-reply** `Endurance Fantasy <no-reply@arjunakankipati.com>`
-(no Reply-To). One-click **unsubscribe** (`GET/POST /email/unsubscribe`, HMAC-signed token) +
+**Shipped + deployed 2026-07-03** ([ADR-0009](docs/adr/0009-picks-reminder-emails.md) reminders + its
+amendment, [ADR-0010](docs/adr/0010-ses-bounce-complaint-handling.md) bounce/complaint handling).
+**Two independently opt-in** picks-reminder emails per race weekend, both from the `PicksReminderService`
+worker (clones `LockSweepService`; polls ~5 min): **PicksOpen** — sent when an admin opens the board
+(`event.picks_open`), but only within `Reminders:PicksOpenWindowHours` (24h) of `event.picks_opened_at`
+so it's never sent stale — and **PicksClosing** — ~24h before pick lock (`Reminders:HoursBeforeClose`,
+before the event's earliest `round.quali_start`). The `event_reminder` claim table (unique
+`(event_id, user_id, kind)`) guarantees single-send **per kind**. Rendered from an **MJML** template
+compiled to an embedded `picks-reminder.html` (recompile with `npx -y mjml@4 …`), Gmail-safe. Sent via
+**Amazon SES** (`SesEmailSender`, AWSSDK.SimpleEmailV2) from a **pure no-reply**
+`Endurance Fantasy <no-reply@arjunakankipati.com>` (no Reply-To). **Kind-aware** one-click **unsubscribe**
+(`GET/POST /email/unsubscribe`, HMAC token encoding `(user, kind)`) disables just that email +
 `List-Unsubscribe` headers.
 
 **Deliverability:** SES identity is the **root** `arjunakankipati.com` (DKIM + custom MAIL FROM on
@@ -64,13 +67,19 @@ AWSSDK.SimpleEmailV2) from a **pure no-reply** `Endurance Fantasy <no-reply@arju
 warm via consistent opt-in sends + Google Postmaster Tools. **Bounce/complaint** events flow via an
 SES **configuration set → SNS → `POST /email/ses-events`** (SNS signature + topic verified), recorded
 in `email_event` and (permanent bounce / any complaint) stamping `app_user.email_suppressed_at` — a
-**system-level** suppression separate from the opt-in flag, excluded from the recipient query.
+**system-level** suppression separate from the per-kind opt-in, excluded from the recipient query.
 `event_reminder.ses_message_id` correlates an event back to its send.
 
+**Preferences** are per-kind in the `email_preference(user_id, kind, enabled)` table (replaced the old
+`app_user.email_reminders_enabled`). The UI (registration + dashboard) shows a client-side **all-emails
+master** button + two DB-backed toggles (`EmailPreferenceControls`), always visible; the dashboard
+toggle PUTs `/auth/me/email-preferences` (rate-limited 5/min → a `RateLimitModal` on 429), and the
+registration modal seeds from current prefs (so joining a new series can't reset them).
+
 **Config** (Railway, `__` separator): `Aws:Ses:{FromAddress,Region,ConfigurationSetName,EventsTopicArn}`,
-`Reminders:{Enabled=true,ApiBaseUrl,UnsubscribeSecret}` (`WebBaseUrl` falls back to `Web:Origin`).
-The worker stays idle and logs missing keys until all are set. The opt-in checkbox re-prompts each
-registration until enabled, then hides; toggle is rate-limited (5/min/user).
+`Reminders:{Enabled=true,ApiBaseUrl,UnsubscribeSecret}` (+ optional `HoursBeforeClose` /
+`PicksOpenWindowHours`; `WebBaseUrl` falls back to `Web:Origin`). The worker idles and logs missing keys
+until all are set.
 
 ## Repo layout
 
@@ -225,10 +234,11 @@ pnpm build          # tsc typecheck + production build
   `POST /admin/images/drivers/{driverId}` → `{ key, uploadUrl }` (presigned S3 PUT; browser converts to
   WebP and PUTs directly). Player UI builds display URLs by convention from `VITE_IMAGE_BASE_URL` (see
   Images section above) — no read endpoint.
-- **Email (ADR-0009/0010):** opt-in via `POST /registrations` (`emailReminders`) + `PUT /auth/me/email-reminders`
-  (rate-limited); `/auth/me.emailRemindersEnabled` reflects it. `GET/POST /email/unsubscribe?token=` (public,
-  HMAC token) turns reminders off. `POST /email/ses-events` (public) ingests SNS-delivered SES bounce/complaint
-  events (signature-verified). See the Email (SES) section above.
+- **Email (ADR-0009/0010):** per-kind opt-in — `POST /registrations` carries `emailPreferences[]`;
+  `/auth/me` returns `emailPreferences` (`[{kind,enabled}]` for both kinds); `PUT /auth/me/email-preferences`
+  `{kind,enabled}` (rate-limited) upserts one. `GET/POST /email/unsubscribe?token=` (public, HMAC token
+  encoding `(user,kind)`) disables just that kind. `POST /email/ses-events` (public) ingests SNS-delivered
+  SES bounce/complaint events (signature-verified). See the Email (SES) section above.
 
 ## Conventions
 
