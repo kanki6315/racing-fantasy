@@ -12,11 +12,13 @@ import {
   usePrices,
   useRoster,
   useUpdateEmailPreference,
+  ApiError,
   type League,
 } from '../api/queries'
 import { useCountdown } from '../lib/useCountdown'
 import { CreateLeagueModal, JoinByCodeModal } from '../components/LeagueModals'
 import { RegisterModal } from '../components/RegisterModal'
+import { RateLimitModal } from '../components/RateLimitModal'
 import { EntityThumb } from '../components/EntityThumb'
 import { DriverLineup } from '../components/DriverLineup'
 import { EmailPreferenceControls, prefsFromList } from '../components/EmailPreferences'
@@ -41,6 +43,7 @@ export function Dashboard() {
   const myLeagues = useMyLeagues()
   const events = useEvents()
   const updatePref = useUpdateEmailPreference()
+  const [rateLimited, setRateLimited] = useState(false)
   const [createOpen, setCreateOpen] = useState(false)
   const [joinOpen, setJoinOpen] = useState(false)
   const [joinSeasonId, setJoinSeasonId] = useState<number | null>(null)
@@ -161,7 +164,12 @@ export function Dashboard() {
         <div className="mb-[11px] font-display text-[11px] tracking-[0.12em] uppercase text-muted-2">Race emails</div>
         <EmailPreferenceControls
           prefs={prefsFromList(user.emailPreferences)}
-          onChange={(kind, enabled) => updatePref.mutate({ kind, enabled })}
+          onChange={(kind, enabled) =>
+            updatePref.mutate(
+              { kind, enabled },
+              { onError: (e) => e instanceof ApiError && e.status === 429 && setRateLimited(true) },
+            )
+          }
           pending={updatePref.isPending}
         />
         <p className="mt-[8px] font-sans text-[11px] leading-[15px] text-muted-2">One email each, unsubscribe anytime.</p>
@@ -211,6 +219,7 @@ export function Dashboard() {
 
       {primarySeason != null && <CreateLeagueModal seasonId={primarySeason} open={createOpen} onOpenChange={setCreateOpen} />}
       <JoinByCodeModal open={joinOpen} onOpenChange={setJoinOpen} />
+      <RateLimitModal open={rateLimited} onOpenChange={setRateLimited} />
       {joinSeasonId != null && (
         <RegisterModal seasonId={joinSeasonId} open onOpenChange={(v) => { if (!v) setJoinSeasonId(null) }} />
       )}
