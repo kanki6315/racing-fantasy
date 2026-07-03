@@ -1,6 +1,6 @@
 # ADR-0009: Picks-Reminder Emails (one email per race weekend)
 
-**Status:** Proposed
+**Status:** Accepted (shipped + deployed 2026-07-03; verified live end-to-end)
 **Date:** 2026-06-29
 **Related:** [ADR-0002](0002-lock-model.md) (`quali_start` lock boundary), [ADR-0004](0004-authentication-and-data-minimization.md) (email is private, stored from the id_token), [ADR-0007](0007-shared-events.md) (`event` above `round`), [ADR-0008](0008-multi-championship-and-picks-open.md) (`event.picks_open`)
 

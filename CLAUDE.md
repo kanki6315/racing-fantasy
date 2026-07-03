@@ -46,6 +46,32 @@ display has begun (F5):** the **Pick page** shows liveries/headshots via the sha
 component (class-tinted placeholder fallback). Remaining display surfaces (Dashboard, standings,
 admin) still pending.
 
+## Email (SES): picks reminders + bounce handling
+
+**Shipped + deployed 2026-07-03** ([ADR-0009](docs/adr/0009-picks-reminder-emails.md) reminders,
+[ADR-0010](docs/adr/0010-ses-bounce-complaint-handling.md) bounce/complaint handling). One **opt-in**
+reminder email per race weekend, sent **~24h before pick lock** (`Reminders:HoursBeforeClose`, before
+the event's earliest `round.quali_start`, gated on `event.picks_open`) by the `PicksReminderService`
+worker (clones `LockSweepService`; `event_reminder` claim table with a unique `(event_id, user_id)`
+index = single-send). Rendered from an **MJML** template compiled to an embedded `picks-reminder.html`
+(recompile with `npx -y mjml@4 …`), Gmail-safe. Sent via **Amazon SES** (`SesEmailSender`,
+AWSSDK.SimpleEmailV2) from a **pure no-reply** `Endurance Fantasy <no-reply@arjunakankipati.com>`
+(no Reply-To). One-click **unsubscribe** (`GET/POST /email/unsubscribe`, HMAC-signed token) +
+`List-Unsubscribe` headers.
+
+**Deliverability:** SES identity is the **root** `arjunakankipati.com` (DKIM + custom MAIL FROM on
+`mail.` for SPF alignment + DMARC `p=none`); **shared IPs** (dedicated would hurt at this volume);
+warm via consistent opt-in sends + Google Postmaster Tools. **Bounce/complaint** events flow via an
+SES **configuration set → SNS → `POST /email/ses-events`** (SNS signature + topic verified), recorded
+in `email_event` and (permanent bounce / any complaint) stamping `app_user.email_suppressed_at` — a
+**system-level** suppression separate from the opt-in flag, excluded from the recipient query.
+`event_reminder.ses_message_id` correlates an event back to its send.
+
+**Config** (Railway, `__` separator): `Aws:Ses:{FromAddress,Region,ConfigurationSetName,EventsTopicArn}`,
+`Reminders:{Enabled=true,ApiBaseUrl,UnsubscribeSecret}` (`WebBaseUrl` falls back to `Web:Origin`).
+The worker stays idle and logs missing keys until all are set. The opt-in checkbox re-prompts each
+registration until enabled, then hides; toggle is rate-limited (5/min/user).
+
 ## Repo layout
 
 ```
@@ -199,6 +225,10 @@ pnpm build          # tsc typecheck + production build
   `POST /admin/images/drivers/{driverId}` → `{ key, uploadUrl }` (presigned S3 PUT; browser converts to
   WebP and PUTs directly). Player UI builds display URLs by convention from `VITE_IMAGE_BASE_URL` (see
   Images section above) — no read endpoint.
+- **Email (ADR-0009/0010):** opt-in via `POST /registrations` (`emailReminders`) + `PUT /auth/me/email-reminders`
+  (rate-limited); `/auth/me.emailRemindersEnabled` reflects it. `GET/POST /email/unsubscribe?token=` (public,
+  HMAC token) turns reminders off. `POST /email/ses-events` (public) ingests SNS-delivered SES bounce/complaint
+  events (signature-verified). See the Email (SES) section above.
 
 ## Conventions
 
@@ -209,6 +239,11 @@ pnpm build          # tsc typecheck + production build
 
 ## Known gaps / next steps
 
+- **Email reminders + bounce handling (done, deployed — ADR-0009/0010):** see the Email (SES) section.
+  Follow-ups: the **opt-in UI** (RegisterModal/Dashboard) ships via `pnpm deploy:web` (S3/CloudFront),
+  **separate** from the API's Railway deploy — deploy web for it to be live. Domain is **warming** (first
+  sends may hit spam though SPF/DKIM/DMARC pass — monitor Google Postmaster Tools). Deferred: suppress-after-N
+  transient bounces + surfacing suppression in the account UI; a DLQ if guaranteed event capture is needed.
 - **Catalog read access (done):** `GET` on championships / seasons / rounds / classes is **public**;
   their writes — and all of sessions / car-entries / drivers / entry-list / ingestion — remain Admin.
   The pick board reads the public `GET /rounds/{id}/prices` (carries display names + class).
