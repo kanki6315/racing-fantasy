@@ -176,6 +176,8 @@ erDiagram
 | class_id | bigint FK → class | |
 | number | text | UNIQUE(season_id, class_id, number) |
 | team_name | text | |
+| car_model | text | nullable; entry-list string ("ORECA LMP2 07"), not decomposed (ADR-0011) |
+| bronze_cup | boolean | default false; am sub-classification (VPRC/IMPC) |
 
 **`driver`**
 | col | type | notes |
@@ -190,7 +192,12 @@ erDiagram
 | id | bigint PK | |
 | car_entry_id | bigint FK → car_entry | |
 | driver_id | bigint FK → driver | |
-| season_id | bigint FK → season | UNIQUE(car_entry_id, driver_id) |
+| season_id | bigint FK → season | |
+| round_id | bigint FK → round | **nullable**; NULL = season-wide row, set = that round's entry list. Readers prefer a car's round rows over its NULL rows (ADR-0011, mirrors roster_rule.round_id). UNIQUE(car_entry_id, driver_id, round_id) NULLS NOT DISTINCT |
+| rating | text | nullable enum Platinum/Gold/Silver/Bronze (entry-list P/G/S/B) |
+| slot_order | int | nullable; listed lineup order (legacy rows fall back to id order) |
+| is_rookie | boolean | default false; entry-list marker |
+| is_coach | boolean | default false; entry-list marker |
 
 **`entity_price`** — per-round price for a pickable entity (prices change each round)
 | col | type | notes |

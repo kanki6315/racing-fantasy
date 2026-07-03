@@ -36,7 +36,10 @@ public static class EntryListEndpoints
 
             var carsByKey = (await db.CarEntries.Where(c => c.SeasonId == seasonId).ToListAsync())
                 .ToDictionary(c => (c.ClassId, c.Number));
-            var existingLinks = (await db.EntryDrivers.Where(x => x.SeasonId == seasonId).ToListAsync())
+            // This manual import writes season-wide lineup rows, so it dedupes against those only —
+            // per-round rows (JSON entry-list import) are a separate layer on top.
+            var existingLinks = (await db.EntryDrivers
+                    .Where(x => x.SeasonId == seasonId && x.RoundId == null).ToListAsync())
                 .Select(x => (x.CarEntryId, x.DriverId)).ToHashSet();
 
             var explicitIds = import.Entries

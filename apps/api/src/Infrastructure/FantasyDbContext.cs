@@ -65,6 +65,7 @@ public partial class FantasyDbContext(DbContextOptions<FantasyDbContext> options
         b.Entity<Score>().Property(x => x.Source).HasConversion<string>().HasMaxLength(24);
         b.Entity<ScoreAudit>().Property(x => x.Source).HasConversion<string>().HasMaxLength(24);
         b.Entity<League>().Property(x => x.Visibility).HasConversion<string>().HasMaxLength(8);
+        b.Entity<EntryDriver>().Property(x => x.Rating).HasConversion<string>().HasMaxLength(8);
 
         // ---- Money / points precision ----
         b.Entity<Round>().Property(x => x.SalaryCap).HasPrecision(10, 2);
@@ -91,7 +92,12 @@ public partial class FantasyDbContext(DbContextOptions<FantasyDbContext> options
         b.Entity<Round>().HasIndex(x => new { x.SeasonId, x.Sequence }).IsUnique();
         b.Entity<Session>().HasIndex(x => new { x.RoundId, x.ClassId, x.Type }).IsUnique();
         b.Entity<CarEntry>().HasIndex(x => new { x.SeasonId, x.ClassId, x.Number }).IsUnique();
-        b.Entity<EntryDriver>().HasIndex(x => new { x.CarEntryId, x.DriverId }).IsUnique();
+        // RoundId is nullable (NULL = season-wide row, mirrors roster_rule.round_id): treat NULLs as
+        // equal so a (car, driver) pair has at most one season-wide row plus one row per round.
+        b.Entity<EntryDriver>().HasIndex(x => new { x.CarEntryId, x.DriverId, x.RoundId })
+            .IsUnique().AreNullsDistinct(false);
+        b.Entity<EntryDriver>().HasOne(x => x.Round).WithMany().HasForeignKey(x => x.RoundId)
+            .OnDelete(DeleteBehavior.Restrict);
         b.Entity<EntityPrice>().HasIndex(x => new { x.RoundId, x.EntityType, x.EntityId }).IsUnique();
         b.Entity<AppUser>().HasIndex(x => new { x.ExternalProvider, x.ExternalSubject }).IsUnique();
         b.Entity<AppUser>().Property(x => x.Name).HasMaxLength(200);

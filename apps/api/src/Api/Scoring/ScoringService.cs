@@ -43,10 +43,16 @@ public sealed class ScoringService(FantasyDbContext db)
         var racePos = (await db.RaceResults.Where(q => raceSessions.Contains(q.SessionId)).ToListAsync())
             .ToDictionary(q => (q.ClassId, q.CarEntryId), q => q.Position);
 
-        // Driver -> car entry (for driver MAIN picks), scoped to season + class.
+        // Driver -> car entry (for driver MAIN picks), scoped to season + class. Rows pinned to THIS
+        // round (entry-list import) win over season-wide (round_id NULL) rows — TryAdd keeps the
+        // first match, so ordering round rows first makes a mid-season car swap score against the
+        // car the driver actually raced this weekend.
         var driverCar = new Dictionary<(long DriverId, long ClassId), long>();
-        foreach (var x in await db.EntryDrivers.Where(e => e.SeasonId == round.SeasonId)
-                     .Join(db.CarEntries, e => e.CarEntryId, c => c.Id, (e, c) => new { e.DriverId, c.ClassId, CarId = c.Id })
+        foreach (var x in await db.EntryDrivers
+                     .Where(e => e.SeasonId == round.SeasonId && (e.RoundId == null || e.RoundId == roundId))
+                     .Join(db.CarEntries, e => e.CarEntryId, c => c.Id,
+                         (e, c) => new { e.RoundId, e.DriverId, c.ClassId, CarId = c.Id })
+                     .OrderByDescending(x => x.RoundId != null)
                      .ToListAsync())
             driverCar.TryAdd((x.DriverId, x.ClassId), x.CarId);
 

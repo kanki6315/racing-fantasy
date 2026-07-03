@@ -161,7 +161,8 @@ pnpm build          # tsc typecheck + production build
 - **End-to-end types:** the API annotates response schemas (`.Produces<T>()`), so request *and* response
   DTOs flow from `schema.d.ts` (`components['schemas']`). Re-run `pnpm gen:api` after API contract changes.
   (Catalog, entries, prices, users, ingestion, and scoring are annotated as of the F4/A4 passes; the
-  **entry-list import** endpoint is the remaining un-annotated admin endpoint.)
+  **manual** entry-list endpoint (`POST /seasons/{id}/entry-list`) is the remaining un-annotated admin
+  endpoint — the JSON import below is annotated.)
 
 ## Auth (read this before building the UI)
 
@@ -230,6 +231,14 @@ pnpm build          # tsc typecheck + production build
 - **Leagues:** `POST /leagues`, `GET /leagues?seasonId=&mine=`, `GET /leagues/{id}`,
   `POST /leagues/{id}/join?joinCode=`, `POST /leagues/{id}/leave`, `DELETE /leagues/{id}`,
   `GET /leagues/{id}/leaderboard[?roundId=]` (private = members-only; `roundId` narrows to a single round).
+- **Entry-list JSON import (admin — ADR-0011):** `POST /rounds/{roundId}/entry-list/import` takes the
+  broadcast-prep parser's JSON (one file per series per event) verbatim; `?dryRun=true` previews
+  (counts, new-driver list, warnings — series/year mismatch, unknown rating/marker), then the commit
+  re-sends the identical payload; `?createMissingClasses=true` creates unknown classes from
+  `class_code`/`class_order`. Writes **per-round lineup rows** (`entry_driver.round_id` +
+  rating/slot_order/rookie/coach; NULL = season-wide, round rows preferred by the price board and
+  scoring) and `car_entry.car_model`/`bronze_cup`. Admin UI: Entries → Car Entries → **Import JSON**
+  (targets the topbar-selected round). TBD seats are skipped; re-import converges.
 - **Images (admin):** `POST /admin/images/liveries/{roundId}/{entryId}` and
   `POST /admin/images/drivers/{driverId}` → `{ key, uploadUrl }` (presigned S3 PUT; browser converts to
   WebP and PUTs directly). Player UI builds display URLs by convention from `VITE_IMAGE_BASE_URL` (see

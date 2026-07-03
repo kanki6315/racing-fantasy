@@ -62,3 +62,15 @@ public enum LeagueVisibility
     Public,
     Private
 }
+
+/// <summary>
+/// Driver categorisation from the entry list (FIA P/G/S/B letters). Lives on
+/// <see cref="EntryDriver"/> — ratings are per season and some series adjust them mid-year.
+/// </summary>
+public enum DriverRating
+{
+    Platinum,
+    Gold,
+    Silver,
+    Bronze
+}

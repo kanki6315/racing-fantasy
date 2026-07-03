@@ -119,6 +119,7 @@ app.MapDriverEndpoints();
 app.MapCarEntryEndpoints();
 app.MapEntryDriverEndpoints();
 app.MapEntryListEndpoints();
+app.MapEntryListImportEndpoints();
 app.MapRosterRuleEndpoints();
 app.MapRosterModifierRuleEndpoints();
 app.MapUserEndpoints();

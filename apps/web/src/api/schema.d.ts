@@ -1789,6 +1789,50 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/rounds/{roundId}/entry-list/import": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: {
+            parameters: {
+                query?: {
+                    dryRun?: boolean;
+                    createMissingClasses?: boolean;
+                };
+                header?: never;
+                path: {
+                    roundId: number;
+                };
+                cookie?: never;
+            };
+            requestBody: {
+                content: {
+                    "application/json": components["schemas"]["ParserEntryList"];
+                };
+            };
+            responses: {
+                /** @description OK */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["EntryListImportResult"];
+                    };
+                };
+            };
+        };
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/roster-rules": {
         parameters: {
             query?: never;
@@ -3188,6 +3232,8 @@ export interface components {
             classId: number;
             number: string;
             teamName: string;
+            carModel: null | string;
+            bronzeCup: boolean;
         };
         ChampionshipDto: {
             /** Format: int64 */
@@ -3226,6 +3272,8 @@ export interface components {
             classId: number;
             number: string;
             teamName: string;
+            carModel?: null | string;
+            bronzeCup?: null | boolean;
         };
         CreateChampionship: {
             name: string;
@@ -3253,6 +3301,8 @@ export interface components {
             carEntryId: number;
             /** Format: int64 */
             driverId: number;
+            /** Format: int64 */
+            roundId?: null | number;
         };
         CreateEvent: {
             name: string;
@@ -3351,6 +3401,8 @@ export interface components {
             id: number;
             fullName: string;
         };
+        /** @enum {unknown} */
+        DriverRating: "Platinum" | "Gold" | "Silver" | "Bronze" | null;
         EmailPreferenceDto: {
             kind: string;
             enabled: boolean;
@@ -3387,6 +3439,13 @@ export interface components {
             driverId: number;
             /** Format: int64 */
             seasonId: number;
+            /** Format: int64 */
+            roundId: null | number;
+            rating: null | components["schemas"]["DriverRating"];
+            /** Format: int32 */
+            slotOrder: null | number;
+            isRookie: boolean;
+            isCoach: boolean;
         };
         EntryListDriver: {
             /** Format: int64 */
@@ -3404,6 +3463,29 @@ export interface components {
         };
         EntryListImport: {
             entries: components["schemas"]["EntryListEntry"][];
+        };
+        EntryListImportResult: {
+            /** Format: int64 */
+            roundId: number;
+            /** Format: int64 */
+            seasonId: number;
+            dryRun: boolean;
+            warnings: string[];
+            classesCreated: string[];
+            /** Format: int32 */
+            carsCreated: number;
+            /** Format: int32 */
+            carsUpdated: number;
+            driversCreated: string[];
+            /** Format: int32 */
+            driversReused: number;
+            /** Format: int32 */
+            lineupCreated: number;
+            /** Format: int32 */
+            lineupUpdated: number;
+            /** Format: int32 */
+            tbdSkipped: number;
+            rows: components["schemas"]["ImportRowResult"][];
         };
         EventDto: {
             /** Format: int64 */
@@ -3442,6 +3524,20 @@ export interface components {
         ImagePresignResponse: {
             key: string;
             uploadUrl: string;
+        };
+        ImportDriverResult: {
+            name: string;
+            status: string;
+            rating: null | string;
+        };
+        ImportRowResult: {
+            /** Format: int32 */
+            index: number;
+            classCode: string;
+            number: string;
+            team: string;
+            carStatus: string;
+            drivers: components["schemas"]["ImportDriverResult"][];
         };
         IngestClassCount: {
             class: string;
@@ -3557,6 +3653,46 @@ export interface components {
         ModifierViolation: {
             kind: string;
             reason: string;
+        };
+        ParserDriver: {
+            /** Format: int32 */
+            order: null | number;
+            rating: null | string;
+            name: null | string;
+            nationality: null | string;
+            hometown: null | string;
+            is_tbd: null | boolean;
+            markers: null | string[];
+        };
+        ParserEntry: {
+            class_name: null | string;
+            class_code: null | string;
+            /** Format: int32 */
+            class_order: null | number;
+            car_number: null | string;
+            team: null | string;
+            sponsor: null | string;
+            bronze_cup: null | boolean;
+            car_type: null | string;
+            tire: null | string;
+            engine: null | string;
+            fuel: null | string;
+            drivers: null | components["schemas"]["ParserDriver"][];
+        };
+        ParserEntryList: {
+            event: null | components["schemas"]["ParserEvent"];
+            entries: null | components["schemas"]["ParserEntry"][];
+        };
+        ParserEvent: {
+            name: null | string;
+            circuit: null | string;
+            location: null | string;
+            /** Format: int32 */
+            total_entries: null | number;
+            start_date: null | string;
+            end_date: null | string;
+            series: null | string;
+            source_file: null | string;
         };
         PickScoreDto: {
             /** Format: int64 */
@@ -3895,6 +4031,8 @@ export interface components {
         UpdateCarEntry: {
             number: string;
             teamName: string;
+            carModel?: null | string;
+            bronzeCup?: null | boolean;
         };
         UpdateChampionship: {
             name: string;

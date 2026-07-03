@@ -491,6 +491,41 @@ export function useImportResults(roundId: number) {
   })
 }
 
+// ---- Entry-list JSON import (parser output, one file per series per event) ----
+export type ParserEntryList = components['schemas']['ParserEntryList']
+export type EntryListImportResult = components['schemas']['EntryListImportResult']
+
+/**
+ * Import a parser-produced entry-list JSON into a round. dryRun=true returns the same result shape
+ * as a preview without writing; the commit re-sends the file with dryRun=false. Classes the
+ * championship doesn't have yet are created (name = class_code, order = class_order).
+ */
+export function useImportEntryList(roundId: number) {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: async ({ file, dryRun }: { file: ParserEntryList; dryRun: boolean }) => {
+      const { data, error } = await api.POST('/rounds/{roundId}/entry-list/import', {
+        params: { path: { roundId }, query: { dryRun, createMissingClasses: true } },
+        body: file,
+      })
+      if (error) throw error
+      return data!
+    },
+    onSuccess: (_d, vars) => {
+      if (!vars.dryRun) {
+        invalidate(
+          qc,
+          ['admin', 'car-entries'],
+          ['admin', 'drivers'],
+          ['admin', 'entry-drivers'],
+          ['admin', 'classes'],
+        )
+        qc.invalidateQueries({ queryKey: ['prices', roundId] })
+      }
+    },
+  })
+}
+
 // ---- Scoring ----
 export type ScoresResponse = components['schemas']['ScoresResponse']
 export type ScoreRoundResult = components['schemas']['ScoreRoundResult']

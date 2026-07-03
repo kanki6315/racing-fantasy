@@ -92,15 +92,20 @@ public static class PriceEndpoints
         var cars = await db.CarEntries.Where(c => carIds.Contains(c.Id)).ToDictionaryAsync(c => c.Id);
         var drivers = await db.Drivers.Where(d => drvIds.Contains(d.Id)).ToDictionaryAsync(d => d.Id);
 
-        // Each car's driver lineup (co-drivers share a car for the season) so the pick board can show
-        // who drives a team — ordered by insertion id as a stable proxy for the listed driver order.
+        // Each car's driver lineup so the pick board can show who drives a team. A car's rows for
+        // THIS round (entry-list import) replace its season-wide (round_id NULL) rows, so weekends
+        // with an imported entry list show the actual lineup, not the season union. Listed order
+        // when the import supplied it (slot_order), insertion id otherwise.
         var lineup = (await db.EntryDrivers
-                .Where(ed => carIds.Contains(ed.CarEntryId))
-                .OrderBy(ed => ed.Id)
-                .Select(ed => new { ed.CarEntryId, ed.DriverId, ed.Driver.FullName })
+                .Where(ed => carIds.Contains(ed.CarEntryId) && (ed.RoundId == null || ed.RoundId == roundId))
+                .Select(ed => new { ed.CarEntryId, ed.DriverId, ed.RoundId, ed.SlotOrder, ed.Id, ed.Driver.FullName })
                 .ToListAsync())
             .GroupBy(x => x.CarEntryId)
-            .ToDictionary(g => g.Key, g => g.Select(x => new DriverLite(x.DriverId, x.FullName)).ToList());
+            .ToDictionary(
+                g => g.Key,
+                g => (g.Any(x => x.RoundId != null) ? g.Where(x => x.RoundId != null) : g)
+                    .OrderBy(x => x.SlotOrder ?? int.MaxValue).ThenBy(x => x.Id)
+                    .Select(x => new DriverLite(x.DriverId, x.FullName)).ToList());
 
         return prices.Select(p =>
         {

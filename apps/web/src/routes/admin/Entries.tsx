@@ -25,8 +25,11 @@ import {
   useDeleteDriver,
   useCreateEntryDriver,
   useDeleteEntryDriver,
+  useImportEntryList,
   type CarEntryDto,
   type DriverDto,
+  type ParserEntryList,
+  type EntryListImportResult,
 } from '../../api/adminQueries'
 import { classMeta } from '../../lib/classMeta'
 import { ImageUpload } from '../../admin/ImageUpload'
@@ -61,23 +64,33 @@ export function Entries() {
 
 // ===================== Car Entries =====================
 function CarEntriesTab({ seasonId }: { seasonId: number }) {
-  const { championshipId } = useAdmin()
+  const { championshipId, roundId } = useAdmin()
   const { data: classes = [] } = useAdminClasses(championshipId)
   const [filterClass, setFilterClass] = useState<number | 'all'>('all')
   const { data: cars = [] } = useCarEntries(seasonId, filterClass === 'all' ? undefined : filterClass)
   const { data: links = [] } = useEntryDrivers()
   const [sel, setSel] = useState<number | null>(null)
   const [bulk, setBulk] = useState(false)
+  const [importing, setImporting] = useState(false)
   const selected = cars.find((c) => c.id === sel) ?? null
 
+  // Effective lineup size for the topbar-selected round — same resolution as the price board:
+  // a car's rows imported for THIS round replace its season-wide (roundId null) rows; rows
+  // belonging to other rounds never count.
   const driverCount = useMemo(() => {
     const m = new Map<number, number>()
-    for (const l of links) m.set(l.carEntryId, (m.get(l.carEntryId) ?? 0) + 1)
+    const fromRound = new Map<number, number>()
+    for (const l of links) {
+      if (l.roundId == null) m.set(l.carEntryId, (m.get(l.carEntryId) ?? 0) + 1)
+      else if (l.roundId === roundId) fromRound.set(l.carEntryId, (fromRound.get(l.carEntryId) ?? 0) + 1)
+    }
+    for (const [carId, n] of fromRound) m.set(carId, n)
     return m
-  }, [links])
+  }, [links, roundId])
 
   return (
     <div className="grid gap-5">
+      {importing && <EntryListImportPanel onClose={() => setImporting(false)} />}
       {bulk && (
         <CarEntryBulkGrid seasonId={seasonId} classes={classes} onClose={() => setBulk(false)} />
       )}
@@ -107,6 +120,14 @@ function CarEntriesTab({ seasonId }: { seasonId: number }) {
             </button>
           ))}
           <div className="ml-auto flex items-center gap-2">
+            <GhostButton
+              onClick={() => {
+                setImporting((v) => !v)
+                setSel(null)
+              }}
+            >
+              Import JSON
+            </GhostButton>
             <GhostButton
               onClick={() => {
                 setBulk((b) => !b)
@@ -387,7 +408,7 @@ function DriverForm({ driver, onClose }: { driver: DriverDto | null; onClose: ()
 
 // ===================== Lineups =====================
 function LineupsTab({ seasonId }: { seasonId: number }) {
-  const { championshipId } = useAdmin()
+  const { championshipId, roundId } = useAdmin()
   const { data: classes = [] } = useAdminClasses(championshipId)
   const { data: cars = [] } = useCarEntries(seasonId)
   const { data: links = [] } = useEntryDrivers()
@@ -395,19 +416,34 @@ function LineupsTab({ seasonId }: { seasonId: number }) {
   const createLink = useCreateEntryDriver()
   const deleteLink = useDeleteEntryDriver()
   const [addingTo, setAddingTo] = useState<number | null>(null)
+  const [addScope, setAddScope] = useState<'round' | 'season'>('season')
 
   const carIds = useMemo(() => new Set(cars.map((c) => c.id)), [cars])
   const driverById = useMemo(() => new Map(drivers.map((d) => [d.id, d])), [drivers])
+  // This tab edits the season-wide lineup (roundId null rows only); per-round rows come from the
+  // entry-list import and are surfaced as a count so an imported car doesn't read as un-crewed.
   const linksByCar = useMemo(() => {
     const m = new Map<number, typeof links>()
     for (const l of links) {
-      if (!carIds.has(l.carEntryId)) continue
+      if (!carIds.has(l.carEntryId) || l.roundId != null) continue
       const arr = m.get(l.carEntryId) ?? []
       arr.push(l)
       m.set(l.carEntryId, arr)
     }
     return m
   }, [links, carIds])
+  const roundLinksByCar = useMemo(() => {
+    const m = new Map<number, typeof links>()
+    if (roundId == null) return m
+    for (const l of links) {
+      if (!carIds.has(l.carEntryId) || l.roundId !== roundId) continue
+      const arr = m.get(l.carEntryId) ?? []
+      arr.push(l)
+      m.set(l.carEntryId, arr)
+    }
+    for (const arr of m.values()) arr.sort((a, b) => (a.slotOrder ?? 99) - (b.slotOrder ?? 99) || a.id - b.id)
+    return m
+  }, [links, carIds, roundId])
 
   const byClass = useMemo(() => {
     const m = new Map<number, CarEntryDto[]>()
@@ -434,15 +470,59 @@ function LineupsTab({ seasonId }: { seasonId: number }) {
             </div>
             {byClass.get(cl.id)?.map((car) => {
               const carLinks = linksByCar.get(car.id) ?? []
+              const roundRows = roundLinksByCar.get(car.id) ?? []
+              const overridden = roundRows.length > 0
               return (
                 <div key={car.id} className="flex items-start gap-4 border-b border-line px-4 py-3 last:border-b-0">
                   <span className="w-10 shrink-0 font-mono text-[13px] font-semibold text-ink">{car.number}</span>
                   <span className="w-40 shrink-0 font-sans text-[13px] text-ink-2">{car.teamName}</span>
                   <div className="flex flex-1 flex-wrap items-center gap-2">
+                    {overridden && (
+                      <span className="font-mono text-[10px] tracking-[0.14em] uppercase text-muted-2">
+                        This round
+                      </span>
+                    )}
+                    {roundRows.map((l) => {
+                      const tags = [
+                        l.rating?.[0],
+                        l.isCoach ? 'COACH' : null,
+                        l.isRookie ? 'ROOKIE' : null,
+                      ].filter(Boolean)
+                      return (
+                        <span
+                          key={l.id}
+                          title="From this round's imported entry list"
+                          className="inline-flex items-center gap-[6px] rounded-[3px] border border-line bg-surface-2 px-2 py-1 font-mono text-[11px] text-ink"
+                        >
+                          {driverById.get(l.driverId)?.fullName ?? `#${l.driverId}`}
+                          {tags.length > 0 && <span className="text-[10px] text-muted">{tags.join('·')}</span>}
+                          <button
+                            type="button"
+                            onClick={() => deleteLink.mutate(l.id)}
+                            className="text-muted-2 hover:text-danger"
+                            aria-label="Remove driver from this round"
+                          >
+                            ×
+                          </button>
+                        </span>
+                      )
+                    })}
+                    {overridden && carLinks.length > 0 && (
+                      <span className="font-mono text-[10px] tracking-[0.14em] uppercase text-muted-2">
+                        Season
+                      </span>
+                    )}
                     {carLinks.map((l) => (
                       <span
                         key={l.id}
-                        className="inline-flex items-center gap-[6px] rounded-[3px] border border-line-2 bg-surface-3 px-2 py-1 font-mono text-[11px] text-ink-2"
+                        title={
+                          overridden
+                            ? 'Season-wide row — overridden this round by the imported entry list'
+                            : undefined
+                        }
+                        className={`inline-flex items-center gap-[6px] rounded-[3px] border border-line-2 bg-surface-3 px-2 py-1 font-mono text-[11px] text-ink-2 ${
+                          overridden ? 'opacity-50' : ''
+                        }`}
                       >
                         {driverById.get(l.driverId)?.fullName ?? `#${l.driverId}`}
                         <button
@@ -456,30 +536,84 @@ function LineupsTab({ seasonId }: { seasonId: number }) {
                       </span>
                     ))}
                     {addingTo === car.id ? (
-                      <Select
-                        autoFocus
-                        defaultValue=""
-                        onChange={async (e) => {
-                          const driverId = Number(e.target.value)
-                          if (driverId) await createLink.mutateAsync({ carEntryId: car.id, driverId })
-                          setAddingTo(null)
+                      <span
+                        className="flex items-center gap-1"
+                        onBlur={(e) => {
+                          // Keep the editor open while focus moves between the select and the
+                          // scope toggle; close when it leaves the group entirely.
+                          if (!e.currentTarget.contains(e.relatedTarget as Node)) setAddingTo(null)
                         }}
-                        onBlur={() => setAddingTo(null)}
-                        className="!h-7 w-48"
                       >
-                        <option value="">Add driver…</option>
-                        {drivers
-                          .filter((d) => !carLinks.some((l) => l.driverId === d.id))
-                          .map((d) => (
-                            <option key={d.id} value={d.id}>
-                              {d.fullName}
-                            </option>
-                          ))}
-                      </Select>
+                        <Select
+                          autoFocus
+                          defaultValue=""
+                          onChange={async (e) => {
+                            const driverId = Number(e.target.value)
+                            if (driverId) {
+                              if (addScope === 'round' && roundId != null) {
+                                // First round-scoped edit on a season-defined car: materialize the
+                                // season lineup as round rows so the added driver extends this
+                                // round's lineup instead of replacing it (round rows win).
+                                if (!overridden)
+                                  for (const l of carLinks)
+                                    await createLink.mutateAsync({
+                                      carEntryId: car.id, driverId: l.driverId, roundId,
+                                    })
+                                await createLink.mutateAsync({ carEntryId: car.id, driverId, roundId })
+                              } else {
+                                await createLink.mutateAsync({ carEntryId: car.id, driverId })
+                              }
+                            }
+                            setAddingTo(null)
+                          }}
+                          className="!h-7 w-48"
+                        >
+                          <option value="">Add driver…</option>
+                          {drivers
+                            .filter(
+                              (d) =>
+                                !carLinks.some((l) => l.driverId === d.id) &&
+                                !roundRows.some((l) => l.driverId === d.id),
+                            )
+                            .map((d) => (
+                              <option key={d.id} value={d.id}>
+                                {d.fullName}
+                              </option>
+                            ))}
+                        </Select>
+                        <button
+                          type="button"
+                          onClick={() => setAddScope('round')}
+                          disabled={roundId == null}
+                          className={`h-7 rounded-[3px] px-2 font-mono text-[10px] uppercase ${
+                            addScope === 'round'
+                              ? 'bg-ink text-bg'
+                              : 'border border-line-2 text-muted hover:text-ink-2'
+                          }`}
+                        >
+                          This round
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => setAddScope('season')}
+                          className={`h-7 rounded-[3px] px-2 font-mono text-[10px] uppercase ${
+                            addScope === 'season'
+                              ? 'bg-ink text-bg'
+                              : 'border border-line-2 text-muted hover:text-ink-2'
+                          }`}
+                        >
+                          Season
+                        </button>
+                      </span>
                     ) : (
                       <button
                         type="button"
-                        onClick={() => setAddingTo(car.id)}
+                        onClick={() => {
+                          setAddingTo(car.id)
+                          // Imported cars default to a this-round correction; others to the
+                          // season-wide lineup this tab has always edited.
+                          setAddScope(overridden && roundId != null ? 'round' : 'season')
+                        }}
                         className="rounded-[3px] border border-dashed border-line-2 px-2 py-1 font-mono text-[11px] text-muted-2 hover:text-ink-2"
                       >
                         + Add
@@ -488,10 +622,10 @@ function LineupsTab({ seasonId }: { seasonId: number }) {
                   </div>
                   <span
                     className={`shrink-0 font-mono text-[10px] uppercase ${
-                      carLinks.length > 0 ? 'text-success' : 'text-warn'
+                      carLinks.length > 0 || overridden ? 'text-success' : 'text-warn'
                     }`}
                   >
-                    {carLinks.length > 0 ? 'Set' : 'Empty'}
+                    {carLinks.length > 0 || overridden ? 'Set' : 'Empty'}
                   </span>
                 </div>
               )
@@ -624,6 +758,157 @@ function BulkGrid<Row extends Record<string, string>>({
       })}
     </div>
   )
+}
+
+// ===================== Entry-list JSON import =====================
+
+/**
+ * Import a parser-produced entry-list JSON (the PDF converter's output, one file per series per
+ * event) into the round selected in the topbar. Picking a file immediately runs a server dry-run;
+ * the preview shows what would change (incl. new drivers, for eyeballing near-duplicate names and
+ * file/series mismatches in the warnings) before Import commits the identical payload.
+ */
+function EntryListImportPanel({ onClose }: { onClose: () => void }) {
+  const { championship, season, round, roundId } = useAdmin()
+  const imp = useImportEntryList(roundId ?? 0)
+  const [fileName, setFileName] = useState<string | null>(null)
+  const [file, setFile] = useState<ParserEntryList | null>(null)
+  const [preview, setPreview] = useState<EntryListImportResult | null>(null)
+  const [committed, setCommitted] = useState<EntryListImportResult | null>(null)
+  const [error, setError] = useState<string | null>(null)
+
+  const pick = async (f: File | undefined) => {
+    setError(null)
+    setPreview(null)
+    setCommitted(null)
+    setFileName(null)
+    setFile(null)
+    if (!f) return
+    try {
+      const data = JSON.parse(await f.text()) as ParserEntryList
+      setFileName(f.name)
+      setFile(data)
+      setPreview(await imp.mutateAsync({ file: data, dryRun: true }))
+    } catch (e) {
+      setError(importError(e))
+    }
+  }
+
+  const commit = async () => {
+    if (!file) return
+    setError(null)
+    try {
+      setCommitted(await imp.mutateAsync({ file, dryRun: false }))
+    } catch (e) {
+      setError(importError(e))
+    }
+  }
+
+  const res = committed ?? preview
+
+  return (
+    <div className="rounded-[6px] border border-line bg-surface p-4">
+      <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
+        <h2 className="font-mono text-[10px] tracking-[0.14em] uppercase text-muted-2">
+          Import Entry List (JSON)
+        </h2>
+        <span className="font-mono text-[11px] text-muted">
+          → {championship?.name ?? '—'} · {season?.year ?? '—'} · {round?.name ?? 'no round selected'}
+        </span>
+      </div>
+
+      {!roundId ? (
+        <EmptyState>Select a round in the topbar — lineup rows are written per round</EmptyState>
+      ) : (
+        <div className="grid gap-3">
+          <input
+            type="file"
+            accept=".json,application/json"
+            aria-label="Entry list JSON file"
+            onChange={(e) => void pick(e.target.files?.[0])}
+            className="font-mono text-[11px] text-muted file:mr-3 file:h-7 file:cursor-pointer file:rounded-[3px] file:border file:border-line-2 file:bg-transparent file:px-2 file:font-mono file:text-[11px] file:uppercase file:text-ink-2"
+          />
+
+          {imp.isPending && (
+            <div className="font-mono text-[11px] text-muted">
+              {committed ?? preview ? 'Importing…' : 'Running dry-run preview…'}
+            </div>
+          )}
+          {error && <div className="font-mono text-[11px] text-danger">{error}</div>}
+
+          {res && (
+            <div className="grid gap-2 rounded-[4px] border border-line-2 bg-bg/40 p-3">
+              <div className="flex flex-wrap items-center gap-x-4 gap-y-1 font-mono text-[11px]">
+                <span className={committed ? 'text-success' : 'text-warn'}>
+                  {committed ? 'IMPORTED' : 'PREVIEW — nothing written yet'}
+                </span>
+                <span className="text-muted">{fileName}</span>
+                <span className="text-ink-2">
+                  {res.carsCreated} new / {res.carsUpdated} updated cars
+                </span>
+                <span className="text-ink-2">
+                  {res.driversCreated.length} new / {res.driversReused} known drivers
+                </span>
+                <span className="text-ink-2">
+                  {res.lineupCreated + res.lineupUpdated} lineup seats
+                </span>
+                {res.tbdSkipped > 0 && <span className="text-muted">{res.tbdSkipped} TBD skipped</span>}
+              </div>
+
+              {res.classesCreated.length > 0 && (
+                <div className="font-mono text-[11px] text-warn">
+                  New classes: {res.classesCreated.join(', ')}
+                </div>
+              )}
+              {res.warnings.map((w, i) => (
+                <div key={i} className="font-mono text-[11px] text-warn">
+                  ⚠ {w}
+                </div>
+              ))}
+
+              {res.driversCreated.length > 0 && (
+                <div className="max-h-32 overflow-y-auto">
+                  <div className="mb-1 font-mono text-[10px] tracking-[0.14em] uppercase text-muted-2">
+                    New drivers — check for near-duplicates of existing names
+                  </div>
+                  <div className="flex flex-wrap gap-1">
+                    {res.driversCreated.map((n) => (
+                      <span
+                        key={n}
+                        className="rounded-[3px] border border-line-2 px-[6px] py-[2px] font-mono text-[11px] text-ink-2"
+                      >
+                        {n}
+                      </span>
+                    ))}
+                  </div>
+                </div>
+              )}
+            </div>
+          )}
+
+          <div className="flex items-center justify-end gap-2">
+            <GhostButton onClick={onClose}>Close</GhostButton>
+            <PrimaryButton onClick={() => void commit()} disabled={!preview || !!committed || imp.isPending}>
+              Import {preview ? preview.rows.length : ''} entries
+            </PrimaryButton>
+          </div>
+        </div>
+      )}
+    </div>
+  )
+}
+
+/** Flatten the API's error payload (422 row errors or a problem document) to one line. */
+function importError(e: unknown): string {
+  if (e && typeof e === 'object') {
+    const anyE = e as { errors?: Array<{ index: number; message: string }> | Record<string, string[]>; title?: string; message?: string }
+    if (Array.isArray(anyE.errors))
+      return anyE.errors.map((x) => `row ${x.index}: ${x.message}`).join(' · ')
+    if (anyE.errors) return Object.values(anyE.errors).flat().join(' · ')
+    if (anyE.title) return anyE.title
+    if (anyE.message) return anyE.message
+  }
+  return 'Import failed — is the file a parser entry-list JSON?'
 }
 
 /** Shared panel chrome for a bulk-add grid: title, summary, and a Create N / Close footer. */
