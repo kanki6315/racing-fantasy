@@ -44,10 +44,19 @@ public static class RegistrationEndpoints
 
             var r = new Registration { UserId = uid, SeasonId = dto.SeasonId, TeamName = teamName };
             db.Add(r);
-            // Opt-in (ADR-0009): only ever flip the user-level flag ON here — an unchecked box on a later
-            // registration must not silently disable a user who already opted in (unsubscribe does that).
-            if (dto.EmailReminders && await db.Users.FindAsync(uid) is { } user)
-                user.EmailRemindersEnabled = true;
+            // Initial email preferences (ADR-0009 amendment): upsert the kinds the user chose at sign-up.
+            if (dto.EmailPreferences is { Count: > 0 })
+            {
+                var existing = await db.EmailPreferences.Where(p => p.UserId == uid).ToListAsync();
+                foreach (var pref in dto.EmailPreferences.Where(p => ReminderKind.IsValid(p.Kind)))
+                {
+                    var row = existing.FirstOrDefault(x => x.Kind == pref.Kind);
+                    if (row is null)
+                        db.EmailPreferences.Add(new EmailPreference { UserId = uid.Value, Kind = pref.Kind, Enabled = pref.Enabled, UpdatedAt = DateTime.UtcNow });
+                    else
+                        (row.Enabled, row.UpdatedAt) = (pref.Enabled, DateTime.UtcNow);
+                }
+            }
             await db.SaveChangesAsync();
             return Results.Created($"/registrations/{r.Id}", new RegistrationDto(r.Id, r.UserId, r.SeasonId, r.TeamName));
         }).RequireAuthorization().Produces<RegistrationDto>(StatusCodes.Status201Created);
@@ -73,4 +82,4 @@ public static class RegistrationEndpoints
 }
 
 public record RegistrationDto(long Id, long? UserId, long SeasonId, string TeamName);
-public record CreateRegistration(long SeasonId, string TeamName, bool EmailReminders = false);
+public record CreateRegistration(long SeasonId, string TeamName, List<UpdateEmailPreference>? EmailPreferences = null);

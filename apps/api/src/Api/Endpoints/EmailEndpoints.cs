@@ -1,5 +1,7 @@
 using ImsaFantasy.Api.Email;
+using ImsaFantasy.Domain;
 using ImsaFantasy.Infrastructure;
+using Microsoft.EntityFrameworkCore;
 
 namespace ImsaFantasy.Api.Endpoints;
 
@@ -21,7 +23,7 @@ public static class EmailEndpoints
         {
             var ok = await Unsubscribe(token, tokens, db);
             return Results.Content(Page(ok
-                ? "You've been unsubscribed from Endurance Fantasy pick reminders."
+                ? "You've been unsubscribed from this Endurance Fantasy email. You can manage the rest from your dashboard."
                 : "This unsubscribe link is invalid."), "text/html");
         });
 
@@ -46,17 +48,23 @@ public static class EmailEndpoints
         return app;
     }
 
+    // Disables just the one email kind the link was issued for (ADR-0009 amendment). Upserts the
+    // preference row off so an unsubscribe before the user ever toggled is still recorded.
     private static async Task<bool> Unsubscribe(string? token, UnsubscribeTokenService tokens, FantasyDbContext db)
     {
-        if (!tokens.TryValidate(token, out var userId)) return false;
-        var user = await db.Users.FindAsync(userId);
-        if (user is null) return false;
-        if (user.EmailRemindersEnabled)
-        {
-            user.EmailRemindersEnabled = false;
-            await db.SaveChangesAsync();
-        }
-        return true; // idempotent — already-off is still a success
+        if (!tokens.TryValidate(token, out var userId, out var kind) || !ReminderKind.IsValid(kind)) return false;
+        if (!await db.Users.AnyAsync(u => u.Id == userId)) return false;
+
+        var pref = await db.EmailPreferences.FirstOrDefaultAsync(p => p.UserId == userId && p.Kind == kind);
+        if (pref is null)
+            db.EmailPreferences.Add(new EmailPreference { UserId = userId, Kind = kind, Enabled = false, UpdatedAt = DateTime.UtcNow });
+        else if (pref.Enabled)
+            (pref.Enabled, pref.UpdatedAt) = (false, DateTime.UtcNow);
+        else
+            return true; // already off — idempotent
+
+        await db.SaveChangesAsync();
+        return true;
     }
 
     // Static copy only (no token echoed), so no injection surface. On-brand near-black confirmation page.

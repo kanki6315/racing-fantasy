@@ -5,10 +5,11 @@ using ImsaFantasy.Api.Workers;
 namespace ImsaFantasy.Api.Email;
 
 /// <summary>
-/// Signs / verifies the one-click unsubscribe token (ADR-0009 D7): "{userId}.{HMAC}". No auth is
-/// needed to unsubscribe, so the signature is what proves the link wasn't forged. No expiry — an
-/// unsubscribe link should keep working. The secret comes from Reminders:UnsubscribeSecret; without
-/// it <see cref="IsConfigured"/> is false and the worker won't send (links would be unverifiable).
+/// Signs / verifies the one-click unsubscribe token (ADR-0009 D7): "{userId}.{kind}.{HMAC}". The kind
+/// is encoded so an unsubscribe link disables only that email kind (ADR-0009 amendment). No auth is
+/// needed to unsubscribe, so the signature is what proves the link wasn't forged. No expiry. The secret
+/// comes from Reminders:UnsubscribeSecret; without it <see cref="IsConfigured"/> is false and the worker
+/// won't send (links would be unverifiable).
 /// </summary>
 public sealed class UnsubscribeTokenService(ReminderOptions options)
 {
@@ -18,27 +19,27 @@ public sealed class UnsubscribeTokenService(ReminderOptions options)
 
     public bool IsConfigured => _key.Length > 0;
 
-    public string Create(long userId)
+    public string Create(long userId, string kind)
     {
-        var payload = userId.ToString();
+        var payload = $"{userId}.{kind}";
         return $"{payload}.{Sign(payload)}";
     }
 
-    public bool TryValidate(string? token, out long userId)
+    public bool TryValidate(string? token, out long userId, out string kind)
     {
         userId = 0;
+        kind = "";
         if (string.IsNullOrEmpty(token)) return false;
-        var dot = token.IndexOf('.');
-        if (dot <= 0) return false;
+        // payload = "{userId}.{kind}"; kind has no dots, the sig (base64url) has none → split into 3.
+        var parts = token.Split('.');
+        if (parts.Length != 3 || !long.TryParse(parts[0], out var id)) return false;
 
-        var payload = token[..dot];
-        var sig = token[(dot + 1)..];
-        if (!long.TryParse(payload, out var id)) return false;
-
+        var payload = $"{parts[0]}.{parts[1]}";
         var expected = Encoding.UTF8.GetBytes(Sign(payload));
-        if (!CryptographicOperations.FixedTimeEquals(expected, Encoding.UTF8.GetBytes(sig))) return false;
+        if (!CryptographicOperations.FixedTimeEquals(expected, Encoding.UTF8.GetBytes(parts[2]))) return false;
 
         userId = id;
+        kind = parts[1];
         return true;
     }
 

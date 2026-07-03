@@ -90,8 +90,10 @@ erDiagram
 | col | type | notes |
 |---|---|---|
 | id | bigint PK | |
-| email | text | UNIQUE |
+| email | text | private (ADR-0004) |
 | display_name | text | |
+| email_reminders_enabled | boolean NOT NULL DEFAULT false | opt-in for picks-reminder emails (ADR-0009) |
+| email_suppressed_at | timestamptz NULL | system-level email suppression set on a permanent bounce / complaint (ADR-0010); separate from the opt-in flag |
 | created_at | timestamptz | |
 
 **`championship`** — WeatherTech, Pilot Challenge, MX-5 Cup, …
@@ -246,6 +248,32 @@ erDiagram
 | class_id | bigint FK → class | denormalized for the composition `GROUP BY` |
 | price_at_lock | numeric | snapshot at lock (ADR-0001 D4) |
 |  |  | UNIQUE(roster_id, slot_type, entity_type, entity_id) — no dup picks |
+
+### Notifications (email — ADR-0009 / ADR-0010)
+
+**`event_reminder`** — one sent picks-reminder email, the single-send claim (ADR-0009)
+| col | type | notes |
+|---|---|---|
+| id | bigint PK | |
+| event_id | bigint FK → event | cascade |
+| user_id | bigint FK → app_user | cascade (erasure) |
+| sent_at | timestamptz | |
+| ses_message_id | text NULL | SES messageId — correlates a later bounce/complaint to this send (ADR-0010) |
+|  |  | UNIQUE(event_id, user_id) — the single-send guarantee |
+
+**`email_event`** — a recorded SES bounce/complaint, ingested via the SNS webhook (ADR-0010)
+| col | type | notes |
+|---|---|---|
+| id | bigint PK | |
+| type | text | "Bounce" \| "Complaint" |
+| subtype | text NULL | bounce type/subtype or complaint feedback type |
+| email | text | affected recipient (indexed) |
+| user_id | bigint FK → app_user NULL | resolved by email; cascade; NULL when no user matches |
+| ses_message_id | text NULL | the original send |
+| sns_message_id | text NULL | SNS delivery id |
+| raw | jsonb | full notification payload (audit) |
+| received_at | timestamptz | |
+|  |  | UNIQUE(sns_message_id, email) WHERE sns_message_id IS NOT NULL — dedupe SNS redelivery |
 
 ### Results (ingested, admin-approved — ADR-0001 D8)
 

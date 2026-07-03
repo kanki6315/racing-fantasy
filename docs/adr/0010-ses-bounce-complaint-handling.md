@@ -1,6 +1,6 @@
 # ADR-0010: SES Bounce & Complaint Handling
 
-**Status:** Proposed
+**Status:** Accepted (shipped + deployed 2026-07-03; SNS pipeline verified with the SES simulator)
 **Date:** 2026-06-30
 **Related:** [ADR-0009](0009-picks-reminder-emails.md) (the emails this protects), [ADR-0004](0004-authentication-and-data-minimization.md) (erasure / data minimization)
 

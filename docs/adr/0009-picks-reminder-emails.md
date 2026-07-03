@@ -1,6 +1,6 @@
 # ADR-0009: Picks-Reminder Emails (one email per race weekend)
 
-**Status:** Proposed
+**Status:** Accepted (shipped + deployed 2026-07-03; verified live end-to-end)
 **Date:** 2026-06-29
 **Related:** [ADR-0002](0002-lock-model.md) (`quali_start` lock boundary), [ADR-0004](0004-authentication-and-data-minimization.md) (email is private, stored from the id_token), [ADR-0007](0007-shared-events.md) (`event` above `round`), [ADR-0008](0008-multi-championship-and-picks-open.md) (`event.picks_open`)
 
@@ -135,6 +135,37 @@ substitution at send time. This keeps **no Node dependency at runtime** — only
 - The authenticated preference toggle (`PUT /auth/me/email-reminders`) is **rate-limited per
   user** (fixed window, 5/min) so it can't be hammered. Toggling never causes email spam — the
   per-event claim row prevents resends — so this only protects the endpoint from request abuse.
+
+## Amendment (2026-07-03): two email kinds + per-email preferences
+
+The single 24h-before-close email becomes **two independent kinds**, each individually opt-in:
+
+- **`PicksOpen`** — fires when the admin flips `event.picks_open` on (the worker sends it on its next
+  poll; "admin-triggered" = the toggle is the trigger). Subject "… are Open".
+- **`PicksClosing`** — the existing 24h-before-lock email (unchanged rule). Subject "… are Closing Soon".
+
+A user can be subscribed to **both, one, or neither**. Both kinds still ride the whole existing
+pipeline (SES sender, MJML template, suppression, bounce handling); only the below changes.
+
+- **Preferences move to a table.** `app_user.email_reminders_enabled` is **dropped** (no live users
+  depend on it yet) and replaced by **`email_preference(user_id, kind, enabled)`** (unique
+  `(user_id, kind)`). A user is sent kind *K* only if a row `(user, K, enabled=true)` exists. This keeps
+  the toggle + unsubscribe **kind-agnostic** and extends to future email types without new columns.
+  System suppression stays as `app_user.email_suppressed_at` and blocks *all* kinds.
+- **Per-kind single-send.** `event_reminder` gains `kind`; its unique index becomes
+  `(event_id, user_id, kind)` so each kind sends once per weekend.
+- **Kind-aware unsubscribe.** The one-click token encodes `(userId, kind)`, so unsubscribing from one
+  email disables only that kind's preference.
+- **UX — three controls, always shown** (registration *and* dashboard, regardless of current choices):
+  a **master** subscribe/unsubscribe-both button whose state is **client-side only** (no master DB
+  flag — it just drives the two below), and beneath it the **two individual, DB-backed** toggles.
+- **API.** `/auth/me` returns `emailPreferences: [{ kind, enabled }]`; `PUT /auth/me/email-preferences`
+  `{ kind, enabled }` upserts one (rate-limited); `POST /registrations` carries the initial prefs; the
+  old `PUT /auth/me/email-reminders` is removed.
+
+*To revisit:* if the admin ever opens picks <24h before lock, both kinds are due together (two emails
+close in time) — acceptable for now; a "skip PicksClosing if PicksOpen sent within N h" guard is a later
+option.
 
 ## Options Considered
 

@@ -1,8 +1,9 @@
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import * as Dialog from '@radix-ui/react-dialog'
 import { useNavigate } from 'react-router-dom'
 import { useRegister } from '../api/queries'
 import { useAuth } from '../auth/AuthContext'
+import { EmailPreferenceControls, prefsFromList, type EmailPrefs, type ReminderKind } from './EmailPreferences'
 
 const MIN = 3
 const MAX = 32 // design caps at 32 (backend allows ≤40); '@' is rejected (it's the public identifier)
@@ -19,12 +20,18 @@ export function RegisterModal({
 }) {
   const [name, setName] = useState('')
   const [touched, setTouched] = useState(false)
-  const [reminders, setReminders] = useState(false) // opt-in (ADR-0009): unchecked by default
+  const { user } = useAuth()
+  // Seed from the user's current preferences so registering for a new series doesn't reset them
+  // (the POST upserts what's submitted). Re-sync when the modal opens — on Landing it stays mounted.
+  const [prefs, setPrefs] = useState<EmailPrefs>(() => prefsFromList(user?.emailPreferences))
+  useEffect(() => {
+    if (open) setPrefs(prefsFromList(user?.emailPreferences))
+    // Only on the open transition, so a background /auth/me refetch can't clobber an in-progress edit.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [open])
   const register = useRegister()
   const navigate = useNavigate()
-  const { user } = useAuth()
-  // Re-prompt every registration until they opt in; once opted in, hide it entirely (ADR-0009).
-  const showOptIn = !user?.emailRemindersEnabled
+  const setPref = (kind: ReminderKind, enabled: boolean) => setPrefs((p) => ({ ...p, [kind]: enabled }))
 
   const trimmed = name.trim()
   const hasAt = trimmed.includes('@')
@@ -40,7 +47,14 @@ export function RegisterModal({
       return
     }
     try {
-      await register.mutateAsync({ seasonId, teamName: trimmed, emailReminders: reminders })
+      await register.mutateAsync({
+        seasonId,
+        teamName: trimmed,
+        emailPreferences: [
+          { kind: 'PicksOpen', enabled: prefs.PicksOpen },
+          { kind: 'PicksClosing', enabled: prefs.PicksClosing },
+        ],
+      })
       onOpenChange(false)
       navigate('/dashboard')
     } catch {
@@ -122,35 +136,14 @@ export function RegisterModal({
               </div>
             </div>
 
-            {/* Picks-reminder opt-in (ADR-0009) — off by default; hidden once already opted in. Same
-                pill as the dashboard Notifications toggle (skewed brand accent + check/OFF indicator). */}
-            {showOptIn && (
-              <>
-                <button
-                  type="button"
-                  onClick={() => setReminders((v) => !v)}
-                  aria-pressed={reminders}
-                  className={`mt-[14px] flex w-full items-center justify-between gap-2 rounded-[3px] border px-[13px] py-[10px] text-left cursor-pointer ${
-                    reminders ? 'border-success/50 bg-success/[0.06]' : 'border-dotted border-line-3 bg-surface-2'
-                  }`}
-                >
-                  <span className="flex items-center gap-2 font-display text-[13px] font-semibold uppercase tracking-[0.04em] text-ink-2">
-                    <span className={`h-[15px] w-[4px] flex-none [transform:skewX(-14deg)] ${reminders ? 'bg-brand' : 'bg-line-3'}`} />
-                    Email Reminders
-                  </span>
-                  {reminders ? (
-                    <svg className="h-[15px] w-[15px] flex-none text-success" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round" aria-label="On">
-                      <path d="M5 13l4 4L19 7" />
-                    </svg>
-                  ) : (
-                    <span className="flex-none font-display text-[11px] font-bold uppercase tracking-[0.06em] text-muted-2">Off</span>
-                  )}
-                </button>
-                <p className="mt-[7px] font-sans text-[11px] leading-[15px] text-muted-2">
-                  Email me before picks lock each race weekend — one email, unsubscribe anytime.
-                </p>
-              </>
-            )}
+            {/* Picks-reminder email preferences (ADR-0009 amendment) — always shown, off by default. */}
+            <div className="mt-[16px]">
+              <div className="mb-[8px] font-display text-[11px] tracking-[0.12em] uppercase text-muted-2">Race emails</div>
+              <EmailPreferenceControls prefs={prefs} onChange={setPref} pending={register.isPending} />
+              <p className="mt-[8px] font-sans text-[11px] leading-[15px] text-muted-2">
+                Optional — one email each, unsubscribe anytime. Change these later from your dashboard.
+              </p>
+            </div>
           </div>
 
           <div className="mt-[22px] flex items-center gap-[11px] border-t border-line bg-[#0b0c0f] px-7 pb-6 pt-[22px]">

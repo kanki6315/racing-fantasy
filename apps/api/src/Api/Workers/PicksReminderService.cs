@@ -57,53 +57,56 @@ public sealed class PicksReminderService(
         var db = scope.ServiceProvider.GetRequiredService<FantasyDbContext>();
 
         // Candidate events: pick board released, with at least one round. Earliest quali_start is the
-        // weekend's close (ADR-0009 — one email per event, beating the first deadline). Due once we're
-        // within HoursBeforeClose of that close and it hasn't locked yet.
+        // weekend's close (ADR-0009). PicksOpen is due for any open, not-yet-locked event; PicksClosing
+        // additionally requires being within HoursBeforeClose of that close (ADR-0009 amendment).
         var open = await db.Events
             .Where(e => e.PicksOpen)
             .Select(e => new { e.Id, e.Name, Close = e.Rounds.Min(r => (DateTime?)r.QualiStart) })
             .ToListAsync(ct);
 
-        var due = open.Where(e => e.Close is { } close
-                && now < close                                   // not yet locked
-                && now >= close.AddHours(-options.HoursBeforeClose)) // within the lead window
-            .ToList();
-
-        foreach (var ev in due)
+        foreach (var ev in open)
         {
-            // Recipients: opted-in users registered for a season racing this weekend, with an email,
-            // not already sent for this event. One row per user even across multiple championships.
-            var recipients = await db.Registrations
-                .Where(r => r.UserId != null
-                    && r.User!.EmailRemindersEnabled
-                    && r.User.EmailSuppressedAt == null              // bounce/complaint suppression (ADR-0010)
-                    && r.User.Email != null
-                    && r.Season.Rounds.Any(rd => rd.EventId == ev.Id)
-                    && !db.EventReminders.Any(er => er.EventId == ev.Id && er.UserId == r.UserId))
-                .Select(r => new { UserId = r.UserId!.Value, Email = r.User!.Email! })
-                .Distinct()
-                .ToListAsync(ct);
+            if (ev.Close is not { } close || now >= close) continue; // no rounds, or already locked
 
-            if (recipients.Count == 0) continue;
+            var kinds = new List<string> { ReminderKind.PicksOpen };
+            if (now >= close.AddHours(-options.HoursBeforeClose)) kinds.Add(ReminderKind.PicksClosing);
 
-            var subject = ReminderEmail.Subject(ev.Name);
-            var sent = 0;
-            foreach (var rec in recipients)
+            foreach (var kind in kinds)
             {
-                if (ct.IsCancellationRequested) break;
-                if (await TrySendAsync(db, ev.Id, ev.Name, ev.Close!.Value, rec.UserId, rec.Email, subject, ct)) sent++;
+                // Recipients: users opted into THIS kind, not suppressed, registered for a season racing
+                // this weekend, not already sent this (event, kind). One row per user across championships.
+                var recipients = await db.Registrations
+                    .Where(r => r.UserId != null
+                        && r.User!.EmailSuppressedAt == null            // bounce/complaint suppression (ADR-0010)
+                        && r.User.Email != null
+                        && r.Season.Rounds.Any(rd => rd.EventId == ev.Id)
+                        && db.EmailPreferences.Any(p => p.UserId == r.UserId && p.Kind == kind && p.Enabled)
+                        && !db.EventReminders.Any(er => er.EventId == ev.Id && er.UserId == r.UserId && er.Kind == kind))
+                    .Select(r => new { UserId = r.UserId!.Value, Email = r.User!.Email! })
+                    .Distinct()
+                    .ToListAsync(ct);
+
+                if (recipients.Count == 0) continue;
+
+                var subject = ReminderEmail.Subject(kind, ev.Name);
+                var sent = 0;
+                foreach (var rec in recipients)
+                {
+                    if (ct.IsCancellationRequested) break;
+                    if (await TrySendAsync(db, ev.Id, kind, ev.Name, close, rec.UserId, rec.Email, subject, ct)) sent++;
+                }
+                logger.LogInformation("Picks-reminder: event {Event} kind {Kind} — sent {Sent}/{Total}.", ev.Id, kind, sent, recipients.Count);
             }
-            logger.LogInformation("Picks-reminder: event {Event} — sent {Sent}/{Total}.", ev.Id, sent, recipients.Count);
         }
     }
 
     /// <summary>Claim-then-send: insert the claim row first (the unique index rejects a concurrent or
     /// repeat claim → skip), then send; on send failure, remove the claim so the next tick retries.</summary>
     private async Task<bool> TrySendAsync(
-        FantasyDbContext db, long eventId, string eventName, DateTime closeUtc,
+        FantasyDbContext db, long eventId, string kind, string eventName, DateTime closeUtc,
         long userId, string email, string subject, CancellationToken ct)
     {
-        var claim = new EventReminder { EventId = eventId, UserId = userId, SentAt = DateTime.UtcNow };
+        var claim = new EventReminder { EventId = eventId, UserId = userId, Kind = kind, SentAt = DateTime.UtcNow };
         db.EventReminders.Add(claim);
         try
         {
@@ -117,9 +120,10 @@ public sealed class PicksReminderService(
 
         try
         {
-            var unsubscribeUrl = $"{options.ApiBaseUrl}/email/unsubscribe?token={tokens.Create(userId)}";
+            // The unsubscribe token carries the kind, so the link disables only this email (ADR-0009 amendment).
+            var unsubscribeUrl = $"{options.ApiBaseUrl}/email/unsubscribe?token={tokens.Create(userId, kind)}";
             var model = new ReminderEmailModel(eventName, closeUtc, options.WebBaseUrl!, unsubscribeUrl);
-            var body = ReminderEmail.RenderHtml(model);
+            var body = ReminderEmail.RenderHtml(kind, model);
             var messageId = await sender.SendAsync(new EmailMessage(email, subject, body, unsubscribeUrl), ct);
             if (messageId is null) throw new InvalidOperationException("email sender reported not-sent");
             claim.SesMessageId = messageId;          // correlate future bounce/complaint to this send (ADR-0010)
@@ -128,7 +132,7 @@ public sealed class PicksReminderService(
         }
         catch (Exception ex)
         {
-            logger.LogError(ex, "Reminder send failed (user {User}, event {Event}); rolling back claim to retry.", userId, eventId);
+            logger.LogError(ex, "Reminder send failed (user {User}, event {Event}, kind {Kind}); rolling back claim to retry.", userId, eventId, kind);
             db.EventReminders.Remove(claim);
             await db.SaveChangesAsync(CancellationToken.None);
             return false;
