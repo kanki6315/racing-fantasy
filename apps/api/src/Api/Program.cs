@@ -1,6 +1,8 @@
 using System.Text.Json.Serialization;
+using System.Threading.RateLimiting;
 using ImsaFantasy.Api.Auth;
 using ImsaFantasy.Api.Common;
+using ImsaFantasy.Api.Email;
 using ImsaFantasy.Api.Endpoints;
 using ImsaFantasy.Api.Images;
 using ImsaFantasy.Api.Workers;
@@ -18,6 +20,30 @@ builder.Services.AddHostedService<LockSweepService>();
 builder.Services.AddScoped<ImsaFantasy.Api.Scoring.ScoringService>();
 builder.Services.AddImsaAuth(builder.Configuration);
 builder.Services.AddImageStorage(builder.Configuration);
+
+// Picks-reminder emails (ADR-0009): config-bound options. The SES sender + worker are registered
+// below; both no-op until configured/enabled.
+var reminderOptions = builder.Configuration.GetSection("Reminders").Get<ReminderOptions>() ?? new ReminderOptions();
+// The email CTA links to the player web app; default to the existing Web:Origin so it needn't be set twice.
+reminderOptions.WebBaseUrl ??= builder.Configuration["Web:Origin"];
+builder.Services.AddSingleton(reminderOptions);
+builder.Services.AddSingleton(
+    builder.Configuration.GetSection("Aws:Ses").Get<ImsaFantasy.Api.Email.SesOptions>() ?? new ImsaFantasy.Api.Email.SesOptions());
+builder.Services.AddEmail();
+builder.Services.AddSingleton<UnsubscribeTokenService>();
+builder.Services.AddScoped<ImsaFantasy.Api.Email.SesEventProcessor>();
+builder.Services.AddHostedService<PicksReminderService>();
+
+// Rate-limit the email-preference toggle so it can't be hammered (ADR-0009). Per-user fixed window;
+// 5 changes/min is far above any human use but blocks scripted spam. Toggling never causes email
+// spam (the worker's per-event claim row prevents resends) — this just protects the endpoint.
+builder.Services.AddRateLimiter(o =>
+{
+    o.RejectionStatusCode = StatusCodes.Status429TooManyRequests;
+    o.AddPolicy("email-prefs", http => RateLimitPartition.GetFixedWindowLimiter(
+        http.User.GetUserId()?.ToString() ?? http.Connection.RemoteIpAddress?.ToString() ?? "anon",
+        _ => new FixedWindowRateLimiterOptions { PermitLimit = 5, Window = TimeSpan.FromMinutes(1), QueueLimit = 0 }));
+});
 
 // CORS: in prod the SPA lives on a different origin (fantasy.* → fantasyapi.*), so it needs an
 // explicit credentialed allowlist to send the session cookie. In dev the Vite proxy makes the
@@ -77,6 +103,7 @@ if (!string.IsNullOrEmpty(webOrigin))
 
 app.UseAuthentication();
 app.UseAuthorization();
+app.UseRateLimiter(); // after auth so policies can partition by the resolved user
 
 app.MapGet("/health", () => Results.Ok(new { status = "ok" })).WithTags("Meta");
 
@@ -106,5 +133,6 @@ app.MapLeagueEndpoints();
 app.MapImageEndpoints();
 app.MapStatsEndpoints();
 app.MapRoundStatsEndpoints();
+app.MapEmailEndpoints();
 
 app.Run();

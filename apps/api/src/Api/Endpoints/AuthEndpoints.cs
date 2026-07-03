@@ -34,8 +34,21 @@ public static class AuthEndpoints
                 .Select(r => new AuthMeRegistration(r.Id, r.SeasonId, r.TeamName)).ToListAsync();
             // name/email are returned only to the account holder (ADR-0004 amendment).
             // isAdmin lets the SPA gate the admin console; the server still enforces the "Admin" policy.
-            return Results.Ok(new AuthMeResponse(user.Id, user.ExternalProvider, user.Name, user.Email, http.User.IsAdmin(admins), registrations));
+            return Results.Ok(new AuthMeResponse(user.Id, user.ExternalProvider, user.Name, user.Email, http.User.IsAdmin(admins), user.EmailRemindersEnabled, registrations));
         }).RequireAuthorization().Produces<AuthMeResponse>();
+
+        // Account-level toggle for picks-reminder emails (ADR-0009). The one-click unsubscribe link in
+        // the email itself is a separate, auth-free endpoint (/email/unsubscribe).
+        group.MapPut("/me/email-reminders", async (UpdateEmailReminders dto, HttpContext http, FantasyDbContext db) =>
+        {
+            var uid = http.User.GetUserId();
+            if (uid is null) return Results.Unauthorized();
+            var user = await db.Users.FindAsync(uid.Value);
+            if (user is null) return Results.Unauthorized();
+            user.EmailRemindersEnabled = dto.Enabled;
+            await db.SaveChangesAsync();
+            return Results.Ok(new EmailRemindersResponse(user.EmailRemindersEnabled));
+        }).RequireAuthorization().RequireRateLimiting("email-prefs").Produces<EmailRemindersResponse>();
 
         group.MapPost("/logout", async (HttpContext http) =>
         {
@@ -96,6 +109,8 @@ public static class AuthEndpoints
     }
 }
 
-public record AuthMeResponse(long UserId, string Provider, string? Name, string? Email, bool IsAdmin, List<AuthMeRegistration> Registrations);
+public record AuthMeResponse(long UserId, string Provider, string? Name, string? Email, bool IsAdmin, bool EmailRemindersEnabled, List<AuthMeRegistration> Registrations);
 public record AuthMeRegistration(long Id, long SeasonId, string TeamName);
 public record DevLoginResponse(long UserId);
+public record UpdateEmailReminders(bool Enabled);
+public record EmailRemindersResponse(bool EmailRemindersEnabled);

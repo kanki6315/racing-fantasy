@@ -3,6 +3,7 @@ using System;
 using ImsaFantasy.Infrastructure;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 
@@ -11,9 +12,11 @@ using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 namespace ImsaFantasy.Infrastructure.Migrations
 {
     [DbContext(typeof(FantasyDbContext))]
-    partial class FantasyDbContextModelSnapshot : ModelSnapshot
+    [Migration("20260630021143_AddPicksReminderEmails")]
+    partial class AddPicksReminderEmails
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -45,10 +48,6 @@ namespace ImsaFantasy.Infrastructure.Migrations
                         .HasColumnType("boolean")
                         .HasDefaultValue(false)
                         .HasColumnName("email_reminders_enabled");
-
-                    b.Property<DateTime?>("EmailSuppressedAt")
-                        .HasColumnType("timestamp with time zone")
-                        .HasColumnName("email_suppressed_at");
 
                     b.Property<string>("ExternalProvider")
                         .IsRequired()
@@ -209,72 +208,6 @@ namespace ImsaFantasy.Infrastructure.Migrations
                     b.ToTable("driver");
                 });
 
-            modelBuilder.Entity("ImsaFantasy.Domain.EmailEvent", b =>
-                {
-                    b.Property<long>("Id")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("bigint")
-                        .HasColumnName("id");
-
-                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<long>("Id"));
-
-                    b.Property<string>("Email")
-                        .IsRequired()
-                        .HasMaxLength(320)
-                        .HasColumnType("character varying(320)")
-                        .HasColumnName("email");
-
-                    b.Property<string>("Raw")
-                        .IsRequired()
-                        .HasColumnType("jsonb")
-                        .HasColumnName("raw");
-
-                    b.Property<DateTime>("ReceivedAt")
-                        .HasColumnType("timestamp with time zone")
-                        .HasColumnName("received_at");
-
-                    b.Property<string>("SesMessageId")
-                        .HasMaxLength(255)
-                        .HasColumnType("character varying(255)")
-                        .HasColumnName("ses_message_id");
-
-                    b.Property<string>("SnsMessageId")
-                        .HasMaxLength(255)
-                        .HasColumnType("character varying(255)")
-                        .HasColumnName("sns_message_id");
-
-                    b.Property<string>("Subtype")
-                        .HasMaxLength(64)
-                        .HasColumnType("character varying(64)")
-                        .HasColumnName("subtype");
-
-                    b.Property<string>("Type")
-                        .IsRequired()
-                        .HasMaxLength(16)
-                        .HasColumnType("character varying(16)")
-                        .HasColumnName("type");
-
-                    b.Property<long?>("UserId")
-                        .HasColumnType("bigint")
-                        .HasColumnName("user_id");
-
-                    b.HasKey("Id")
-                        .HasName("pk_email_event");
-
-                    b.HasIndex("Email")
-                        .HasDatabaseName("ix_email_event_email");
-
-                    b.HasIndex("UserId")
-                        .HasDatabaseName("ix_email_event_user_id");
-
-                    b.HasIndex("SnsMessageId", "Email")
-                        .IsUnique()
-                        .HasDatabaseName("ix_email_event_sns_message_id_email")
-                        .HasFilter("sns_message_id IS NOT NULL");
-
-                    b.ToTable("email_event");
-                });
-
             modelBuilder.Entity("ImsaFantasy.Domain.EntityPrice", b =>
                 {
                     b.Property<long>("Id")
@@ -406,10 +339,6 @@ namespace ImsaFantasy.Infrastructure.Migrations
                     b.Property<DateTime>("SentAt")
                         .HasColumnType("timestamp with time zone")
                         .HasColumnName("sent_at");
-
-                    b.Property<string>("SesMessageId")
-                        .HasColumnType("text")
-                        .HasColumnName("ses_message_id");
 
                     b.Property<long>("UserId")
                         .HasColumnType("bigint")
@@ -1343,17 +1272,6 @@ namespace ImsaFantasy.Infrastructure.Migrations
                         .HasConstraintName("fk_class_championship_championship_id");
 
                     b.Navigation("Championship");
-                });
-
-            modelBuilder.Entity("ImsaFantasy.Domain.EmailEvent", b =>
-                {
-                    b.HasOne("ImsaFantasy.Domain.AppUser", "User")
-                        .WithMany()
-                        .HasForeignKey("UserId")
-                        .OnDelete(DeleteBehavior.Cascade)
-                        .HasConstraintName("fk_email_event_app_user_user_id");
-
-                    b.Navigation("User");
                 });
 
             modelBuilder.Entity("ImsaFantasy.Domain.EntityPrice", b =>
