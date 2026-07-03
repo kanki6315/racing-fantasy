@@ -3,26 +3,34 @@ import { useAdmin } from '../../admin/AdminContext'
 import { AdminPageHeader } from '../../admin/AdminPageHeader'
 import { PrimaryButton, ClassSwatch, EmptyState } from '../../admin/ui'
 import { Demo } from '../../components/Demo'
-import { useCarEntries, useAdminClasses, useSavePrices } from '../../api/adminQueries'
+import { useCarEntries, useAdminClasses, useSavePrices, useEntryDrivers, useDrivers } from '../../api/adminQueries'
 import { usePrices } from '../../api/queries'
 import { classMeta } from '../../lib/classMeta'
 import { mockPickPct } from '../../lib/demoStats'
 
+/** Which entity type this series prices (ADR-0012): teams price cars, driver series (MX-5) price drivers. */
+type Mode = 'Car' | 'Driver'
+
 type Row = {
-  carId: number
-  number: string
-  team: string
+  entityType: Mode
+  entityId: number
+  number: string | null // race number (a driver row shows its car's number)
+  label: string // team name or driver full name
   classId: number
   className: string
   original: number | null // saved price, or null if unpriced
   lastRound: number | null
 }
 
+const rowKey = (r: { entityType: Mode; entityId: number }) => `${r.entityType}:${r.entityId}`
+
 export function Prices() {
   const { roundId, round, seasonId, championshipId, rounds } = useAdmin()
   const { data: cars = [] } = useCarEntries(seasonId)
   const { data: classes = [] } = useAdminClasses(championshipId)
   const { data: prices = [] } = usePrices(roundId ?? 0)
+  const { data: entryDrivers = [] } = useEntryDrivers()
+  const { data: allDrivers = [] } = useDrivers()
 
   // Previous round (sequence − 1) gives a real last-round price + delta — no mock needed.
   const prevRound = useMemo(() => {
@@ -31,41 +39,90 @@ export function Prices() {
   }, [rounds, round])
   const { data: prevPrices = [] } = usePrices(prevRound?.id ?? 0)
 
-  // edits: carId -> raw input string. Absent ⇒ untouched (shows the saved value).
-  const [edits, setEdits] = useState<Record<number, string>>({})
+  // Teams | Drivers mode. Defaults from the board itself (same rule as the player Pick page):
+  // driver prices with no car prices ⇒ a driver-based series. The toggle overrides per visit.
+  const [modeOverride, setModeOverride] = useState<Mode | null>(null)
+  const inferredMode: Mode =
+    prices.some((p) => p.entityType === 'Driver') && !prices.some((p) => p.entityType === 'Car') ? 'Driver' : 'Car'
+  const mode = modeOverride ?? inferredMode
+
+  // edits: rowKey -> raw input string. Absent ⇒ untouched (shows the saved value).
+  const [edits, setEdits] = useState<Record<string, string>>({})
   const save = useSavePrices(roundId ?? 0)
 
-  const priceByCar = useMemo(() => {
-    const m = new Map<number, number>()
-    for (const p of prices) if (p.entityType === 'Car') m.set(p.entityId, p.price)
+  const priceByKey = useMemo(() => {
+    const m = new Map<string, number>()
+    for (const p of prices) m.set(`${p.entityType}:${p.entityId}`, p.price)
     return m
   }, [prices])
-  const lastByCar = useMemo(() => {
-    const m = new Map<number, number>()
-    for (const p of prevPrices) if (p.entityType === 'Car') m.set(p.entityId, p.price)
+  const lastByKey = useMemo(() => {
+    const m = new Map<string, number>()
+    for (const p of prevPrices) m.set(`${p.entityType}:${p.entityId}`, p.price)
     return m
   }, [prevPrices])
 
   const className = (id: number) => classes.find((c) => c.id === id)?.name ?? `#${id}`
   const classColor = (id: number) => classes.find((c) => c.id === id)?.color
 
-  const rows: Row[] = useMemo(
+  const carRows: Row[] = useMemo(
     () =>
       cars.map((c) => ({
-        carId: c.id,
+        entityType: 'Car' as const,
+        entityId: c.id,
         number: c.number,
-        team: c.teamName,
+        label: c.teamName,
         classId: c.classId,
         className: className(c.classId),
-        original: priceByCar.get(c.id) ?? null,
-        lastRound: lastByCar.get(c.id) ?? null,
+        original: priceByKey.get(`Car:${c.id}`) ?? null,
+        lastRound: lastByKey.get(`Car:${c.id}`) ?? null,
       })),
     // eslint-disable-next-line react-hooks/exhaustive-deps
-    [cars, priceByCar, lastByCar, classes],
+    [cars, priceByKey, lastByKey, classes],
   )
 
+  // Driver rows: the season's lineups, car by car. Round-scoped lineup rows win over season-wide
+  // ones (ADR-0011); a driver sharing two cars appears once, under the first car that lists them.
+  const driverRows: Row[] = useMemo(() => {
+    const carById = new Map(cars.map((c) => [c.id, c]))
+    const nameById = new Map(allDrivers.map((d) => [d.id, d.fullName]))
+    const byCar = new Map<number, typeof entryDrivers>()
+    for (const ed of entryDrivers) {
+      if (!carById.has(ed.carEntryId)) continue
+      const list = byCar.get(ed.carEntryId)
+      if (list) list.push(ed)
+      else byCar.set(ed.carEntryId, [ed])
+    }
+    const rows: Row[] = []
+    const seen = new Set<number>()
+    for (const car of cars) {
+      const list = byCar.get(car.id) ?? []
+      const roundRows = list.filter((ed) => ed.roundId === roundId)
+      const chosen = (roundRows.length ? roundRows : list.filter((ed) => ed.roundId == null)).sort(
+        (a, b) => (a.slotOrder ?? a.id) - (b.slotOrder ?? b.id),
+      )
+      for (const ed of chosen) {
+        if (seen.has(ed.driverId)) continue
+        seen.add(ed.driverId)
+        rows.push({
+          entityType: 'Driver',
+          entityId: ed.driverId,
+          number: car.number,
+          label: nameById.get(ed.driverId) ?? `#${ed.driverId}`,
+          classId: car.classId,
+          className: className(car.classId),
+          original: priceByKey.get(`Driver:${ed.driverId}`) ?? null,
+          lastRound: lastByKey.get(`Driver:${ed.driverId}`) ?? null,
+        })
+      }
+    }
+    return rows
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [cars, entryDrivers, allDrivers, roundId, priceByKey, lastByKey, classes])
+
+  const rows = mode === 'Car' ? carRows : driverRows
+
   // The current value for a row: an edit if present, else the saved price.
-  const valueOf = (r: Row): string => edits[r.carId] ?? (r.original != null ? String(r.original) : '')
+  const valueOf = (r: Row): string => edits[rowKey(r)] ?? (r.original != null ? String(r.original) : '')
   const numOf = (r: Row): number | null => {
     const v = valueOf(r).trim()
     if (v === '') return null
@@ -73,7 +130,7 @@ export function Prices() {
     return Number.isFinite(n) ? n : null
   }
   const isDirty = (r: Row): boolean => {
-    if (!(r.carId in edits)) return false
+    if (!(rowKey(r) in edits)) return false
     const n = numOf(r)
     return n !== r.original
   }
@@ -92,7 +149,7 @@ export function Prices() {
     const payload = rows
       .map((r) => ({ r, n: numOf(r) }))
       .filter((x) => x.n != null && !isInvalid(x.r))
-      .map((x) => ({ entityType: 'Car' as const, entityId: x.r.carId, classId: x.r.classId, price: x.n! }))
+      .map((x) => ({ entityType: x.r.entityType, entityId: x.r.entityId, classId: x.r.classId, price: x.n! }))
     if (payload.length === 0) return
     await save.mutateAsync(payload)
     setEdits({})
@@ -101,6 +158,7 @@ export function Prices() {
   if (!roundId || !round) return <EmptyState>Select a round in the topbar</EmptyState>
 
   const byClass = classes.filter((cl) => rows.some((r) => r.classId === cl.id))
+  const noun = mode === 'Car' ? 'Team' : 'Driver'
 
   return (
     <>
@@ -116,6 +174,25 @@ export function Prices() {
 
       {/* Stats bar */}
       <div className="mb-5 flex flex-wrap items-center gap-x-8 gap-y-3 rounded-[6px] border border-line bg-surface px-5 py-3">
+        <div
+          className="flex overflow-hidden rounded-[4px] border border-line-2"
+          role="radiogroup"
+          aria-label="Priced entity type"
+        >
+          {(['Car', 'Driver'] as const).map((m) => (
+            <button
+              key={m}
+              role="radio"
+              aria-checked={mode === m}
+              onClick={() => setModeOverride(m)}
+              className={`px-3 py-[6px] font-mono text-[10px] uppercase tracking-[0.08em] ${
+                mode === m ? 'bg-brand/15 text-brand' : 'text-muted hover:text-ink-2'
+              }`}
+            >
+              {m === 'Car' ? 'Teams' : 'Drivers'}
+            </button>
+          ))}
+        </div>
         <Stat label="Salary Cap" value={`$${round.salaryCap.toFixed(1)}M`} />
         <Stat label="Priced" value={`${pricedCount}/${rows.length}`} />
         <Stat
@@ -140,7 +217,11 @@ export function Prices() {
       </div>
 
       {rows.length === 0 ? (
-        <EmptyState>No car entries for this season — import entries first</EmptyState>
+        <EmptyState>
+          {mode === 'Car'
+            ? 'No car entries for this season — import entries first'
+            : 'No drivers for this season — import an entry list first'}
+        </EmptyState>
       ) : (
         <div className="grid gap-4">
           {byClass.map((cl) => {
@@ -152,7 +233,9 @@ export function Prices() {
                 <div className="flex items-center gap-2 border-b border-line px-4 py-2">
                   <ClassSwatch hex={classMeta(cl.name, cl.color).hex} />
                   <span className="font-display text-[13px] font-semibold uppercase text-ink">{cl.name}</span>
-                  <span className="font-mono text-[10px] text-muted-2">{classRows.length} cars</span>
+                  <span className="font-mono text-[10px] text-muted-2">
+                    {classRows.length} {mode === 'Car' ? 'cars' : 'drivers'}
+                  </span>
                   {avg != null && (
                     <span className="ml-auto font-mono text-[10px] text-muted">avg ${avg.toFixed(1)}M</span>
                   )}
@@ -161,7 +244,7 @@ export function Prices() {
                 {/* header */}
                 <div className="grid grid-cols-[3rem_1fr_5rem_5rem_8rem_4rem] gap-x-3 border-b border-line px-4 py-2 font-mono text-[9px] uppercase tracking-[0.1em] text-muted-2">
                   <div>No.</div>
-                  <div>Team</div>
+                  <div>{noun}</div>
                   <div className="text-right">Pick %</div>
                   <div className="text-right">Last Rd</div>
                   <div>Price ($M)</div>
@@ -175,7 +258,7 @@ export function Prices() {
                   const delta = n != null && r.lastRound != null ? n - r.lastRound : null
                   return (
                     <div
-                      key={r.carId}
+                      key={rowKey(r)}
                       className={`grid grid-cols-[3rem_1fr_5rem_5rem_8rem_4rem] items-center gap-x-3 border-b border-line px-4 py-2 last:border-b-0 ${
                         invalid ? 'bg-danger/[0.06]' : dirty ? 'bg-warn/[0.05]' : ''
                       }`}
@@ -184,11 +267,11 @@ export function Prices() {
                         className="border-l-[3px] pl-2 font-mono text-[13px] font-semibold text-ink"
                         style={{ borderColor: classMeta(r.className, classColor(r.classId)).hex }}
                       >
-                        {r.number}
+                        {r.number ?? '—'}
                       </div>
-                      <div className="truncate font-sans text-[13px] text-ink-2">{r.team}</div>
+                      <div className="truncate font-sans text-[13px] text-ink-2">{r.label}</div>
                       <div className="text-right font-mono text-[12px] text-muted">
-                        <Demo>{mockPickPct(r.carId)}%</Demo>
+                        <Demo>{mockPickPct(r.entityId)}%</Demo>
                       </div>
                       <div className="text-right font-mono text-[12px] text-muted-2">
                         {r.lastRound != null ? `$${r.lastRound.toFixed(1)}` : '—'}
@@ -200,9 +283,10 @@ export function Prices() {
                           </span>
                           <input
                             value={valueOf(r)}
-                            onChange={(e) => setEdits((p) => ({ ...p, [r.carId]: e.target.value }))}
+                            onChange={(e) => setEdits((p) => ({ ...p, [rowKey(r)]: e.target.value }))}
                             inputMode="decimal"
                             placeholder="—"
+                            aria-label={`Price for ${r.label}`}
                             className={`h-8 w-28 rounded-[4px] border bg-surface-3 pl-5 pr-2 font-mono text-[13px] text-ink focus:outline-none ${
                               invalid
                                 ? 'border-danger'
