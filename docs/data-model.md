@@ -92,8 +92,7 @@ erDiagram
 | id | bigint PK | |
 | email | text | private (ADR-0004) |
 | display_name | text | |
-| email_reminders_enabled | boolean NOT NULL DEFAULT false | opt-in for picks-reminder emails (ADR-0009) |
-| email_suppressed_at | timestamptz NULL | system-level email suppression set on a permanent bounce / complaint (ADR-0010); separate from the opt-in flag |
+| email_suppressed_at | timestamptz NULL | system-level email suppression set on a permanent bounce / complaint (ADR-0010); blocks all kinds, separate from the per-kind opt-in (`email_preference`) |
 | created_at | timestamptz | |
 
 **`championship`** — WeatherTech, Pilot Challenge, MX-5 Cup, …
@@ -132,6 +131,7 @@ erDiagram
 | circuit | text | |
 | starts_at / ends_at | timestamptz | the weekend bounds |
 | picks_open | boolean NOT NULL DEFAULT false | admin **pick-release gate** — opens the board for every series this weekend at once (ADR-0008). Gates COMING SOON → PICKS OPEN; per-round `quali_start` still locks. Enforced on the roster PUT (`409 not_open`) and surfaced on the roster GET. |
+| picks_opened_at | timestamptz NULL | when `picks_open` last went true (null when closed); bounds the PicksOpen reminder to a fresh window (ADR-0009 amendment) |
 
 > A top-level calendar entity (not under championship/season): it spans them. Championships
 > **opt in** by attaching a `round` (`round.event_id`), each with its own `quali_start`. Backs the
@@ -251,15 +251,26 @@ erDiagram
 
 ### Notifications (email — ADR-0009 / ADR-0010)
 
+**`email_preference`** — a user's per-kind opt-in (ADR-0009 amendment; replaced `app_user.email_reminders_enabled`)
+| col | type | notes |
+|---|---|---|
+| id | bigint PK | |
+| user_id | bigint FK → app_user | cascade (erasure) |
+| kind | text | `PicksOpen` \| `PicksClosing` |
+| enabled | boolean | row present + true ⇒ user gets that kind |
+| updated_at | timestamptz | |
+|  |  | UNIQUE(user_id, kind) |
+
 **`event_reminder`** — one sent picks-reminder email, the single-send claim (ADR-0009)
 | col | type | notes |
 |---|---|---|
 | id | bigint PK | |
 | event_id | bigint FK → event | cascade |
 | user_id | bigint FK → app_user | cascade (erasure) |
+| kind | text | which email (`PicksOpen` / `PicksClosing`) |
 | sent_at | timestamptz | |
 | ses_message_id | text NULL | SES messageId — correlates a later bounce/complaint to this send (ADR-0010) |
-|  |  | UNIQUE(event_id, user_id) — the single-send guarantee |
+|  |  | UNIQUE(event_id, user_id, kind) — single-send **per kind** |
 
 **`email_event`** — a recorded SES bounce/complaint, ingested via the SNS webhook (ADR-0010)
 | col | type | notes |
