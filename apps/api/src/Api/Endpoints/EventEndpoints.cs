@@ -34,7 +34,8 @@ public static class EventEndpoints
                 Circuit = dto.Circuit,
                 StartsAt = dto.StartsAt?.UtcDateTime,
                 EndsAt = dto.EndsAt?.UtcDateTime,
-                PicksOpen = dto.PicksOpen
+                PicksOpen = dto.PicksOpen,
+                PicksOpenedAt = dto.PicksOpen ? DateTime.UtcNow : null, // start the PicksOpen window (ADR-0009)
             };
             db.Add(e);
             await db.SaveChangesAsync();
@@ -51,6 +52,10 @@ public static class EventEndpoints
             e.Circuit = dto.Circuit;
             e.StartsAt = dto.StartsAt?.UtcDateTime;
             e.EndsAt = dto.EndsAt?.UtcDateTime;
+            // Stamp the open time on a false→true transition (resets the PicksOpen reminder window);
+            // clear it on close. An unchanged picks_open keeps its original open time. (ADR-0009 amendment)
+            if (dto.PicksOpen && !e.PicksOpen) e.PicksOpenedAt = DateTime.UtcNow;
+            else if (!dto.PicksOpen && e.PicksOpen) e.PicksOpenedAt = null;
             e.PicksOpen = dto.PicksOpen;
             await db.SaveChangesAsync();
             var updated = await WithRounds(db.Events).AsNoTracking().FirstAsync(x => x.Id == e.Id);
