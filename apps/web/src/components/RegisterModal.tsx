@@ -1,8 +1,9 @@
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import * as Dialog from '@radix-ui/react-dialog'
 import { useNavigate } from 'react-router-dom'
 import { useRegister } from '../api/queries'
-import { EmailPreferenceControls, type EmailPrefs, type ReminderKind } from './EmailPreferences'
+import { useAuth } from '../auth/AuthContext'
+import { EmailPreferenceControls, prefsFromList, type EmailPrefs, type ReminderKind } from './EmailPreferences'
 
 const MIN = 3
 const MAX = 32 // design caps at 32 (backend allows ≤40); '@' is rejected (it's the public identifier)
@@ -19,7 +20,15 @@ export function RegisterModal({
 }) {
   const [name, setName] = useState('')
   const [touched, setTouched] = useState(false)
-  const [prefs, setPrefs] = useState<EmailPrefs>({ PicksOpen: false, PicksClosing: false }) // opt-in (ADR-0009)
+  const { user } = useAuth()
+  // Seed from the user's current preferences so registering for a new series doesn't reset them
+  // (the POST upserts what's submitted). Re-sync when the modal opens — on Landing it stays mounted.
+  const [prefs, setPrefs] = useState<EmailPrefs>(() => prefsFromList(user?.emailPreferences))
+  useEffect(() => {
+    if (open) setPrefs(prefsFromList(user?.emailPreferences))
+    // Only on the open transition, so a background /auth/me refetch can't clobber an in-progress edit.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [open])
   const register = useRegister()
   const navigate = useNavigate()
   const setPref = (kind: ReminderKind, enabled: boolean) => setPrefs((p) => ({ ...p, [kind]: enabled }))
