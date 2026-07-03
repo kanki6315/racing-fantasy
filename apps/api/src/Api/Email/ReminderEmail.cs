@@ -1,4 +1,5 @@
 using System.Reflection;
+using ImsaFantasy.Domain;
 
 namespace ImsaFantasy.Api.Email;
 
@@ -18,19 +19,24 @@ public static class ReminderEmail
 {
     private static readonly string Template = LoadTemplate();
 
-    public static string Subject(string eventName) => $"Fantasy Picks for {eventName} are Closing Soon";
+    public static string Subject(string kind, string eventName) => kind == ReminderKind.PicksOpen
+        ? $"Fantasy Picks for {eventName} are Open"
+        : $"Fantasy Picks for {eventName} are Closing Soon";
 
-    public static string RenderHtml(ReminderEmailModel m)
+    public static string RenderHtml(string kind, ReminderEmailModel m)
     {
+        var open = kind == ReminderKind.PicksOpen;
         // quali_start is stored UTC; show it in US Eastern (IMSA races) with the correct EST/EDT label.
         var deadline = FormatEastern(m.CloseAtUtc);
 
         var tokens = new Dictionary<string, string>
         {
-            ["preheader"] = $"Picks lock at qualifying — {deadline}.",
-            ["statusLabel"] = "Picks closing soon",
+            ["preheader"] = open ? $"The pick board is open for {m.EventName}." : $"Picks lock at qualifying — {deadline}.",
+            ["statusLabel"] = open ? "Picks open" : "Picks closing soon",
             ["eventName"] = m.EventName,
-            ["intro"] = $"Last chance to set your roster for {m.EventName} before picks lock at qualifying.",
+            ["intro"] = open
+                ? $"The pick board is open for {m.EventName}. Set your roster before it locks at qualifying."
+                : $"Last chance to set your roster for {m.EventName} before picks lock at qualifying.",
             ["deadlineLine"] = $"Picks lock at qualifying — {deadline}.",
             ["ctaLabel"] = "Set your picks",
             ["ctaUrl"] = m.CtaUrl,

@@ -1,5 +1,6 @@
 using System.Security.Claims;
 using ImsaFantasy.Api.Auth;
+using ImsaFantasy.Domain;
 using ImsaFantasy.Infrastructure;
 using Microsoft.AspNetCore.Authentication;
 using Microsoft.AspNetCore.Authentication.Cookies;
@@ -32,23 +33,33 @@ public static class AuthEndpoints
 
             var registrations = await db.Registrations.Where(r => r.UserId == uid)
                 .Select(r => new AuthMeRegistration(r.Id, r.SeasonId, r.TeamName)).ToListAsync();
+            // Resolve every email kind (default false when there's no row) so the client renders both toggles.
+            var prefRows = await db.EmailPreferences.Where(p => p.UserId == uid).ToListAsync();
+            var prefs = ReminderKind.All
+                .Select(k => new EmailPreferenceDto(k, prefRows.FirstOrDefault(p => p.Kind == k)?.Enabled ?? false)).ToList();
             // name/email are returned only to the account holder (ADR-0004 amendment).
             // isAdmin lets the SPA gate the admin console; the server still enforces the "Admin" policy.
-            return Results.Ok(new AuthMeResponse(user.Id, user.ExternalProvider, user.Name, user.Email, http.User.IsAdmin(admins), user.EmailRemindersEnabled, registrations));
+            return Results.Ok(new AuthMeResponse(user.Id, user.ExternalProvider, user.Name, user.Email, http.User.IsAdmin(admins), prefs, registrations));
         }).RequireAuthorization().Produces<AuthMeResponse>();
 
-        // Account-level toggle for picks-reminder emails (ADR-0009). The one-click unsubscribe link in
-        // the email itself is a separate, auth-free endpoint (/email/unsubscribe).
-        group.MapPut("/me/email-reminders", async (UpdateEmailReminders dto, HttpContext http, FantasyDbContext db) =>
+        // Per-kind account toggle for picks-reminder emails (ADR-0009 amendment). Upserts one preference.
+        // The one-click unsubscribe link in the email is a separate, auth-free endpoint (/email/unsubscribe).
+        group.MapPut("/me/email-preferences", async (UpdateEmailPreference dto, HttpContext http, FantasyDbContext db) =>
         {
             var uid = http.User.GetUserId();
             if (uid is null) return Results.Unauthorized();
-            var user = await db.Users.FindAsync(uid.Value);
-            if (user is null) return Results.Unauthorized();
-            user.EmailRemindersEnabled = dto.Enabled;
+            if (!ReminderKind.IsValid(dto.Kind))
+                return Results.ValidationProblem(new Dictionary<string, string[]> { ["kind"] = ["Unknown email kind."] });
+            if (!await db.Users.AnyAsync(u => u.Id == uid)) return Results.Unauthorized();
+
+            var pref = await db.EmailPreferences.FirstOrDefaultAsync(p => p.UserId == uid && p.Kind == dto.Kind);
+            if (pref is null)
+                db.EmailPreferences.Add(new EmailPreference { UserId = uid.Value, Kind = dto.Kind, Enabled = dto.Enabled, UpdatedAt = DateTime.UtcNow });
+            else
+                (pref.Enabled, pref.UpdatedAt) = (dto.Enabled, DateTime.UtcNow);
             await db.SaveChangesAsync();
-            return Results.Ok(new EmailRemindersResponse(user.EmailRemindersEnabled));
-        }).RequireAuthorization().RequireRateLimiting("email-prefs").Produces<EmailRemindersResponse>();
+            return Results.Ok(new EmailPreferenceDto(dto.Kind, dto.Enabled));
+        }).RequireAuthorization().RequireRateLimiting("email-prefs").Produces<EmailPreferenceDto>();
 
         group.MapPost("/logout", async (HttpContext http) =>
         {
@@ -109,8 +120,10 @@ public static class AuthEndpoints
     }
 }
 
-public record AuthMeResponse(long UserId, string Provider, string? Name, string? Email, bool IsAdmin, bool EmailRemindersEnabled, List<AuthMeRegistration> Registrations);
+public record AuthMeResponse(long UserId, string Provider, string? Name, string? Email, bool IsAdmin, List<EmailPreferenceDto> EmailPreferences, List<AuthMeRegistration> Registrations);
 public record AuthMeRegistration(long Id, long SeasonId, string TeamName);
+public record EmailPreferenceDto(string Kind, bool Enabled);
+public record UpdateEmailPreference(string Kind, bool Enabled);
 public record DevLoginResponse(long UserId);
 public record UpdateEmailReminders(bool Enabled);
 public record EmailRemindersResponse(bool EmailRemindersEnabled);

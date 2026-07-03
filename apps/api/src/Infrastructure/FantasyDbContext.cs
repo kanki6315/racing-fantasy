@@ -49,6 +49,7 @@ public partial class FantasyDbContext(DbContextOptions<FantasyDbContext> options
     // Notifications
     public DbSet<EventReminder> EventReminders => Set<EventReminder>();
     public DbSet<EmailEvent> EmailEvents => Set<EmailEvent>();
+    public DbSet<EmailPreference> EmailPreferences => Set<EmailPreference>();
 
     protected override void OnModelCreating(ModelBuilder b)
     {
@@ -123,8 +124,12 @@ public partial class FantasyDbContext(DbContextOptions<FantasyDbContext> options
         b.Entity<LeagueMembership>().HasIndex(x => new { x.LeagueId, x.RegistrationId }).IsUnique();
         b.Entity<League>().HasIndex(x => x.JoinCode).IsUnique();
         // One reminder per (event, user) — the single-send guarantee (ADR-0009).
-        b.Entity<EventReminder>().HasIndex(x => new { x.EventId, x.UserId }).IsUnique();
-        b.Entity<AppUser>().Property(x => x.EmailRemindersEnabled).HasDefaultValue(false);
+        // One reminder per (event, user, kind) — single-send per email kind (ADR-0009 amendment).
+        b.Entity<EventReminder>().HasIndex(x => new { x.EventId, x.UserId, x.Kind }).IsUnique();
+        b.Entity<EventReminder>().Property(x => x.Kind).HasMaxLength(24);
+        // Per-kind email opt-in (ADR-0009 amendment): at most one preference row per (user, kind).
+        b.Entity<EmailPreference>().HasIndex(x => new { x.UserId, x.Kind }).IsUnique();
+        b.Entity<EmailPreference>().Property(x => x.Kind).HasMaxLength(24);
         // Bounce/complaint events (ADR-0010): jsonb payload; dedupe SNS redelivery on (sns_message_id, email).
         b.Entity<EmailEvent>().Property(x => x.Raw).HasColumnType("jsonb");
         b.Entity<EmailEvent>().Property(x => x.Type).HasMaxLength(16);
@@ -166,6 +171,8 @@ public partial class FantasyDbContext(DbContextOptions<FantasyDbContext> options
         // Bounce/complaint record links to a user by resolved email; cascade so erasure removes it (and its
         // stored email) too. UserId is nullable (an event may arrive for an address with no matching user).
         b.Entity<EmailEvent>().HasOne(x => x.User).WithMany()
+            .HasForeignKey(x => x.UserId).OnDelete(DeleteBehavior.Cascade);
+        b.Entity<EmailPreference>().HasOne(x => x.User).WithMany()
             .HasForeignKey(x => x.UserId).OnDelete(DeleteBehavior.Cascade);
 
         ApplySnakeCaseNames(b);
