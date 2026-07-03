@@ -11,7 +11,7 @@ import {
   useMyLeagues,
   usePrices,
   useRoster,
-  useUpdateEmailReminders,
+  useUpdateEmailPreference,
   type League,
 } from '../api/queries'
 import { useCountdown } from '../lib/useCountdown'
@@ -19,6 +19,7 @@ import { CreateLeagueModal, JoinByCodeModal } from '../components/LeagueModals'
 import { RegisterModal } from '../components/RegisterModal'
 import { EntityThumb } from '../components/EntityThumb'
 import { DriverLineup } from '../components/DriverLineup'
+import { EmailPreferenceControls, prefsFromList } from '../components/EmailPreferences'
 
 type Registration = Me['registrations'][number]
 
@@ -39,7 +40,7 @@ export function Dashboard() {
   const seasons = useAllSeasons()
   const myLeagues = useMyLeagues()
   const events = useEvents()
-  const updateReminders = useUpdateEmailReminders()
+  const updatePref = useUpdateEmailPreference()
   const [createOpen, setCreateOpen] = useState(false)
   const [joinOpen, setJoinOpen] = useState(false)
   const [joinSeasonId, setJoinSeasonId] = useState<number | null>(null)
@@ -157,28 +158,13 @@ export function Dashboard() {
         </button>
 
         <div className="my-5 h-px bg-line" />
-        <div className="mb-[11px] font-display text-[11px] tracking-[0.12em] uppercase text-muted-2">Notifications</div>
-        <button
-          onClick={() => updateReminders.mutate(!user.emailRemindersEnabled)}
-          disabled={updateReminders.isPending}
-          aria-pressed={user.emailRemindersEnabled}
-          className={`flex w-full items-center justify-between gap-2 rounded-[3px] border px-[13px] py-[10px] text-left cursor-pointer ${
-            user.emailRemindersEnabled ? 'border-success/50 bg-success/[0.06]' : 'border-dotted border-line-3 bg-surface-2'
-          }`}
-        >
-          <span className="flex items-center gap-2 font-display text-[13px] font-semibold uppercase tracking-[0.04em] text-ink-2">
-            <span className={`h-[15px] w-[4px] flex-none [transform:skewX(-14deg)] ${user.emailRemindersEnabled ? 'bg-brand' : 'bg-line-3'}`} />
-            Email Reminders
-          </span>
-          {user.emailRemindersEnabled ? (
-            <svg className="h-[15px] w-[15px] flex-none text-success" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round" aria-label="On">
-              <path d="M5 13l4 4L19 7" />
-            </svg>
-          ) : (
-            <span className="flex-none font-display text-[11px] font-bold uppercase tracking-[0.06em] text-muted-2">Off</span>
-          )}
-        </button>
-        <p className="mt-[7px] font-sans text-[11px] leading-[15px] text-muted-2">One reminder before picks lock each race weekend.</p>
+        <div className="mb-[11px] font-display text-[11px] tracking-[0.12em] uppercase text-muted-2">Race emails</div>
+        <EmailPreferenceControls
+          prefs={prefsFromList(user.emailPreferences)}
+          onChange={(kind, enabled) => updatePref.mutate({ kind, enabled })}
+          pending={updatePref.isPending}
+        />
+        <p className="mt-[8px] font-sans text-[11px] leading-[15px] text-muted-2">One email each, unsubscribe anytime.</p>
       </aside>
 
       {/* main */}

@@ -54,7 +54,11 @@ export function useActiveSeason() {
 export function useRegister() {
   const qc = useQueryClient()
   return useMutation({
-    mutationFn: async (input: { seasonId: number; teamName: string; emailReminders: boolean }) => {
+    mutationFn: async (input: {
+      seasonId: number
+      teamName: string
+      emailPreferences: { kind: string; enabled: boolean }[]
+    }) => {
       const { data, error } = await api.POST('/registrations', { body: input })
       if (error) throw error
       return data as Registration
@@ -64,12 +68,12 @@ export function useRegister() {
   })
 }
 
-/** Account-level toggle for picks-reminder emails (ADR-0009). Refetches /auth/me on success. */
-export function useUpdateEmailReminders() {
+/** Per-kind email preference toggle (ADR-0009 amendment). Refetches /auth/me on success. */
+export function useUpdateEmailPreference() {
   const qc = useQueryClient()
   return useMutation({
-    mutationFn: async (enabled: boolean) => {
-      const { data, error } = await api.PUT('/auth/me/email-reminders', { body: { enabled } })
+    mutationFn: async (input: { kind: string; enabled: boolean }) => {
+      const { data, error } = await api.PUT('/auth/me/email-preferences', { body: input })
       if (error) throw error
       return data
     },
