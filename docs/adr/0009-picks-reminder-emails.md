@@ -141,7 +141,9 @@ substitution at send time. This keeps **no Node dependency at runtime** — only
 The single 24h-before-close email becomes **two independent kinds**, each individually opt-in:
 
 - **`PicksOpen`** — fires when the admin flips `event.picks_open` on (the worker sends it on its next
-  poll; "admin-triggered" = the toggle is the trigger). Subject "… are Open".
+  poll; "admin-triggered" = the toggle is the trigger). Subject "… are Open". Bounded to a fresh window
+  — only sent within `Reminders:PicksOpenWindowHours` (default 24h) of opening, so it's never sent stale
+  long after the fact; `event.picks_opened_at` records the open time (stamped on the false→true toggle).
 - **`PicksClosing`** — the existing 24h-before-lock email (unchanged rule). Subject "… are Closing Soon".
 
 A user can be subscribed to **both, one, or neither**. Both kinds still ride the whole existing

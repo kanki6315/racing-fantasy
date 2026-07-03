@@ -59,6 +59,10 @@ public class Event
     /// picks automatically. Admin-toggled once all series' entry lists are published.</summary>
     public bool PicksOpen { get; set; }
 
+    /// <summary>When <see cref="PicksOpen"/> last transitioned to true (null when closed). Bounds the
+    /// PicksOpen reminder to a fresh window so it isn't sent long after opening (ADR-0009 amendment).</summary>
+    public DateTime? PicksOpenedAt { get; set; }
+
     public ICollection<Round> Rounds { get; set; } = new List<Round>();
 }
 

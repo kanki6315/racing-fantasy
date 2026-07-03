@@ -14,6 +14,10 @@ public sealed class ReminderOptions
     /// <summary>Lead time before the weekend's earliest quali_start (the lock/close, ADR-0002).</summary>
     public int HoursBeforeClose { get; set; } = 24;
 
+    /// <summary>How long after picks open the PicksOpen email may still send — so it isn't sent stale
+    /// long after opening (ADR-0009 amendment). Beyond this window, PicksOpen is skipped.</summary>
+    public int PicksOpenWindowHours { get; set; } = 24;
+
     /// <summary>Worker poll interval in seconds (default 5 min).</summary>
     public int PollSeconds { get; set; } = 300;
 

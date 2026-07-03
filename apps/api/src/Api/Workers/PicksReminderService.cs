@@ -61,15 +61,19 @@ public sealed class PicksReminderService(
         // additionally requires being within HoursBeforeClose of that close (ADR-0009 amendment).
         var open = await db.Events
             .Where(e => e.PicksOpen)
-            .Select(e => new { e.Id, e.Name, Close = e.Rounds.Min(r => (DateTime?)r.QualiStart) })
+            .Select(e => new { e.Id, e.Name, e.PicksOpenedAt, Close = e.Rounds.Min(r => (DateTime?)r.QualiStart) })
             .ToListAsync(ct);
 
         foreach (var ev in open)
         {
             if (ev.Close is not { } close || now >= close) continue; // no rounds, or already locked
 
-            var kinds = new List<string> { ReminderKind.PicksOpen };
+            var kinds = new List<string>();
+            // PicksOpen only within a fresh window after opening — never stale (ADR-0009 amendment).
+            if (ev.PicksOpenedAt is { } openedAt && now < openedAt.AddHours(options.PicksOpenWindowHours))
+                kinds.Add(ReminderKind.PicksOpen);
             if (now >= close.AddHours(-options.HoursBeforeClose)) kinds.Add(ReminderKind.PicksClosing);
+            if (kinds.Count == 0) continue;
 
             foreach (var kind in kinds)
             {
