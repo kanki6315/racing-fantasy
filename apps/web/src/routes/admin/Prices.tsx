@@ -26,6 +26,7 @@ type Mode = 'Car' | 'Driver'
 type Row = {
   entityType: Mode
   entityId: number
+  carId: number // the car entry this row derives from (itself for cars) — participation checks
   number: string | null // race number (a driver row shows its car's number)
   label: string // team name or driver full name
   classId: number
@@ -52,6 +53,7 @@ type SuggestState = {
   anchors: Record<number, ClassAnchors> // classId -> top/floor
   ranks: Record<number, string[]> // classId -> rowKeys, best → worst
   pins: Record<string, number> // rowKey -> exact price
+  scratched: Record<string, true> // rowKey -> excluded from ranking/curve/budget/apply
   points: Record<string, RowPoints> // rowKey -> imported standings
   importNotes: string[]
 }
@@ -68,6 +70,7 @@ const SUGGEST_OFF: SuggestState = {
   anchors: {},
   ranks: {},
   pins: {},
+  scratched: {},
   points: {},
   importNotes: [],
 }
@@ -97,6 +100,8 @@ export function Prices() {
 
   // edits: rowKey -> raw input string. Absent ⇒ untouched (shows the saved value).
   const [edits, setEdits] = useState<Record<string, string>>({})
+  // removals: saved prices queued for deletion on Save (withdrawn/scratched entries).
+  const [removals, setRemovals] = useState<Record<string, true>>({})
   const [suggest, setSuggest] = useState<SuggestState>(SUGGEST_OFF)
   const save = useSavePrices(roundId ?? 0)
 
@@ -104,6 +109,7 @@ export function Prices() {
   useEffect(() => {
     setSuggest(SUGGEST_OFF)
     setEdits({})
+    setRemovals({})
   }, [roundId, mode])
 
   const priceByKey = useMemo(() => {
@@ -125,6 +131,7 @@ export function Prices() {
       cars.map((c) => ({
         entityType: 'Car' as const,
         entityId: c.id,
+        carId: c.id,
         number: c.number,
         label: c.teamName,
         classId: c.classId,
@@ -162,6 +169,7 @@ export function Prices() {
         rows.push({
           entityType: 'Driver',
           entityId: ed.driverId,
+          carId: car.id,
           number: car.number,
           label: nameById.get(ed.driverId) ?? `#${ed.driverId}`,
           classId: car.classId,
@@ -199,6 +207,8 @@ export function Prices() {
   }
 
   const dirtyRows = rows.filter(isDirty)
+  const removalCount = rows.filter((r) => removals[rowKey(r)] && r.original != null).length
+  const pendingCount = dirtyRows.length + removalCount
   const invalidCount = rows.filter(isInvalid).length
   const pricedCount = rows.filter((r) => numOf(r) != null).length
 
@@ -225,12 +235,15 @@ export function Prices() {
         ? Number(suggest.totalInput)
         : 0
 
-  /** Ranking for a class, self-repairing: drop vanished keys, append new rows at the bottom. */
+  /**
+   * Ranking for a class, self-repairing: drop vanished keys, append new rows at the bottom.
+   * Scratched rows are excluded — they hold no rank and don't exist for the curve or budget.
+   */
   const ranksFor = (classId: number): string[] => {
     const classKeys = rows.filter((r) => r.classId === classId).map(rowKey)
     const stored = (suggest.ranks[classId] ?? []).filter((k) => rowByKey.has(k) && rowByKey.get(k)!.classId === classId)
     const missing = classKeys.filter((k) => !stored.includes(k))
-    return [...stored, ...missing]
+    return [...stored, ...missing].filter((k) => !suggest.scratched[k])
   }
 
   const curveInputs = (): ClassBudgetInput[] =>
@@ -273,6 +286,30 @@ export function Prices() {
     const anchors: Record<number, ClassAnchors> = {}
     const step = defaultStep(cap)
     const target = SUGGEST_OFF.alpha * cap
+
+    // Auto-scratch from the round entry list (ADR-0011 participation signal): per class, if any
+    // car has round-scoped lineup rows, the entry list is authoritative — cars without them (and
+    // their drivers) aren't competing this round and are scratched. Classes with no import yet
+    // keep everyone. Restore is one click; TBD-only lineups are the known false positive.
+    const roundCarIds = new Set(entryDrivers.filter((ed) => ed.roundId === roundId).map((ed) => ed.carEntryId))
+    const scratched: Record<string, true> = {}
+    const scratchedLabels: string[] = []
+    for (const cl of byClass) {
+      const classRows = rows.filter((r) => r.classId === cl.id)
+      if (!classRows.some((r) => roundCarIds.has(r.carId))) continue
+      for (const r of classRows)
+        if (!roundCarIds.has(r.carId)) {
+          scratched[rowKey(r)] = true
+          scratchedLabels.push(r.label)
+        }
+    }
+    const notes =
+      scratchedLabels.length > 0
+        ? [
+            `Not in this round's entry list — scratched: ${scratchedLabels.slice(0, 4).join(', ')}${scratchedLabels.length > 4 ? ` +${scratchedLabels.length - 4} more` : ''} (↩ restores)`,
+          ]
+        : []
+
     for (const cl of byClass) {
       const keys = rows.filter((r) => r.classId === cl.id).map(rowKey)
       ranks[cl.id] = seedRanking(
@@ -280,7 +317,8 @@ export function Prices() {
         (k) => rowByKey.get(k)?.lastRound ?? null,
         (k) => rowByKey.get(k)?.original ?? null,
       )
-      const prev = keys.map((k) => rowByKey.get(k)?.lastRound).filter((n): n is number => n != null)
+      const active = keys.filter((k) => !scratched[k])
+      const prev = active.map((k) => rowByKey.get(k)?.lastRound).filter((n): n is number => n != null)
       anchors[cl.id] =
         prev.length >= 2
           ? { top: Math.max(...prev), floor: Math.min(...prev) }
@@ -288,7 +326,7 @@ export function Prices() {
     }
     if (target > 0 && totalSlots > 0) {
       const inputs: ClassBudgetInput[] = byClass.map((cl) => ({
-        orderedKeys: ranks[cl.id],
+        orderedKeys: ranks[cl.id].filter((k) => !scratched[k]),
         anchors: anchors[cl.id],
         pins: new Map(),
         slots: slotsFor(cl.id),
@@ -299,7 +337,36 @@ export function Prices() {
         if (a) anchors[cl.id] = { top: roundToStep(a.top, step), floor: roundToStep(a.floor, step) }
       })
     }
-    setSuggest({ ...SUGGEST_OFF, on: true, step, ranks, anchors })
+    setSuggest({ ...SUGGEST_OFF, on: true, step, ranks, anchors, scratched, importNotes: notes })
+  }
+
+  const toggleScratch = (k: string) => {
+    setSuggest((s) => {
+      const scratched = { ...s.scratched }
+      const pins = { ...s.pins }
+      if (scratched[k]) delete scratched[k]
+      else {
+        scratched[k] = true
+        delete pins[k] // a scratched entry can't hold a price anchor
+      }
+      return { ...s, scratched, pins }
+    })
+    // un-scratching also cancels any queued price removal
+    setRemovals((p) => {
+      if (!p[k]) return p
+      const next = { ...p }
+      delete next[k]
+      return next
+    })
+  }
+
+  const toggleRemoval = (k: string) => {
+    setRemovals((p) => {
+      const next = { ...p }
+      if (next[k]) delete next[k]
+      else next[k] = true
+      return next
+    })
   }
 
   // Al Kamel points JSON import (ADR-0012): parse client-side, match teams by car number /
@@ -422,13 +489,25 @@ export function Prices() {
   }
 
   const onSave = async () => {
+    // Queued removals send price: null — the API deletes the round's price row (withdrawal).
+    // Scratched rows are never upserted (a stale pre-scratch edit must not price a non-competitor).
     const payload = rows
-      .map((r) => ({ r, n: numOf(r) }))
-      .filter((x) => x.n != null && !isInvalid(x.r))
-      .map((x) => ({ entityType: x.r.entityType, entityId: x.r.entityId, classId: x.r.classId, price: x.n! }))
+      .map((r) => ({ r, n: numOf(r), k: rowKey(r) }))
+      .filter((x) => {
+        if (removals[x.k] && x.r.original != null) return true
+        if (suggest.on && suggest.scratched[x.k]) return false
+        return x.n != null && !isInvalid(x.r)
+      })
+      .map((x) => ({
+        entityType: x.r.entityType,
+        entityId: x.r.entityId,
+        classId: x.r.classId,
+        price: removals[x.k] ? null : x.n!,
+      }))
     if (payload.length === 0) return
     await save.mutateAsync(payload)
     setEdits({})
+    setRemovals({})
   }
 
   if (!roundId || !round) return <EmptyState>Select a round in the topbar</EmptyState>
@@ -437,7 +516,7 @@ export function Prices() {
   const drift = expectedCost - budgetTarget
   const driftOk = budgetTarget > 0 && Math.abs(drift) <= budgetTarget * 0.03
   const gridCols = suggest.on
-    ? 'grid-cols-[2.2rem_2.6rem_minmax(7rem,1fr)_4rem_8rem_6.5rem_2.5rem]'
+    ? 'grid-cols-[3.1rem_2.6rem_minmax(7rem,1fr)_4rem_8rem_6.5rem_2.5rem]'
     : 'grid-cols-[3rem_1fr_5rem_8rem_4rem]'
 
   return (
@@ -446,8 +525,8 @@ export function Prices() {
         title="Price Board"
         subtitle={`RD ${String(round.sequence).padStart(2, '0')} · ${round.circuit ?? round.name} — set what players spend against the cap.`}
         actions={
-          <PrimaryButton onClick={onSave} disabled={dirtyRows.length === 0 || invalidCount > 0 || save.isPending}>
-            {save.isPending ? 'Saving…' : `Save All${dirtyRows.length ? ` · ${dirtyRows.length}` : ''}`}
+          <PrimaryButton onClick={onSave} disabled={pendingCount === 0 || invalidCount > 0 || save.isPending}>
+            {save.isPending ? 'Saving…' : `Save All${pendingCount ? ` · ${pendingCount}` : ''}`}
           </PrimaryButton>
         }
       />
@@ -478,10 +557,10 @@ export function Prices() {
         <Stat
           label="Unsaved"
           value={
-            dirtyRows.length ? (
+            pendingCount ? (
               <span className="flex items-center gap-[6px] text-warn">
                 <span className="h-[6px] w-[6px] rounded-full bg-warn [animation:blink_1.4s_ease-in-out_infinite]" />
-                {dirtyRows.length}
+                {pendingCount}
               </span>
             ) : (
               <span className="text-muted">0</span>
@@ -703,15 +782,19 @@ export function Prices() {
         <div className="grid gap-4">
           {byClass.map((cl) => {
             const order = suggest.on ? ranksFor(cl.id) : null
-            const classRows = order
-              ? order.map((k) => rowByKey.get(k)!).filter(Boolean)
+            const activeRows = order ? order.map((k) => rowByKey.get(k)!).filter(Boolean) : null
+            // Scratched rows stay visible — greyed at the bottom of their class, one click to restore.
+            const scratchedRows = suggest.on
+              ? rows.filter((r) => r.classId === cl.id && suggest.scratched[rowKey(r)])
+              : []
+            const classRows = activeRows
+              ? [...activeRows, ...scratchedRows]
               : rows.filter((r) => r.classId === cl.id)
+            const activeCount = activeRows?.length ?? classRows.length
             const priced = classRows.map(numOf).filter((n): n is number => n != null)
             const avg = priced.length ? priced.reduce((a, b) => a + b, 0) / priced.length : null
             const anchors = suggest.anchors[cl.id]
-            const ladder = suggest.on
-              ? classRows.map((r) => suggestions?.get(rowKey(r)) ?? 0)
-              : []
+            const ladder = suggest.on ? (activeRows ?? []).map((r) => suggestions?.get(rowKey(r)) ?? 0) : []
             return (
               <div key={cl.id} className="overflow-hidden rounded-[6px] border border-line bg-surface">
                 <div className="flex items-center gap-2 border-b border-line px-4 py-2">
@@ -759,37 +842,60 @@ export function Prices() {
 
                 {classRows.map((r, idx) => {
                   const k = rowKey(r)
+                  const scratched = suggest.on && !!suggest.scratched[k]
                   const dirty = isDirty(r)
                   const invalid = isInvalid(r)
                   const n = numOf(r)
                   const delta = n != null && r.lastRound != null ? n - r.lastRound : null
                   const sugg = suggestions?.get(k)
                   const pinned = suggest.pins[k] != null
+                  const removalQueued = !!removals[k]
                   return (
                     <div
                       key={k}
                       className={`grid ${gridCols} items-center gap-x-3 border-b border-line px-4 py-2 last:border-b-0 ${
                         invalid ? 'bg-danger/[0.06]' : dirty ? 'bg-warn/[0.05]' : ''
-                      }`}
+                      } ${scratched ? 'opacity-55' : ''}`}
                     >
                       {suggest.on && (
                         <div className="flex items-center gap-[2px]">
-                          <button
-                            onClick={() => moveRank(cl.id, k, -1)}
-                            disabled={idx === 0}
-                            aria-label={`Move ${r.label} up`}
-                            className="rounded-[3px] px-[3px] text-[10px] text-muted hover:text-ink disabled:opacity-25"
-                          >
-                            ▲
-                          </button>
-                          <button
-                            onClick={() => moveRank(cl.id, k, 1)}
-                            disabled={idx === classRows.length - 1}
-                            aria-label={`Move ${r.label} down`}
-                            className="rounded-[3px] px-[3px] text-[10px] text-muted hover:text-ink disabled:opacity-25"
-                          >
-                            ▼
-                          </button>
+                          {scratched ? (
+                            <button
+                              onClick={() => toggleScratch(k)}
+                              aria-label={`Restore ${r.label} to the field`}
+                              title="Restore — back into ranking and budget"
+                              className="rounded-[3px] px-[3px] font-mono text-[11px] text-muted hover:text-ink"
+                            >
+                              ↩
+                            </button>
+                          ) : (
+                            <>
+                              <button
+                                onClick={() => moveRank(cl.id, k, -1)}
+                                disabled={idx === 0}
+                                aria-label={`Move ${r.label} up`}
+                                className="rounded-[3px] px-[3px] text-[10px] text-muted hover:text-ink disabled:opacity-25"
+                              >
+                                ▲
+                              </button>
+                              <button
+                                onClick={() => moveRank(cl.id, k, 1)}
+                                disabled={idx === activeCount - 1}
+                                aria-label={`Move ${r.label} down`}
+                                className="rounded-[3px] px-[3px] text-[10px] text-muted hover:text-ink disabled:opacity-25"
+                              >
+                                ▼
+                              </button>
+                              <button
+                                onClick={() => toggleScratch(k)}
+                                aria-label={`Scratch ${r.label} — not competing this round`}
+                                title="Scratch — not competing this round"
+                                className="rounded-[3px] px-[3px] text-[10px] text-muted-2 hover:text-danger"
+                              >
+                                ✕
+                              </button>
+                            </>
+                          )}
                         </div>
                       )}
                       <div
@@ -822,43 +928,68 @@ export function Prices() {
                       <div className="text-right font-mono text-[12px] text-muted-2">
                         {r.lastRound != null ? `$${r.lastRound.toFixed(1)}` : '—'}
                       </div>
-                      {suggest.on && (
-                        <div className="flex items-center gap-1">
-                          <button
-                            onClick={() => togglePin(k)}
-                            aria-label={pinned ? `Unpin ${r.label}` : `Pin ${r.label} at suggested price`}
-                            title={pinned ? 'Unpin — return to curve' : 'Pin exact price'}
-                            className={`font-mono text-[13px] ${pinned ? 'text-brand' : 'text-muted-2 hover:text-ink-2'}`}
-                          >
-                            {pinned ? '◆' : '◇'}
-                          </button>
-                          {pinned ? (
-                            <input
-                              value={String(suggest.pins[k])}
-                              onChange={(e) => {
-                                const v = Number(e.target.value)
-                                if (Number.isFinite(v))
-                                  setSuggest((s) => ({ ...s, pins: { ...s.pins, [k]: v } }))
-                              }}
-                              inputMode="decimal"
-                              aria-label={`Pinned price for ${r.label}`}
-                              className="h-7 w-16 rounded-[4px] border border-brand/50 bg-surface-3 px-2 font-mono text-[12px] text-brand focus:border-brand focus:outline-none"
-                            />
-                          ) : (
-                            <span className="w-16 font-mono text-[12px] text-ink-2">
-                              {sugg != null ? `$${sugg.toFixed(2)}` : '—'}
+                      {suggest.on &&
+                        (scratched ? (
+                          <div className="flex items-center gap-2">
+                            <span className="font-mono text-[9px] uppercase tracking-[0.08em] text-muted-2">
+                              Scratched
                             </span>
-                          )}
-                          <button
-                            onClick={() => applyOne(k)}
-                            aria-label={`Apply suggested price to ${r.label}`}
-                            title="Apply to price input"
-                            className="rounded-[3px] px-1 font-mono text-[12px] text-muted hover:text-brand"
-                          >
-                            →
-                          </button>
-                        </div>
-                      )}
+                            {r.original != null && (
+                              <button
+                                onClick={() => toggleRemoval(k)}
+                                aria-label={
+                                  removalQueued
+                                    ? `Keep saved price for ${r.label}`
+                                    : `Remove saved price for ${r.label} on save`
+                                }
+                                title="A scratched entry with a saved price is still pickable — removing the price takes it off the board"
+                                className={`rounded-[3px] border px-2 py-[2px] font-mono text-[9px] uppercase tracking-[0.06em] ${
+                                  removalQueued
+                                    ? 'border-danger/60 bg-danger/10 text-danger'
+                                    : 'border-line-2 text-muted hover:border-danger hover:text-danger'
+                                }`}
+                              >
+                                {removalQueued ? 'Removes on save' : 'Still priced — remove'}
+                              </button>
+                            )}
+                          </div>
+                        ) : (
+                          <div className="flex items-center gap-1">
+                            <button
+                              onClick={() => togglePin(k)}
+                              aria-label={pinned ? `Unpin ${r.label}` : `Pin ${r.label} at suggested price`}
+                              title={pinned ? 'Unpin — return to curve' : 'Pin exact price'}
+                              className={`font-mono text-[13px] ${pinned ? 'text-brand' : 'text-muted-2 hover:text-ink-2'}`}
+                            >
+                              {pinned ? '◆' : '◇'}
+                            </button>
+                            {pinned ? (
+                              <input
+                                value={String(suggest.pins[k])}
+                                onChange={(e) => {
+                                  const v = Number(e.target.value)
+                                  if (Number.isFinite(v))
+                                    setSuggest((s) => ({ ...s, pins: { ...s.pins, [k]: v } }))
+                                }}
+                                inputMode="decimal"
+                                aria-label={`Pinned price for ${r.label}`}
+                                className="h-7 w-16 rounded-[4px] border border-brand/50 bg-surface-3 px-2 font-mono text-[12px] text-brand focus:border-brand focus:outline-none"
+                              />
+                            ) : (
+                              <span className="w-16 font-mono text-[12px] text-ink-2">
+                                {sugg != null ? `$${sugg.toFixed(2)}` : '—'}
+                              </span>
+                            )}
+                            <button
+                              onClick={() => applyOne(k)}
+                              aria-label={`Apply suggested price to ${r.label}`}
+                              title="Apply to price input"
+                              className="rounded-[3px] px-1 font-mono text-[12px] text-muted hover:text-brand"
+                            >
+                              →
+                            </button>
+                          </div>
+                        ))}
                       <div>
                         <div className="relative">
                           <span className="pointer-events-none absolute left-2 top-1/2 -translate-y-1/2 font-mono text-[12px] text-muted-2">
@@ -867,10 +998,13 @@ export function Prices() {
                           <input
                             value={valueOf(r)}
                             onChange={(e) => setEdits((p) => ({ ...p, [k]: e.target.value }))}
+                            disabled={scratched}
                             inputMode="decimal"
                             placeholder="—"
                             aria-label={`Price for ${r.label}`}
-                            className={`h-8 ${suggest.on ? 'w-24' : 'w-28'} rounded-[4px] border bg-surface-3 pl-5 pr-2 font-mono text-[13px] text-ink focus:outline-none ${
+                            className={`h-8 ${suggest.on ? 'w-24' : 'w-28'} rounded-[4px] border bg-surface-3 pl-5 pr-2 font-mono text-[13px] focus:outline-none ${
+                              removalQueued ? 'text-danger line-through' : 'text-ink'
+                            } disabled:cursor-not-allowed ${
                               invalid
                                 ? 'border-danger'
                                 : dirty

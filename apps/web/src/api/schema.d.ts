@@ -3746,7 +3746,7 @@ export interface components {
             /** Format: int64 */
             classId: number;
             /** Format: double */
-            price: number;
+            price: null | number;
         };
         PriceItem: {
             entityType: components["schemas"]["EntityType"];
@@ -3770,6 +3770,11 @@ export interface components {
             created: number;
             /** Format: int32 */
             updated: number;
+            /**
+             * Format: int32
+             * @default 0
+             */
+            deleted: number;
         };
         PutRosterRequest: {
             main: null | components["schemas"]["RosterPickInput"][];

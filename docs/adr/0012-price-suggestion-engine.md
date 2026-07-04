@@ -74,7 +74,22 @@ Three constraints shape a suggestion engine:
    - `points_by_session[]` yields a **form signal** (recent-sessions average vs season average),
      shown as per-row ▲▼ chips; form never moves a price — the admin reorders with the rank
      arrows (a one-tap "apply suggested move" is deferred).
-4. **Entity-type mode per series: Teams | Drivers.** Roster rules don't encode entity type
+4. **Scratching + withdrawals (amendment 2026-07-04).** A season-long lineup doesn't imply
+   round participation: a team with season-wide `entry_driver` rows but no entry this round was
+   suggested, budgeted, and one Apply-all away from being priced and pickable. Three pieces:
+   - **Scratch toggle** (✕ per row, ↩ restores): a scratched row is excluded from the ranking,
+     curve, budget/star math, Apply all, and the save upsert; it stays visible, greyed, at the
+     bottom of its class. Ephemeral like ranks/pins.
+   - **Auto-scratch from the round entry list:** per class, when any car has round-scoped lineup
+     rows (ADR-0011), the entry list is authoritative — rows deriving from cars without them are
+     pre-scratched at generate, listed in a panel note. Classes with no import keep everyone.
+     Known false positive: an entered car whose seats were all TBD at import (restore by hand).
+   - **Price deletion:** `PriceInput.price` is now nullable — null deletes the round's price row
+     (idempotent; `PriceUpsertResponse.deleted` counts them). A scratched row that still has a
+     saved price shows "Still priced — remove", which queues a null on Save All. Deleting the
+     price pulls the entity off the pick board, and a roster still holding it fails its next
+     pre-lock PUT with `422 unavailable` — forcing the swap-out a withdrawal should force.
+5. **Entity-type mode per series: Teams | Drivers.** Roster rules don't encode entity type
    (`SlotType` is class-scoped Main only), so the Prices screen gets an explicit mode toggle,
    defaulting to whichever entity type already has prices for the round. In Drivers mode the
    screen renders driver rows (same columns, same bulk save with `entityType: 'Driver'`). Driver

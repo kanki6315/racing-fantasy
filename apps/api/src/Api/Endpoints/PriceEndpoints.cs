@@ -29,7 +29,10 @@ public static class PriceEndpoints
             return Results.Ok(items);
         }).Produces<List<PriceItem>>();
 
-        // Bulk upsert — prices are re-set every round, so the admin/import flow sends the whole board.
+        // Bulk upsert — prices are re-set every round, so the admin/import flow sends the whole
+        // board. A null price DELETES the entity's price row (withdrawal/scratch, ADR-0012): the
+        // entity leaves the pick board, and any roster still holding it fails its next pre-lock
+        // PUT with 422 unavailable — forcing the player to swap the withdrawn entry out.
         group.MapPost("/", async (long roundId, PriceUpsertRequest req, FantasyDbContext db, IMemoryCache cache) =>
         {
             if (!await db.Rounds.AnyAsync(r => r.Id == roundId)) return Results.NotFound();
@@ -47,19 +50,30 @@ public static class PriceEndpoints
                 var p = req.Prices[i];
                 var ok = p.EntityType == EntityType.Car ? existCars.Contains(p.EntityId) : existDrv.Contains(p.EntityId);
                 if (!ok) errors.Add(new { index = i, message = $"{p.EntityType} {p.EntityId} not found" });
-                if (p.Price < 0) errors.Add(new { index = i, message = "price must be >= 0" });
+                if (p.Price is < 0) errors.Add(new { index = i, message = "price must be >= 0" });
             }
             if (errors.Count > 0)
                 return Results.Json(new { errors }, statusCode: StatusCodes.Status422UnprocessableEntity);
 
             var existing = await db.EntityPrices.Where(ep => ep.RoundId == roundId).ToListAsync();
             var byKey = existing.ToDictionary(ep => (ep.EntityType, ep.EntityId));
-            int created = 0, updated = 0;
+            int created = 0, updated = 0, deleted = 0;
             foreach (var p in req.Prices)
             {
-                if (byKey.TryGetValue((p.EntityType, p.EntityId), out var ep))
+                var found = byKey.TryGetValue((p.EntityType, p.EntityId), out var ep);
+                if (p.Price is not { } price)
                 {
-                    ep.Price = p.Price;
+                    if (found)
+                    {
+                        db.Remove(ep!);
+                        byKey.Remove((p.EntityType, p.EntityId));
+                        deleted++;
+                    }
+                    continue; // deleting an absent price is a no-op, not an error (idempotent)
+                }
+                if (found)
+                {
+                    ep!.Price = price;
                     ep.ClassId = p.ClassId;
                     updated++;
                 }
@@ -68,7 +82,7 @@ public static class PriceEndpoints
                     var row = new EntityPrice
                     {
                         RoundId = roundId, EntityType = p.EntityType, EntityId = p.EntityId,
-                        ClassId = p.ClassId, Price = p.Price
+                        ClassId = p.ClassId, Price = price
                     };
                     db.Add(row);
                     byKey[(p.EntityType, p.EntityId)] = row;
@@ -78,7 +92,7 @@ public static class PriceEndpoints
 
             await db.SaveChangesAsync();
             cache.Remove(CacheKey(roundId));
-            return Results.Ok(new PriceUpsertResponse(roundId, created, updated));
+            return Results.Ok(new PriceUpsertResponse(roundId, created, updated, deleted));
         }).RequireAuthorization("Admin").Produces<PriceUpsertResponse>();   // GET stays public (the selection board); writes are admin.
 
         return app;
@@ -122,7 +136,8 @@ public static class PriceEndpoints
 }
 
 public record PriceUpsertRequest(List<PriceInput> Prices);
-public record PriceInput(EntityType EntityType, long EntityId, long ClassId, decimal Price);
+/// <summary>A null <see cref="Price"/> deletes the entity's price row for the round (withdrawal).</summary>
+public record PriceInput(EntityType EntityType, long EntityId, long ClassId, decimal? Price);
 public record PriceItem(EntityType EntityType, long EntityId, long ClassId, decimal Price, string? DisplayName, List<DriverLite>? Drivers = null, string? Number = null);
 public record DriverLite(long Id, string FullName);
-public record PriceUpsertResponse(long RoundId, int Created, int Updated);
+public record PriceUpsertResponse(long RoundId, int Created, int Updated, int Deleted = 0);
