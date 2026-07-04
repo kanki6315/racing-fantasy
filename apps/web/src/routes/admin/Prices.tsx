@@ -13,6 +13,7 @@ import {
   ladderPrices,
   roundToStep,
   seedRanking,
+  starRosterCost,
   type ClassAnchors,
   type ClassBudgetInput,
   type Spacing,
@@ -45,6 +46,7 @@ type SuggestState = {
   alpha: number // target: average roster ≈ alpha × cap
   budgetMode: 'alpha' | 'total'
   totalInput: string // absolute target when budgetMode = 'total'
+  star: number // star-roster budget: Σ slots × class top ≈ star × cap (splits budget across classes)
   step: number
   spacing: Spacing // 'points' spreads prices by points gaps (needs an import)
   anchors: Record<number, ClassAnchors> // classId -> top/floor
@@ -60,6 +62,7 @@ const SUGGEST_OFF: SuggestState = {
   alpha: 0.92,
   budgetMode: 'alpha',
   totalInput: '',
+  star: 1.2,
   step: 0.5,
   spacing: 'curve',
   anchors: {},
@@ -203,12 +206,17 @@ export function Prices() {
   const byClass = classes.filter((cl) => rows.some((r) => r.classId === cl.id))
 
   // Roster slots per class (for the expected-roster-cost drift): the required pick count.
+  // When composition is unknown (no roster rules yet, or the round has no sessions so no class
+  // "runs"), assume ONE pick per class — the budget must still split across classes, never be
+  // granted whole to each one.
   const slotsByClass = useMemo(() => {
     const m = new Map<number, number>()
     for (const c of rosterRules?.classes ?? []) m.set(c.classId, c.min > 0 ? c.min : c.max)
     return m
   }, [rosterRules])
-  const totalSlots = byClass.reduce((a, cl) => a + (slotsByClass.get(cl.id) ?? 0), 0)
+  const rulesKnown = (rosterRules?.classes.length ?? 0) > 0
+  const slotsFor = (classId: number) => (rulesKnown ? (slotsByClass.get(classId) ?? 0) : 1)
+  const totalSlots = byClass.reduce((a, cl) => a + slotsFor(cl.id), 0)
 
   const budgetTarget =
     suggest.budgetMode === 'alpha'
@@ -230,7 +238,7 @@ export function Prices() {
       orderedKeys: ranksFor(cl.id),
       anchors: suggest.anchors[cl.id] ?? defaultAnchors(budgetTarget, Math.max(totalSlots, 1)),
       pins: new Map(Object.entries(suggest.pins).filter(([k]) => rowByKey.get(k)?.classId === cl.id)),
-      slots: slotsByClass.get(cl.id) ?? 0,
+      slots: slotsFor(cl.id),
       points: new Map(
         Object.entries(suggest.points)
           .filter(([k]) => rowByKey.get(k)?.classId === cl.id)
@@ -257,7 +265,10 @@ export function Prices() {
 
   const onEnableSuggest = () => {
     // Seed each class's ranking (prev price → current price → entry order) and anchors
-    // (prev-round spread when it exists, else shaped around the budget's per-slot mean).
+    // (prev-round spread when it exists, else shaped around the budget's per-slot mean), then
+    // scale the anchors onto the budget target so suggestions START on-budget — a multi-class
+    // series splits the roster budget across classes, it never grants each class the full cap.
+    // Prev-round-based anchors keep their class-to-class ratios through the uniform fit.
     const ranks: Record<number, string[]> = {}
     const anchors: Record<number, ClassAnchors> = {}
     const step = defaultStep(cap)
@@ -274,6 +285,19 @@ export function Prices() {
         prev.length >= 2
           ? { top: Math.max(...prev), floor: Math.min(...prev) }
           : defaultAnchors(target, Math.max(totalSlots, 1))
+    }
+    if (target > 0 && totalSlots > 0) {
+      const inputs: ClassBudgetInput[] = byClass.map((cl) => ({
+        orderedKeys: ranks[cl.id],
+        anchors: anchors[cl.id],
+        pins: new Map(),
+        slots: slotsFor(cl.id),
+      }))
+      const fitted = fitAnchorsToBudget(inputs, SUGGEST_OFF.gamma, target, SUGGEST_OFF.star * cap)
+      byClass.forEach((cl, i) => {
+        const a = fitted.get(inputs[i])
+        if (a) anchors[cl.id] = { top: roundToStep(a.top, step), floor: roundToStep(a.floor, step) }
+      })
     }
     setSuggest({ ...SUGGEST_OFF, on: true, step, ranks, anchors })
   }
@@ -356,7 +380,7 @@ export function Prices() {
 
   const onFitBudget = () => {
     const inputs = curveInputs()
-    const fitted = fitAnchorsToBudget(inputs, suggest.gamma, budgetTarget, suggest.spacing)
+    const fitted = fitAnchorsToBudget(inputs, suggest.gamma, budgetTarget, suggest.star * cap, suggest.spacing)
     const anchors: Record<number, ClassAnchors> = {}
     byClass.forEach((cl, i) => {
       const a = fitted.get(inputs[i])
@@ -542,6 +566,22 @@ export function Prices() {
             </div>
 
             <label className="flex flex-col gap-1">
+              <span className="font-mono text-[9px] uppercase tracking-[0.12em] text-muted-2">
+                Star roster · {Math.round(suggest.star * 100)}% cap
+              </span>
+              <input
+                type="range"
+                min={1}
+                max={1.6}
+                step={0.05}
+                value={suggest.star}
+                onChange={(e) => setSuggest((s) => ({ ...s, star: Number(e.target.value) }))}
+                title="What picking every class's top entry should cost, relative to the cap — this splits the budget across classes"
+                className="w-32 accent-[var(--color-brand,#e10600)]"
+              />
+            </label>
+
+            <label className="flex flex-col gap-1">
               <span className="font-mono text-[9px] uppercase tracking-[0.12em] text-muted-2">Rounding</span>
               <select
                 value={suggest.step}
@@ -575,11 +615,22 @@ export function Prices() {
             <div className="ml-auto flex flex-col items-end gap-1">
               <span className="font-mono text-[9px] uppercase tracking-[0.12em] text-muted-2">Avg roster</span>
               {totalSlots === 0 ? (
-                <span className="font-mono text-[11px] text-warn">no roster rules — set composition first</span>
+                <span className="font-mono text-[11px] text-warn">no pickable classes this round</span>
               ) : (
-                <span className={`font-mono text-[13px] ${driftOk ? 'text-success' : 'text-warn'}`}>
-                  ${expectedCost.toFixed(1)}M
-                  <span className="text-muted-2"> / target ${budgetTarget.toFixed(1)}M</span>
+                <>
+                  <span className={`font-mono text-[13px] ${driftOk ? 'text-success' : 'text-warn'}`}>
+                    ${expectedCost.toFixed(1)}M
+                    <span className="text-muted-2"> / target ${budgetTarget.toFixed(1)}M</span>
+                  </span>
+                  <span className="font-mono text-[10px] text-muted">
+                    all class tops ${starRosterCost(curveInputs()).toFixed(1)}M
+                    <span className="text-muted-2"> / ${(suggest.star * cap).toFixed(1)}M</span>
+                  </span>
+                </>
+              )}
+              {!rulesKnown && totalSlots > 0 && (
+                <span className="font-mono text-[9px] uppercase tracking-[0.06em] text-warn">
+                  assuming 1 pick per class — set roster rules for exact budget
                 </span>
               )}
             </div>

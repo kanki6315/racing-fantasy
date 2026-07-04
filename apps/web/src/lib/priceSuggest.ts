@@ -136,29 +136,55 @@ export function expectedRosterCost(classes: ClassBudgetInput[], gamma: number, s
   return total
 }
 
+/** Cost of picking every class's top-priced entry — the "star roster". */
+export function starRosterCost(classes: ClassBudgetInput[]): number {
+  return classes.reduce((a, c) => (c.orderedKeys.length && c.slots ? a + c.slots * c.anchors.top : a), 0)
+}
+
 /**
- * Scale every class's (unpinned) anchors by one factor k so the expected roster cost hits the
- * target. Pins are absolute and never move — with pins present the relationship isn't linear in
- * k, so solve by bisection. Returns the scaled anchors per class (pins untouched).
+ * Fit every class's anchors to TWO budget constraints at once (ADR-0012 amendment):
+ *   Σ slots × class mean = meanTarget   (the α knob — what an average roster costs)
+ *   Σ slots × class top  = starTarget   (the star knob — what picking every class's best costs)
+ * The second is what actually splits the budget across classes: without it the tops scale to
+ * ~2× their per-slot share regardless of class count, which prices a 2-class series' leaders
+ * near the full cap. Both are linear in the top/floor scale factors (class mean =
+ * floor·(1−ḡ) + top·ḡ, with ḡ the curve's mean weight), so this solves exactly:
+ * tops scale by kt = starTarget / Σ slots·top, floors by the kf that lands the mean.
+ * Pins never move; floors are clamped to [0, 0.75·top] so the ladder keeps a real spread.
  */
 export function fitAnchorsToBudget(
   classes: ClassBudgetInput[],
   gamma: number,
-  targetCost: number,
+  meanTarget: number,
+  starTarget: number,
   spacing: Spacing = 'curve',
 ): Map<ClassBudgetInput, ClassAnchors> {
-  const scaled = (k: number) =>
-    classes.map((c) => ({ ...c, anchors: { top: c.anchors.top * k, floor: c.anchors.floor * k } }))
-  let lo = 0.02
-  let hi = 50
-  for (let i = 0; i < 40; i++) {
-    const mid = (lo + hi) / 2
-    if (expectedRosterCost(scaled(mid), gamma, spacing) < targetCost) lo = mid
-    else hi = mid
-  }
-  const k = (lo + hi) / 2
+  const counted = classes.filter((c) => c.orderedKeys.length > 0 && c.slots > 0)
   const out = new Map<ClassBudgetInput, ClassAnchors>()
-  for (const c of classes) out.set(c, { top: c.anchors.top * k, floor: c.anchors.floor * k })
+  if (counted.length === 0) {
+    for (const c of classes) out.set(c, c.anchors)
+    return out
+  }
+
+  // ḡ per class: mean of the unit ladder (top=1, floor=0) under the active spacing/γ.
+  const gBar = new Map<ClassBudgetInput, number>()
+  for (const c of counted) {
+    const unit = ladderPrices({ ...c, anchors: { top: 1, floor: 0 }, pins: new Map() }, gamma, spacing)
+    const vals = [...unit.values()]
+    gBar.set(c, vals.reduce((a, b) => a + b, 0) / vals.length)
+  }
+
+  const sumTop = counted.reduce((a, c) => a + c.slots * c.anchors.top, 0)
+  const kt = sumTop > 0 ? starTarget / sumTop : 1
+  const sumTopMean = counted.reduce((a, c) => a + c.slots * kt * c.anchors.top * gBar.get(c)!, 0)
+  const sumFloorWeight = counted.reduce((a, c) => a + c.slots * c.anchors.floor * (1 - gBar.get(c)!), 0)
+  const kf = sumFloorWeight > 0 ? Math.max((meanTarget - sumTopMean) / sumFloorWeight, 0) : 0
+
+  for (const c of classes) {
+    const top = kt * c.anchors.top
+    const floor = Math.min(kf * c.anchors.floor, 0.75 * top)
+    out.set(c, { top, floor: Math.max(floor, 0) })
+  }
   return out
 }
 

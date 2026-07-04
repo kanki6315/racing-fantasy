@@ -42,12 +42,20 @@ Three constraints shape a suggestion engine:
      value at the top). The admin can pin any entry to an exact price; the curve re-interpolates
      between pins, giving local gap control without more global knobs. Pins survive regeneration;
      free-hand edits to inputs do not.
-   - **Budget as target + live drift indicator, not forced renormalization.** The admin sets an
-     affordability target α ("average legal roster ≈ α × salary cap", default 0.92), or an
-     absolute total. Using the round's resolved composition (RosterRulesResolver), the panel shows
-     live: `expected roster cost = Σ slots × class mean price` vs target. "Fit budget" scales the
-     default (unpinned) anchors to hit the target; pins are absolute and never moved by fitting —
-     drift from pinning is surfaced, not silently corrected.
+   - **Budget as two targets + live drift indicator, not forced renormalization.** The admin sets
+     an affordability target α ("average legal roster ≈ α × salary cap", default 0.92, or an
+     absolute total) **and a star-roster target** ("picking every class's top ≈ star × cap",
+     default 1.2). The second constraint is what splits the budget across classes — with only the
+     mean constraint, class tops scale to ~2× their per-slot share regardless of class count,
+     pricing a 2-class series' leaders near the full cap (found in production, fixed 2026-07-03).
+     Both are linear in the top/floor anchor scale factors (class mean = floor·(1−ḡ) + top·ḡ), so
+     "Fit budget" solves them exactly: tops scale to hit the star target, floors to land the mean
+     (clamped to ≤ 0.75 × top). The fit also runs automatically when suggestions are enabled, so
+     they start on-budget. Using the round's resolved composition (RosterRulesResolver; unknown
+     composition assumes ONE pick per class, flagged in the panel — never the full cap per class),
+     the panel shows both live: `Σ slots × class mean` vs target and `Σ slots × class top` vs the
+     star budget. Pins are absolute and never moved by fitting — drift from pinning is surfaced,
+     not silently corrected.
    - **Rounding step knob** — 0.5 / 0.25 / 0.1 / 0.05, defaulting from cap magnitude
      (≈ cap/200 snapped): $120M → 0.5, $1.0M → 0.05. Floor pin clamps the bottom. Ties are legal.
 3. **Points JSON import (the "championship situation" input).** A drop zone accepts one or more
