@@ -54,12 +54,12 @@ public static class EntryListImportEndpoints
             // ---- Lookups: classes / cars keyed by class NAME so not-yet-saved classes (id 0) work ----
             var classes = await db.Classes.Where(c => c.ChampionshipId == season.ChampionshipId).ToListAsync();
             var classByName = classes
-                .GroupBy(c => c.Name, StringComparer.OrdinalIgnoreCase)
-                .ToDictionary(g => g.Key, g => g.First(), StringComparer.OrdinalIgnoreCase);
+                .GroupBy(c => c.Name, ClassNameComparer.Instance)
+                .ToDictionary(g => g.Key, g => g.First(), ClassNameComparer.Instance);
             var classNameById = classes.ToDictionary(c => c.Id, c => c.Name);
 
             var carsByKey = (await db.CarEntries.Where(c => c.SeasonId == season.Id).ToListAsync())
-                .ToDictionary(c => (classNameById[c.ClassId].ToUpperInvariant(), c.Number));
+                .ToDictionary(c => (ClassNameComparer.Key(classNameById[c.ClassId]), c.Number));
             var roundLinks = (await db.EntryDrivers.Where(x => x.RoundId == roundId).ToListAsync())
                 .ToDictionary(x => (x.CarEntryId, x.DriverId));
             var driverByName = (await db.Drivers.ToListAsync())
@@ -68,7 +68,7 @@ public static class EntryListImportEndpoints
 
             // ---- Pass 1: structural validation (row-indexed, all-or-nothing like the manual import) ----
             var errors = new List<EntryListError>();
-            var classesToCreate = new Dictionary<string, Class>(StringComparer.OrdinalIgnoreCase);
+            var classesToCreate = new Dictionary<string, Class>(ClassNameComparer.Instance);
             for (var i = 0; i < file.Entries.Count; i++)
             {
                 var e = file.Entries[i];
@@ -121,7 +121,7 @@ public static class EntryListImportEndpoints
                 var e = file.Entries[i];
                 var code = e.ClassCode!.Trim();
                 var cls = classByName.TryGetValue(code, out var existing) ? existing : classesToCreate[code];
-                var carKey = (code.ToUpperInvariant(), e.CarNumber!);
+                var carKey = (ClassNameComparer.Key(code), e.CarNumber!);
 
                 string carStatus;
                 if (!carsByKey.TryGetValue(carKey, out var car))

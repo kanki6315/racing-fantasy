@@ -32,7 +32,7 @@ public static class IngestionEndpoints
                 return Results.ValidationProblem(new Dictionary<string, string[]> { ["csv"] = ["No rows parsed."] });
 
             var classesByName = await db.Classes.Where(c => c.ChampionshipId == season.ChampionshipId)
-                .ToDictionaryAsync(c => c.Name, c => c, StringComparer.OrdinalIgnoreCase);
+                .ToDictionaryAsync(c => c.Name, c => c, ClassNameComparer.Instance);
             var carsByKey = (await db.CarEntries.Where(c => c.SeasonId == round.SeasonId).ToListAsync())
                 .ToDictionary(c => (c.ClassId, c.Number));
             var qualiSessionByClass = await db.Sessions
@@ -123,7 +123,7 @@ public static class IngestionEndpoints
                 return Results.ValidationProblem(new Dictionary<string, string[]> { ["csv"] = ["No rows parsed."] });
 
             var classesByName = await db.Classes.Where(c => c.ChampionshipId == season.ChampionshipId)
-                .ToDictionaryAsync(c => c.Name, c => c, StringComparer.OrdinalIgnoreCase);
+                .ToDictionaryAsync(c => c.Name, c => c, ClassNameComparer.Instance);
             var carsByKey = (await db.CarEntries.Where(c => c.SeasonId == round.SeasonId).ToListAsync())
                 .ToDictionary(c => (c.ClassId, c.Number));
             var raceSessionByClass = await db.Sessions
@@ -211,7 +211,7 @@ public static class IngestionEndpoints
                 return Results.ValidationProblem(new Dictionary<string, string[]> { ["json"] = ["No laps parsed."] });
 
             var classesByName = await db.Classes.Where(c => c.ChampionshipId == season.ChampionshipId)
-                .ToDictionaryAsync(c => c.Name, c => c, StringComparer.OrdinalIgnoreCase);
+                .ToDictionaryAsync(c => c.Name, c => c, ClassNameComparer.Instance);
             var raceSessionByClass = await db.Sessions
                 .Where(s => s.RoundId == roundId && s.Type == SessionType.Race)
                 .ToDictionaryAsync(s => s.ClassId, s => s.Id);
