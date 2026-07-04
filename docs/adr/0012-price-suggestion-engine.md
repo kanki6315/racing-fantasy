@@ -1,6 +1,6 @@
 # ADR-0012: Admin price suggestion engine
 
-**Status:** Proposed (2026-07-03)
+**Status:** Accepted (2026-07-03)
 
 ## Context
 
