@@ -294,21 +294,31 @@ export function Prices() {
           continue
         }
         // Teams standings come one file per class; route by class name in the file's title
-        // ("IWSC GTP TEAMS" → GTP). Driver standings span the field.
+        // ("IWSC GTP TEAMS" → GTP). Longest class name wins — "GTD" is a substring of "GTD PRO",
+        // so a GTD PRO file must not route to GTD. Driver standings span the field.
         let candidates = rows
         if (parsed.kind === 'Teams') {
-          const cl = byClass.find(
-            (c) => c.name && parsed.championshipName.toUpperCase().includes(c.name.toUpperCase()),
-          )
+          const cl = byClass
+            .filter((c) => c.name && parsed.championshipName.toUpperCase().includes(c.name.toUpperCase()))
+            .sort((a, b) => (b.name?.length ?? 0) - (a.name?.length ?? 0))[0]
           if (cl) candidates = rows.filter((r) => r.classId === cl.id)
           else if (byClass.length > 1)
             notes.push(`${f.name}: no class name found in "${parsed.championshipName}" — matching all classes`)
         }
         const index = new Map<string, Row>()
+        const dupes = new Set<string>()
         for (const r of candidates) {
           const key = parsed.kind === 'Teams' ? (r.number != null ? normNumber(r.number) : null) : normName(r.label)
-          if (key) index.set(key, r)
+          if (!key) continue
+          if (index.has(key)) dupes.add(key)
+          else index.set(key, r)
         }
+        // An ambiguous key can't be matched safely — treat those rows as unmatched, loudly.
+        for (const key of dupes) index.delete(key)
+        if (dupes.size)
+          notes.push(
+            `${f.name}: ambiguous on the board, skipped: ${[...dupes].slice(0, 4).join(', ')}${dupes.size > 4 ? ` +${dupes.size - 4} more` : ''}`,
+          )
         let matched = 0
         const unmatched: string[] = []
         for (const pr of parsed.rows) {
