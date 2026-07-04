@@ -6,16 +6,18 @@ import { useCarEntries, useAdminClasses, useSavePrices, useEntryDrivers, useDriv
 import { usePrices, useRosterRules } from '../../api/queries'
 import { classMeta } from '../../lib/classMeta'
 import {
-  curvePrices,
   defaultAnchors,
   defaultStep,
   expectedRosterCost,
   fitAnchorsToBudget,
+  ladderPrices,
   roundToStep,
   seedRanking,
   type ClassAnchors,
   type ClassBudgetInput,
+  type Spacing,
 } from '../../lib/priceSuggest'
+import { parsePointsFile, normName, normNumber } from '../../lib/pointsImport'
 
 /** Which entity type this series prices (ADR-0012): teams price cars, driver series (MX-5) price drivers. */
 type Mode = 'Car' | 'Driver'
@@ -33,6 +35,9 @@ type Row = {
 
 const rowKey = (r: { entityType: Mode; entityId: number }) => `${r.entityType}:${r.entityId}`
 
+/** Imported standings info for one board row (from an Al Kamel points file). */
+type RowPoints = { position: number; netPoints: number; form: 'hot' | 'cold' | null }
+
 /** Suggestion engine state (ADR-0012) — all client-side, reset on round/mode change. */
 type SuggestState = {
   on: boolean
@@ -41,9 +46,12 @@ type SuggestState = {
   budgetMode: 'alpha' | 'total'
   totalInput: string // absolute target when budgetMode = 'total'
   step: number
+  spacing: Spacing // 'points' spreads prices by points gaps (needs an import)
   anchors: Record<number, ClassAnchors> // classId -> top/floor
   ranks: Record<number, string[]> // classId -> rowKeys, best → worst
   pins: Record<string, number> // rowKey -> exact price
+  points: Record<string, RowPoints> // rowKey -> imported standings
+  importNotes: string[]
 }
 
 const SUGGEST_OFF: SuggestState = {
@@ -53,9 +61,12 @@ const SUGGEST_OFF: SuggestState = {
   budgetMode: 'alpha',
   totalInput: '',
   step: 0.5,
+  spacing: 'curve',
   anchors: {},
   ranks: {},
   pins: {},
+  points: {},
+  importNotes: [],
 }
 
 export function Prices() {
@@ -220,21 +231,26 @@ export function Prices() {
       anchors: suggest.anchors[cl.id] ?? defaultAnchors(budgetTarget, Math.max(totalSlots, 1)),
       pins: new Map(Object.entries(suggest.pins).filter(([k]) => rowByKey.get(k)?.classId === cl.id)),
       slots: slotsByClass.get(cl.id) ?? 0,
+      points: new Map(
+        Object.entries(suggest.points)
+          .filter(([k]) => rowByKey.get(k)?.classId === cl.id)
+          .map(([k, p]) => [k, p.netPoints]),
+      ),
     }))
 
-  // rowKey -> suggested price (pins pass through exactly; curve values snap to the step).
+  // rowKey -> suggested price (pins pass through exactly; ladder values snap to the step).
   const suggestions = useMemo(() => {
     if (!suggest.on) return null
     const m = new Map<string, number>()
     for (const input of curveInputs())
-      for (const [k, v] of curvePrices(input, suggest.gamma))
+      for (const [k, v] of ladderPrices(input, suggest.gamma, suggest.spacing))
         m.set(k, suggest.pins[k] != null ? v : Math.max(roundToStep(v, suggest.step), 0))
     return m
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [suggest, rows, slotsByClass, budgetTarget])
 
   const expectedCost = useMemo(
-    () => (suggest.on ? expectedRosterCost(curveInputs(), suggest.gamma) : 0),
+    () => (suggest.on ? expectedRosterCost(curveInputs(), suggest.gamma, suggest.spacing) : 0),
     // eslint-disable-next-line react-hooks/exhaustive-deps
     [suggestions],
   )
@@ -262,9 +278,75 @@ export function Prices() {
     setSuggest({ ...SUGGEST_OFF, on: true, step, ranks, anchors })
   }
 
+  // Al Kamel points JSON import (ADR-0012): parse client-side, match teams by car number /
+  // drivers by normalized name, seed the ranking from official positions. Unmatched rows warn
+  // and stay put (bottom of the ranking) — never guessed.
+  const onImportFiles = async (files: File[]) => {
+    const notes: string[] = []
+    const newPoints: Record<string, RowPoints> = {}
+    const rankUpdates: Record<number, string[]> = {}
+    for (const f of files) {
+      try {
+        const parsed = parsePointsFile(await f.text())
+        const fileMode: Mode = parsed.kind === 'Teams' ? 'Car' : 'Driver'
+        if (fileMode !== mode) {
+          notes.push(`${f.name}: ${parsed.kind} standings — switch the board to ${parsed.kind} first`)
+          continue
+        }
+        // Teams standings come one file per class; route by class name in the file's title
+        // ("IWSC GTP TEAMS" → GTP). Driver standings span the field.
+        let candidates = rows
+        if (parsed.kind === 'Teams') {
+          const cl = byClass.find(
+            (c) => c.name && parsed.championshipName.toUpperCase().includes(c.name.toUpperCase()),
+          )
+          if (cl) candidates = rows.filter((r) => r.classId === cl.id)
+          else if (byClass.length > 1)
+            notes.push(`${f.name}: no class name found in "${parsed.championshipName}" — matching all classes`)
+        }
+        const index = new Map<string, Row>()
+        for (const r of candidates) {
+          const key = parsed.kind === 'Teams' ? (r.number != null ? normNumber(r.number) : null) : normName(r.label)
+          if (key) index.set(key, r)
+        }
+        let matched = 0
+        const unmatched: string[] = []
+        for (const pr of parsed.rows) {
+          const row = index.get(parsed.kind === 'Teams' ? normNumber(pr.key) : normName(pr.key))
+          if (!row) {
+            unmatched.push(pr.key)
+            continue
+          }
+          matched++
+          newPoints[rowKey(row)] = { position: pr.position, netPoints: pr.totalNetPoints, form: pr.form }
+        }
+        // Re-rank affected classes by official position; rows without points keep their
+        // relative order below (sort is stable).
+        for (const cid of new Set(candidates.map((r) => r.classId))) {
+          const posOf = (k: string) => newPoints[k]?.position ?? suggest.points[k]?.position ?? Infinity
+          rankUpdates[cid] = [...ranksFor(cid)].sort((a, b) => posOf(a) - posOf(b))
+        }
+        notes.push(
+          `${f.name}: matched ${matched}/${parsed.rows.length}` +
+            (unmatched.length
+              ? ` — no board entry for: ${unmatched.slice(0, 4).join(', ')}${unmatched.length > 4 ? ` +${unmatched.length - 4} more` : ''}`
+              : ''),
+        )
+      } catch (e) {
+        notes.push(`${f.name}: ${(e as Error).message}`)
+      }
+    }
+    setSuggest((s) => ({
+      ...s,
+      points: { ...s.points, ...newPoints },
+      ranks: { ...s.ranks, ...rankUpdates },
+      importNotes: notes,
+    }))
+  }
+
   const onFitBudget = () => {
     const inputs = curveInputs()
-    const fitted = fitAnchorsToBudget(inputs, suggest.gamma, budgetTarget)
+    const fitted = fitAnchorsToBudget(inputs, suggest.gamma, budgetTarget, suggest.spacing)
     const anchors: Record<number, ClassAnchors> = {}
     byClass.forEach((cl, i) => {
       const a = fitted.get(inputs[i])
@@ -492,9 +574,60 @@ export function Prices() {
               )}
             </div>
           </div>
+          {/* Championship points import: seeds the ranking + enables points-proportional spacing. */}
+          <div
+            onDragOver={(e) => e.preventDefault()}
+            onDrop={(e) => {
+              e.preventDefault()
+              onImportFiles([...e.dataTransfer.files])
+            }}
+            className="mt-4 flex flex-wrap items-center gap-x-4 gap-y-2 rounded-[4px] border border-dashed border-line-2 px-3 py-2"
+          >
+            <span className="font-mono text-[9px] uppercase tracking-[0.12em] text-muted-2">Championship points</span>
+            <label className="cursor-pointer font-mono text-[10px] uppercase tracking-[0.06em] text-ink-2 hover:text-brand">
+              Drop Al Kamel points JSON — or browse
+              <input
+                type="file"
+                accept=".json,application/json"
+                multiple
+                className="hidden"
+                onChange={(e) => {
+                  if (e.target.files?.length) onImportFiles([...e.target.files])
+                  e.target.value = ''
+                }}
+              />
+            </label>
+            {Object.keys(suggest.points).length > 0 && (
+              <div className="flex items-center gap-2">
+                <span className="font-mono text-[9px] uppercase tracking-[0.12em] text-muted-2">Spacing</span>
+                <div className="flex overflow-hidden rounded-[4px] border border-line-2">
+                  {(['curve', 'points'] as const).map((sp) => (
+                    <button
+                      key={sp}
+                      onClick={() => setSuggest((s) => ({ ...s, spacing: sp }))}
+                      className={`px-2 py-1 font-mono text-[9px] uppercase ${
+                        suggest.spacing === sp ? 'bg-brand/15 text-brand' : 'text-muted hover:text-ink-2'
+                      }`}
+                    >
+                      {sp === 'curve' ? 'rank curve' : 'points gaps'}
+                    </button>
+                  ))}
+                </div>
+              </div>
+            )}
+          </div>
+          {suggest.importNotes.length > 0 && (
+            <ul className="mt-2 grid gap-[2px]">
+              {suggest.importNotes.map((n, i) => (
+                <li key={i} className="font-mono text-[10px] text-muted">
+                  {n}
+                </li>
+              ))}
+            </ul>
+          )}
           <p className="mt-3 font-mono text-[9px] uppercase tracking-[0.06em] text-muted-2">
-            Rank with ▲▼ · click ◇ to pin an exact price (curve bends through pins) · suggestions fill the
-            inputs, Save All persists
+            Rank with ▲▼ · click ◇ to pin an exact price (the ladder bends through pins) · suggestions fill
+            the inputs, Save All persists
           </p>
         </div>
       )}
@@ -604,7 +737,27 @@ export function Prices() {
                       >
                         {r.number ?? '—'}
                       </div>
-                      <div className="truncate font-sans text-[13px] text-ink-2">{r.label}</div>
+                      <div className="truncate font-sans text-[13px] text-ink-2">
+                        {r.label}
+                        {suggest.on && suggest.points[k] && (
+                          <span className="ml-2 font-mono text-[10px] text-muted-2">
+                            P{suggest.points[k].position} · {suggest.points[k].netPoints}
+                            {suggest.points[k].form === 'hot' && (
+                              <span title="On form — recent rounds beat season average" className="ml-1 text-success">
+                                ▲
+                              </span>
+                            )}
+                            {suggest.points[k].form === 'cold' && (
+                              <span
+                                title="Off form — recent rounds trail season average"
+                                className="ml-1 text-danger"
+                              >
+                                ▼
+                              </span>
+                            )}
+                          </span>
+                        )}
+                      </div>
                       <div className="text-right font-mono text-[12px] text-muted-2">
                         {r.lastRound != null ? `$${r.lastRound.toFixed(1)}` : '—'}
                       </div>

@@ -76,17 +76,61 @@ export function defaultStep(salaryCap: number): number {
   return 1
 }
 
-export type ClassBudgetInput = ClassCurveInput & { slots: number }
+export type ClassBudgetInput = ClassCurveInput & {
+  slots: number
+  /** Imported standings points by row key — enables points-proportional spacing. */
+  points?: ReadonlyMap<string, number>
+}
+
+/**
+ * Points-proportional spacing (ADR-0012, needs imported standings): price gaps follow points
+ * gaps — a team 200 points clear gets a visibly bigger gap. share^γ keeps the same "γ separates
+ * the top" behavior as curve mode. Pins still win for their own row; rows without points sit at
+ * the floor (they're already ranked to the bottom for manual placement).
+ */
+export function pointsPrices(
+  input: ClassCurveInput,
+  pointsByKey: ReadonlyMap<string, number>,
+  gamma: number,
+): Map<string, number> {
+  const { orderedKeys: keys, anchors, pins } = input
+  const out = new Map<string, number>()
+  const pts = keys.map((k) => pointsByKey.get(k)).filter((n): n is number => n != null)
+  if (pts.length < 2) return curvePrices(input, gamma)
+  const max = Math.max(...pts)
+  const min = Math.min(...pts)
+  const span = max - min || 1
+  for (const k of keys) {
+    const pin = pins.get(k)
+    if (pin != null) {
+      out.set(k, pin)
+      continue
+    }
+    const p = pointsByKey.get(k)
+    out.set(
+      k,
+      p == null ? anchors.floor : anchors.floor + (anchors.top - anchors.floor) * Math.pow((p - min) / span, gamma),
+    )
+  }
+  return out
+}
+
+export type Spacing = 'curve' | 'points'
+
+/** The active spacing mode's ladder for one class. */
+export function ladderPrices(c: ClassBudgetInput, gamma: number, spacing: Spacing): Map<string, number> {
+  return spacing === 'points' && c.points ? pointsPrices(c, c.points, gamma) : curvePrices(c, gamma)
+}
 
 /**
  * Expected cost of an "average roster" — per class, slots × mean suggested price — for the
  * drift indicator and budget fitting.
  */
-export function expectedRosterCost(classes: ClassBudgetInput[], gamma: number): number {
+export function expectedRosterCost(classes: ClassBudgetInput[], gamma: number, spacing: Spacing = 'curve'): number {
   let total = 0
   for (const c of classes) {
     if (c.orderedKeys.length === 0 || c.slots === 0) continue
-    const prices = [...curvePrices(c, gamma).values()]
+    const prices = [...ladderPrices(c, gamma, spacing).values()]
     total += (c.slots * prices.reduce((a, b) => a + b, 0)) / prices.length
   }
   return total
@@ -101,6 +145,7 @@ export function fitAnchorsToBudget(
   classes: ClassBudgetInput[],
   gamma: number,
   targetCost: number,
+  spacing: Spacing = 'curve',
 ): Map<ClassBudgetInput, ClassAnchors> {
   const scaled = (k: number) =>
     classes.map((c) => ({ ...c, anchors: { top: c.anchors.top * k, floor: c.anchors.floor * k } }))
@@ -108,7 +153,7 @@ export function fitAnchorsToBudget(
   let hi = 50
   for (let i = 0; i < 40; i++) {
     const mid = (lo + hi) / 2
-    if (expectedRosterCost(scaled(mid), gamma) < targetCost) lo = mid
+    if (expectedRosterCost(scaled(mid), gamma, spacing) < targetCost) lo = mid
     else hi = mid
   }
   const k = (lo + hi) / 2

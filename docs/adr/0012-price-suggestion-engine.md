@@ -59,12 +59,13 @@ Three constraints shape a suggestion engine:
      normalized full-name match against `driver.fullName` (the field ADR-0011's import populates).
      Unmatched rows and unmatched priced entities are listed as warnings; unmatched entities drop
      to the bottom of the ranking for manual placement (mirrors ADR-0011's warn-don't-guess rule).
-   - Import seeds the **ranking** (classification order; knob to use net or gross points) and
-     enables **points-proportional spacing** as an alternative to the rank curve: price gaps
-     follow points gaps (interpolated between pins). Pins override both modes.
+   - Import seeds the **ranking** (official classification order) and enables
+     **points-proportional spacing** as an alternative to the rank curve: price gaps follow
+     **net**-points gaps (drops applied — the basis of the official positions; a gross-points
+     knob is deferred). Pins override both modes (in points mode a pin fixes its own row).
    - `points_by_session[]` yields a **form signal** (recent-sessions average vs season average),
-     shown as per-row ▲▼ chips with one-tap "apply suggested move"; form never moves a price
-     without the admin acting.
+     shown as per-row ▲▼ chips; form never moves a price — the admin reorders with the rank
+     arrows (a one-tap "apply suggested move" is deferred).
 4. **Entity-type mode per series: Teams | Drivers.** Roster rules don't encode entity type
    (`SlotType` is class-scoped Main only), so the Prices screen gets an explicit mode toggle,
    defaulting to whichever entity type already has prices for the round. In Drivers mode the
