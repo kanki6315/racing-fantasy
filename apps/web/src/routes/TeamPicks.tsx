@@ -8,12 +8,21 @@ import { DriverLineup } from '../components/DriverLineup'
 
 const key = (p: { entityType: string; entityId: number }) => `${p.entityType}:${p.entityId}`
 
-// Per-source short labels for the points breakdown on each pick (MAIN = Quali + Race).
-const SRC_LABEL: Record<string, string> = {
-  QualifyingPosition: 'Q',
-  RacePosition: 'R',
-  RaceFastestLap: 'FL',
-  Bonus: 'B',
+// Per-source short labels for the points breakdown on each pick (MAIN = Quali + Race(s)).
+// On a multi-race weekend (raceCount > 1) race scores are numbered R1/R2 by the score's raceNumber.
+const srcLabel = (s: { source: string; raceNumber?: number | null }, raceCount: number) => {
+  switch (s.source) {
+    case 'QualifyingPosition':
+      return 'Q'
+    case 'RacePosition':
+      return raceCount > 1 ? `R${s.raceNumber ?? 1}` : 'R'
+    case 'RaceFastestLap':
+      return 'FL'
+    case 'Bonus':
+      return 'B'
+    default:
+      return s.source
+  }
 }
 
 const fmtPts = (n: number) => (n > 0 ? `+${n.toFixed(1)}` : n.toFixed(1))
@@ -147,12 +156,12 @@ export function TeamPicks() {
                             {info?.displayName ?? `#${pick.entityId}`}
                           </div>
                           <DriverLineup drivers={info?.drivers ?? []} className="mt-[7px]" />
-                          {/* per-source breakdown — Q / R contributions */}
+                          {/* per-source breakdown — Q / R1 / R2 contributions (API pre-orders them) */}
                           {pick.scores.length > 0 && (
                             <div className="mt-[7px] flex flex-wrap gap-x-3 gap-y-1 font-mono text-[11px] text-muted-2">
                               {pick.scores.map((s) => (
-                                <span key={s.source}>
-                                  {SRC_LABEL[s.source] ?? s.source} {fmtPts(s.points)}
+                                <span key={`${s.source}:${s.raceNumber ?? 0}`}>
+                                  {srcLabel(s, data.raceCount)} {fmtPts(s.points)}
                                 </span>
                               ))}
                             </div>

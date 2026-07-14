@@ -109,8 +109,9 @@ public static class IngestionEndpoints
                 Skipped: issues.Count, Issues: issues));
         }).Produces<IngestResponse>();
 
-        // POST raw IMSA race CSV. ?commit=false stages a preview; ?commit=true publishes finishing positions.
-        group.MapPost("/race-results/import", async (long roundId, bool? commit, Stream body, FantasyDbContext db) =>
+        // POST raw IMSA race CSV. ?commit=false stages a preview; ?commit=true publishes finishing
+        // positions. ?raceNumber targets a specific race of a multi-race weekend (default 1).
+        group.MapPost("/race-results/import", async (long roundId, bool? commit, int? raceNumber, Stream body, FantasyDbContext db) =>
         {
             var round = await db.Rounds.FindAsync(roundId);
             if (round is null) return Results.NotFound();
@@ -122,12 +123,13 @@ public static class IngestionEndpoints
             if (rows.Count == 0)
                 return Results.ValidationProblem(new Dictionary<string, string[]> { ["csv"] = ["No rows parsed."] });
 
+            var targetRace = raceNumber ?? 1;
             var classesByName = await db.Classes.Where(c => c.ChampionshipId == season.ChampionshipId)
                 .ToDictionaryAsync(c => c.Name, c => c, ClassNameComparer.Instance);
             var carsByKey = (await db.CarEntries.Where(c => c.SeasonId == round.SeasonId).ToListAsync())
                 .ToDictionary(c => (c.ClassId, c.Number));
             var raceSessionByClass = await db.Sessions
-                .Where(s => s.RoundId == roundId && s.Type == SessionType.Race)
+                .Where(s => s.RoundId == roundId && s.Type == SessionType.Race && s.RaceNumber == targetRace)
                 .ToDictionaryAsync(s => s.ClassId, s => s.Id);
 
             var resolved = new List<ResolvedRace>();
@@ -138,7 +140,7 @@ public static class IngestionEndpoints
                 if (!classesByName.TryGetValue(row.ClassName, out var cls))
                 { issues.Add(new(row.Number, row.ClassName, $"class '{row.ClassName}' not found")); continue; }
                 if (!raceSessionByClass.TryGetValue(cls.Id, out var sessionId))
-                { issues.Add(new(row.Number, row.ClassName, "no race session for this class in the round")); continue; }
+                { issues.Add(new(row.Number, row.ClassName, $"no race #{targetRace} session for this class in the round")); continue; }
                 if (!carsByKey.TryGetValue((cls.Id, row.Number), out var car))
                 { issues.Add(new(row.Number, row.ClassName, "car not in the season entry list")); continue; }
 
@@ -160,7 +162,7 @@ public static class IngestionEndpoints
                     .Select(g => new IngestClassCount(g.Key, g.Count())).OrderBy(x => x.Class).ToList(),
                 Results: resolved.OrderBy(r => r.ClassName).ThenBy(r => r.Position)
                     .Select(r => new IngestResultRow(r.ClassName, r.Number, r.Position, null, r.Status, r.Laps)).ToList(),
-                Inserted: null, Updated: null, Skipped: null, Issues: issues);
+                Inserted: null, Updated: null, Skipped: null, Issues: issues, RaceNumber: targetRace);
 
             if (commit != true)
                 return Results.Ok(Preview());
@@ -193,12 +195,13 @@ public static class IngestionEndpoints
             await db.SaveChangesAsync();
             return Results.Ok(new IngestResponse(roundId, Committed: true, Parsed: rows.Count, Matched: resolved.Count,
                 Unmatched: issues.Count, ByClass: [], Results: [], Inserted: inserted, Updated: updated,
-                Skipped: issues.Count, Issues: issues));
+                Skipped: issues.Count, Issues: issues, RaceNumber: targetRace));
         }).Produces<IngestResponse>();
 
         // POST Al Kamel Time Cards race JSON. Computes each driver's fastest valid lap and
         // persists race_fastest_lap (the IMPACT source). ?commit=false stages a preview.
-        group.MapPost("/race-fastest-laps/import", async (long roundId, bool? commit, Stream body, FantasyDbContext db) =>
+        // ?raceNumber targets a specific race of a multi-race weekend (default 1).
+        group.MapPost("/race-fastest-laps/import", async (long roundId, bool? commit, int? raceNumber, Stream body, FantasyDbContext db) =>
         {
             var round = await db.Rounds.FindAsync(roundId);
             if (round is null) return Results.NotFound();
@@ -210,10 +213,11 @@ public static class IngestionEndpoints
             if (fastest.Count == 0)
                 return Results.ValidationProblem(new Dictionary<string, string[]> { ["json"] = ["No laps parsed."] });
 
+            var targetRace = raceNumber ?? 1;
             var classesByName = await db.Classes.Where(c => c.ChampionshipId == season.ChampionshipId)
                 .ToDictionaryAsync(c => c.Name, c => c, ClassNameComparer.Instance);
             var raceSessionByClass = await db.Sessions
-                .Where(s => s.RoundId == roundId && s.Type == SessionType.Race)
+                .Where(s => s.RoundId == roundId && s.Type == SessionType.Race && s.RaceNumber == targetRace)
                 .ToDictionaryAsync(s => s.ClassId, s => s.Id);
             var driversByName = (await db.Drivers.ToListAsync())
                 .GroupBy(d => d.FullName, StringComparer.OrdinalIgnoreCase)
@@ -227,7 +231,7 @@ public static class IngestionEndpoints
                 if (!classesByName.TryGetValue(f.ClassName, out var cls))
                 { issues.Add(new(f.CarNumber, f.ClassName, $"class '{f.ClassName}' not found")); continue; }
                 if (!raceSessionByClass.TryGetValue(cls.Id, out var sessionId))
-                { issues.Add(new(f.CarNumber, f.ClassName, "no race session for this class in the round")); continue; }
+                { issues.Add(new(f.CarNumber, f.ClassName, $"no race #{targetRace} session for this class in the round")); continue; }
                 if (!driversByName.TryGetValue(f.DriverName, out var driverId))
                 { issues.Add(new(f.CarNumber, f.ClassName, $"driver '{f.DriverName}' not found")); continue; }
 
@@ -305,8 +309,9 @@ public record IngestResultRow(string ClassName, string Number, int Position, lon
 /// <summary>
 /// Unified ingest response. On a staged preview (commit=false) <see cref="Results"/> is populated and the
 /// commit counters are null; on commit they flip. <see cref="Issues"/> carries unmatched rows in both cases.
+/// <see cref="RaceNumber"/> echoes the targeted race for race imports (null for qualifying).
 /// </summary>
 public record IngestResponse(
     long RoundId, bool Committed, int Parsed, int Matched, int Unmatched,
     List<IngestClassCount> ByClass, List<IngestResultRow> Results,
-    int? Inserted, int? Updated, int? Skipped, List<IngestIssue> Issues);
+    int? Inserted, int? Updated, int? Skipped, List<IngestIssue> Issues, int? RaceNumber = null);

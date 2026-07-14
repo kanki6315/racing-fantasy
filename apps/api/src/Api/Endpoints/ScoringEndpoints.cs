@@ -25,6 +25,11 @@ public static class ScoringEndpoints
         {
             if (!await db.Rounds.AnyAsync(r => r.Id == roundId)) return Results.NotFound();
 
+            var raceNumberBySession = await db.Sessions
+                .Where(s => s.RoundId == roundId && s.Type == SessionType.Race)
+                .ToDictionaryAsync(s => s.Id, s => s.RaceNumber);
+            var raceCount = raceNumberBySession.Count == 0 ? 1 : raceNumberBySession.Values.Max();
+
             var rosters = await db.Rosters.Where(r => r.RoundId == roundId)
                 .Include(r => r.Picks)
                 .Include(r => r.Modifiers).ThenInclude(m => m.TargetPick)
@@ -42,33 +47,56 @@ public static class ScoringEndpoints
             var totals = (await db.RoundTotals.Where(rt => rt.RoundId == roundId).ToListAsync())
                 .ToDictionary(rt => rt.RegistrationId, rt => rt.Points);
 
+            List<SourceScoreDto> MapScores(List<Score>? owned) =>
+                SourceScoreDto.Order((owned ?? new List<Score>())
+                    .Select(s => SourceScoreDto.From(s, raceNumberBySession)));
+
             var registrations = rosters.Select(r => new RegistrationScoreDto(
                 r.RegistrationId,
                 totals.GetValueOrDefault(r.RegistrationId, 0m),
                 r.Picks.Select(p => new PickScoreDto(
                     p.Id, p.SlotType, p.EntityType, p.EntityId, p.ClassId,
-                    (scoresByPick.GetValueOrDefault(p.Id) ?? new List<Score>())
-                        .Select(s => new SourceScoreDto(s.Source, s.Points, s.RuleVersion)).ToList()))
+                    MapScores(scoresByPick.GetValueOrDefault(p.Id))))
                     .ToList(),
                 r.Modifiers.Select(m => new ModifierScoreDto(
                     m.Id, m.Kind,
                     m.TargetPick is { } tp ? new EntityRef(tp.EntityType.ToString(), tp.EntityId) : null,
-                    (scoresByModifier.GetValueOrDefault(m.Id) ?? new List<Score>())
-                        .Select(s => new SourceScoreDto(s.Source, s.Points, s.RuleVersion)).ToList()))
+                    MapScores(scoresByModifier.GetValueOrDefault(m.Id))))
                     .ToList()))
                 .OrderByDescending(r => r.Total)
                 .ToList();
 
-            return Results.Ok(new ScoresResponse(roundId, registrations));
+            return Results.Ok(new ScoresResponse(roundId, registrations, raceCount));
         }).WithTags("Scoring").RequireAuthorization("Admin").Produces<ScoresResponse>();
 
         return app;
     }
 }
 
-public record ScoresResponse(long RoundId, List<RegistrationScoreDto> Registrations);
+/// <summary>RaceCount = highest race number among the round's race sessions (min 1), so clients
+/// know whether to label race scores R1/R2 without inferring from sparse score data.</summary>
+public record ScoresResponse(long RoundId, List<RegistrationScoreDto> Registrations, int RaceCount = 1);
 
-public record SourceScoreDto(ScoringSource Source, decimal Points, int RuleVersion);
+/// <summary>One scored source line. <see cref="RaceNumber"/> is set for RacePosition rows on which
+/// race earned it (null for qualifying/bonus rows).</summary>
+public record SourceScoreDto(ScoringSource Source, decimal Points, int RuleVersion, int? RaceNumber = null)
+{
+    public static SourceScoreDto From(Score s, IReadOnlyDictionary<long, int> raceNumberBySession) => new(
+        s.Source, s.Points, s.RuleVersion,
+        s.SessionId is { } sid && raceNumberBySession.TryGetValue(sid, out var rn) ? rn : null);
+
+    /// <summary>Stable chip order: Q → R1 → R2 → FL → B.</summary>
+    public static List<SourceScoreDto> Order(IEnumerable<SourceScoreDto> scores) => scores
+        .OrderBy(s => s.Source switch
+        {
+            ScoringSource.QualifyingPosition => 0,
+            ScoringSource.RacePosition => 1,
+            ScoringSource.RaceFastestLap => 2,
+            _ => 3
+        })
+        .ThenBy(s => s.RaceNumber ?? 0)
+        .ToList();
+}
 public record PickScoreDto(long PickId, SlotType SlotType, EntityType EntityType, long EntityId, long ClassId, List<SourceScoreDto> Scores);
 public record ModifierScoreDto(long ModifierId, string Kind, EntityRef? Target, List<SourceScoreDto> Scores);
 public record RegistrationScoreDto(long RegistrationId, decimal Total, List<PickScoreDto> Picks, List<ModifierScoreDto> Modifiers);

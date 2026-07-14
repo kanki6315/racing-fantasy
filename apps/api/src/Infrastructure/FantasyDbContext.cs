@@ -90,7 +90,9 @@ public partial class FantasyDbContext(DbContextOptions<FantasyDbContext> options
         b.Entity<Season>().HasIndex(x => new { x.ChampionshipId, x.Year }).IsUnique();
         b.Entity<Class>().HasIndex(x => new { x.ChampionshipId, x.Name }).IsUnique();
         b.Entity<Round>().HasIndex(x => new { x.SeasonId, x.Sequence }).IsUnique();
-        b.Entity<Session>().HasIndex(x => new { x.RoundId, x.ClassId, x.Type }).IsUnique();
+        // RaceNumber distinguishes multi-race weekends (MX-5 R1/R2); always 1 for Qualifying.
+        b.Entity<Session>().HasIndex(x => new { x.RoundId, x.ClassId, x.Type, x.RaceNumber }).IsUnique();
+        b.Entity<Session>().Property(x => x.RaceNumber).HasDefaultValue(1);
         b.Entity<CarEntry>().HasIndex(x => new { x.SeasonId, x.ClassId, x.Number }).IsUnique();
         // RoundId is nullable (NULL = season-wide row, mirrors roster_rule.round_id): treat NULLs as
         // equal so a (car, driver) pair has at most one season-wide row plus one row per round.
@@ -121,9 +123,14 @@ public partial class FantasyDbContext(DbContextOptions<FantasyDbContext> options
         b.Entity<ScoringRuleset>().HasIndex(x => new { x.SeasonId, x.Source, x.Version }).IsUnique();
         b.Entity<PositionPoints>().HasIndex(x => new { x.RulesetId, x.Rank }).IsUnique();
         // A Score is owned by exactly one of a pick or a modifier (ADR-0006 D4): one unique key
-        // per owner kind (filtered so the NULL owner column never participates).
-        b.Entity<Score>().HasIndex(x => new { x.PickId, x.Source }).IsUnique().HasFilter("pick_id IS NOT NULL");
+        // per owner kind (filtered so the NULL owner column never participates). Pick-owned rows
+        // also key on SessionId so a multi-race round holds one RacePosition row per race; NULLs
+        // compare equal so legacy rows with no resolvable session still dedupe per (pick, source).
+        b.Entity<Score>().HasIndex(x => new { x.PickId, x.Source, x.SessionId }).IsUnique()
+            .HasFilter("pick_id IS NOT NULL").AreNullsDistinct(false);
         b.Entity<Score>().HasIndex(x => new { x.RosterModifierId, x.Source }).IsUnique().HasFilter("roster_modifier_id IS NOT NULL");
+        b.Entity<Score>().HasOne(x => x.Session).WithMany().HasForeignKey(x => x.SessionId)
+            .OnDelete(DeleteBehavior.Restrict);
         b.Entity<Score>().ToTable(t => t.HasCheckConstraint(
             "ck_score_one_owner", "(pick_id IS NULL) <> (roster_modifier_id IS NULL)"));
         b.Entity<RoundTotal>().HasIndex(x => new { x.RegistrationId, x.RoundId }).IsUnique();

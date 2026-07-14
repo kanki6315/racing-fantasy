@@ -2,12 +2,18 @@ import { useRef, useState } from 'react'
 import { useAdmin } from '../../admin/AdminContext'
 import { AdminPageHeader } from '../../admin/AdminPageHeader'
 import { PrimaryButton, GhostButton, ClassSwatch, EmptyState } from '../../admin/ui'
-import { useImportResults, type ResultKind, type IngestResponse } from '../../api/adminQueries'
+import {
+  useAdminSessions,
+  useImportResults,
+  type ResultKind,
+  type IngestResponse,
+} from '../../api/adminQueries'
 import { classMeta } from '../../lib/classMeta'
 
 export function Results() {
   const { roundId, round } = useAdmin()
   const [kind, setKind] = useState<ResultKind>('race')
+  const [raceNumber, setRaceNumber] = useState(1)
   const [fileName, setFileName] = useState<string | null>(null)
   const [csv, setCsv] = useState<string | null>(null)
   const [preview, setPreview] = useState<IngestResponse | null>(null)
@@ -15,6 +21,14 @@ export function Results() {
   const [err, setErr] = useState<string | null>(null)
   const fileRef = useRef<HTMLInputElement>(null)
   const importer = useImportResults(roundId ?? 0)
+
+  // Multi-race weekends (MX-5 style): offer an R1/R2 target only when the round actually has a
+  // race session numbered > 1; single-race rounds keep the unchanged two-button UI.
+  const sessions = useAdminSessions(roundId ?? undefined)
+  const raceNumbers = Array.from(
+    new Set((sessions.data ?? []).filter((s) => s.type === 'Race').map((s) => s.raceNumber)),
+  ).sort((a, b) => a - b)
+  const multiRace = raceNumbers.length > 1
 
   const reset = () => {
     setFileName(null)
@@ -37,7 +51,7 @@ export function Results() {
     if (!csv) return
     setErr(null)
     try {
-      const res = await importer.mutateAsync({ kind, csv, commit })
+      const res = await importer.mutateAsync({ kind, csv, commit, raceNumber })
       if (commit) setCommitted(res)
       else setPreview(res)
     } catch (e) {
@@ -62,6 +76,7 @@ export function Results() {
             type="button"
             onClick={() => {
               setKind(k)
+              setRaceNumber(1)
               reset()
             }}
             className={`flex-1 rounded-[6px] border px-4 py-3 text-left transition-colors ${
@@ -77,6 +92,37 @@ export function Results() {
           </button>
         ))}
       </div>
+
+      {/* Race target — only on multi-race rounds; staged previews reset on change */}
+      {kind === 'race' && multiRace && (
+        <div className="mb-4 flex items-center gap-3 rounded-[6px] border border-line bg-surface px-4 py-3">
+          <span className="font-mono text-[10px] uppercase tracking-[0.12em] text-muted-2">Target race</span>
+          <div className="flex gap-2">
+            {raceNumbers.map((n) => (
+              <button
+                key={n}
+                type="button"
+                onClick={() => {
+                  setRaceNumber(n)
+                  setPreview(null)
+                  setCommitted(null)
+                  setErr(null)
+                }}
+                className={`rounded-[4px] border px-4 py-[6px] font-mono text-[12px] font-semibold transition-colors ${
+                  raceNumber === n
+                    ? 'border-brand bg-brand/[0.06] text-ink'
+                    : 'border-line bg-surface text-muted hover:border-line-3'
+                }`}
+              >
+                R{n}
+              </button>
+            ))}
+          </div>
+          <span className="font-sans text-[12px] text-muted">
+            This weekend runs {raceNumbers.length} races — pick which one this CSV belongs to.
+          </span>
+        </div>
+      )}
 
       {/* Source */}
       <div className="mb-5 flex items-center gap-3 rounded-[6px] border border-line bg-surface px-4 py-3">

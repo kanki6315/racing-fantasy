@@ -464,21 +464,37 @@ export type ResultKind = 'qualifying' | 'race'
  * Upload a raw IMSA results CSV. commit=false stages a preview (matched/unmatched + computed
  * positions); commit=true publishes. The body is octet-stream, so we pass the CSV text straight
  * through with a custom bodySerializer rather than letting openapi-fetch JSON-encode it.
+ * raceNumber targets a specific race of a multi-race weekend (race imports only; default 1).
  */
 export function useImportResults(roundId: number) {
   const qc = useQueryClient()
   return useMutation({
-    mutationFn: async ({ kind, csv, commit }: { kind: ResultKind; csv: string; commit: boolean }) => {
-      const opts = {
-        params: { path: { roundId }, query: { commit } },
+    mutationFn: async ({
+      kind,
+      csv,
+      commit,
+      raceNumber,
+    }: {
+      kind: ResultKind
+      csv: string
+      commit: boolean
+      raceNumber?: number
+    }) => {
+      const body = {
         body: csv as unknown as never,
         bodySerializer: (b: unknown) => b as BodyInit,
         headers: { 'Content-Type': 'application/octet-stream' },
       }
       const { data, error } =
         kind === 'qualifying'
-          ? await api.POST('/rounds/{roundId}/qualifying-results/import', opts)
-          : await api.POST('/rounds/{roundId}/race-results/import', opts)
+          ? await api.POST('/rounds/{roundId}/qualifying-results/import', {
+              ...body,
+              params: { path: { roundId }, query: { commit } },
+            })
+          : await api.POST('/rounds/{roundId}/race-results/import', {
+              ...body,
+              params: { path: { roundId }, query: { commit, raceNumber: raceNumber ?? 1 } },
+            })
       if (error) throw error
       return data as IngestResponse
     },

@@ -2605,6 +2605,7 @@ export interface paths {
             parameters: {
                 query?: {
                     commit?: boolean;
+                    raceNumber?: number;
                 };
                 header?: never;
                 path: {
@@ -2648,6 +2649,7 @@ export interface paths {
             parameters: {
                 query?: {
                     commit?: boolean;
+                    raceNumber?: number;
                 };
                 header?: never;
                 path: {
@@ -3385,6 +3387,11 @@ export interface components {
             /** Format: date-time */
             scheduledStart: null | string;
             status: null | components["schemas"]["SessionStatus"];
+            /**
+             * Format: int32
+             * @default 1
+             */
+            raceNumber: null | number;
         };
         DevLoginResponse: {
             /** Format: int64 */
@@ -3568,6 +3575,8 @@ export interface components {
             /** Format: int32 */
             skipped: null | number;
             issues: components["schemas"]["IngestIssue"][];
+            /** Format: int32 */
+            raceNumber?: null | number;
         };
         IngestResultRow: {
             className: string;
@@ -3738,6 +3747,11 @@ export interface components {
             total: number;
             main: components["schemas"]["PlayerPickDto"][];
             modifiers: components["schemas"]["PlayerModifierDto"][];
+            /**
+             * Format: int32
+             * @default 1
+             */
+            raceCount: number;
         };
         PriceInput: {
             entityType: components["schemas"]["EntityType"];
@@ -3982,12 +3996,19 @@ export interface components {
             scoresInserted: number;
             /** Format: int32 */
             scoresUpdated: number;
+            /** Format: int32 */
+            scoresDeleted: number;
             totals: components["schemas"]["RegistrationTotal"][];
         };
         ScoresResponse: {
             /** Format: int64 */
             roundId: number;
             registrations: components["schemas"]["RegistrationScoreDto"][];
+            /**
+             * Format: int32
+             * @default 1
+             */
+            raceCount: number;
         };
         /** @enum {unknown} */
         ScoringSource: "QualifyingPosition" | "RacePosition" | "RaceFastestLap" | "Bonus";
@@ -4012,6 +4033,8 @@ export interface components {
             /** Format: int64 */
             classId: number;
             type: components["schemas"]["SessionType"];
+            /** Format: int32 */
+            raceNumber: number;
             /** Format: date-time */
             scheduledStart: null | string;
             /** Format: date-time */
@@ -4030,6 +4053,8 @@ export interface components {
             points: number;
             /** Format: int32 */
             ruleVersion: number;
+            /** Format: int32 */
+            raceNumber?: null | number;
         };
         /** Format: binary */
         Stream: string;
@@ -4110,6 +4135,11 @@ export interface components {
             /** Format: date-time */
             actualStart: null | string;
             status: components["schemas"]["SessionStatus"];
+            /**
+             * Format: int32
+             * @default 1
+             */
+            raceNumber: null | number;
         };
         UserDto: {
             /** Format: int64 */
