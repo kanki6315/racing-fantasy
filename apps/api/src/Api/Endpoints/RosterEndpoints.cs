@@ -201,10 +201,15 @@ public static class RosterEndpoints
                 .Where(rt => rt.RegistrationId == registrationId && rt.RoundId == roundId)
                 .Select(rt => (decimal?)rt.Points).FirstOrDefaultAsync() ?? 0m;
 
+            var raceNumberBySession = await db.Sessions
+                .Where(s => s.RoundId == roundId && s.Type == SessionType.Race)
+                .ToDictionaryAsync(s => s.Id, s => s.RaceNumber);
+            var raceCount = raceNumberBySession.Count == 0 ? 1 : raceNumberBySession.Values.Max();
+
             var mainDtos = picks.Select(p =>
             {
-                var ss = (byPick.GetValueOrDefault(p.Id) ?? new List<Score>())
-                    .Select(s => new SourceScoreDto(s.Source, s.Points, s.RuleVersion)).ToList();
+                var ss = SourceScoreDto.Order((byPick.GetValueOrDefault(p.Id) ?? new List<Score>())
+                    .Select(s => SourceScoreDto.From(s, raceNumberBySession)));
                 return new PlayerPickDto(p.EntityType, p.EntityId, p.ClassId, p.PriceAtLock, ss.Sum(x => x.Points), ss);
             }).ToList();
 
@@ -214,7 +219,7 @@ public static class RosterEndpoints
                 (byModifier.GetValueOrDefault(m.Id) ?? new List<Score>()).Sum(s => s.Points))).ToList();
 
             return Results.Ok(new PlayerPicksResponse(
-                registration.Id, registration.TeamName, roundId, locked, total, mainDtos, modDtos));
+                registration.Id, registration.TeamName, roundId, locked, total, mainDtos, modDtos, raceCount));
         }).Produces<PlayerPicksResponse>().Produces<PlayerPicksError>(StatusCodes.Status409Conflict);
 
         return app;
@@ -277,7 +282,7 @@ public record RosterModifierDto(string Kind, EntityRef? Target);
 /// </summary>
 public record PlayerPicksResponse(
     long RegistrationId, string TeamName, long RoundId, bool Locked, decimal Total,
-    List<PlayerPickDto> Main, List<PlayerModifierDto> Modifiers);
+    List<PlayerPickDto> Main, List<PlayerModifierDto> Modifiers, int RaceCount = 1);
 public record PlayerPickDto(
     EntityType EntityType, long EntityId, long ClassId, decimal Price, decimal Points, List<SourceScoreDto> Scores);
 public record PlayerModifierDto(string Kind, EntityRef? Target, decimal Points);

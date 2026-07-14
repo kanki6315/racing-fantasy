@@ -97,6 +97,10 @@ public class Session
     public long RoundId { get; set; }
     public long ClassId { get; set; }
     public SessionType Type { get; set; }
+
+    /// <summary>Ordinal within (round, class, type) for multi-race weekends (MX-5 style R1/R2).
+    /// Always 1 for Qualifying.</summary>
+    public int RaceNumber { get; set; } = 1;
     public DateTime? ScheduledStart { get; set; }
     public DateTime? ActualStart { get; set; }
     public SessionStatus Status { get; set; } = SessionStatus.Scheduled;

@@ -46,8 +46,9 @@ public class ScoringBonus
 /// Points for one scoring source, owned by **exactly one** of a pick or a roster modifier
 /// (ADR-0006 D4). MAIN picks own up to two rows (QualifyingPosition + RacePosition);
 /// <see cref="RosterModifier"/>s own their <see cref="ScoringSource.Bonus"/> rows. Idempotent
-/// recompute key: (PickId | RosterModifierId, Source); RuleVersion is stamped for reproducibility
-/// (ADR-0003 D8).
+/// recompute key: (PickId | RosterModifierId, Source, SessionId); RuleVersion is stamped for
+/// reproducibility (ADR-0003 D8). SessionId ties a position score to the session it came from so a
+/// multi-race round holds one RacePosition row per race; NULL for Bonus/modifier rows.
 /// </summary>
 public class Score
 {
@@ -55,6 +56,7 @@ public class Score
     public long RosterId { get; set; }
     public long? PickId { get; set; }
     public long? RosterModifierId { get; set; }
+    public long? SessionId { get; set; }
     public ScoringSource Source { get; set; }
     public decimal Points { get; set; }
     public int RuleVersion { get; set; }
@@ -63,6 +65,7 @@ public class Score
     public Roster Roster { get; set; } = null!;
     public Pick? Pick { get; set; }
     public RosterModifier? RosterModifier { get; set; }
+    public Session? Session { get; set; }
 }
 
 /// <summary>One row per recompute — explains overnight score changes (ADR-0003). Owned by the same
@@ -72,6 +75,7 @@ public class ScoreAudit
     public long Id { get; set; }
     public long? PickId { get; set; }
     public long? RosterModifierId { get; set; }
+    public long? SessionId { get; set; }
     public ScoringSource Source { get; set; }
     public int RuleVersion { get; set; }
     public decimal OldPoints { get; set; }

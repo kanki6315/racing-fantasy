@@ -527,6 +527,7 @@ function SessionsTab() {
   const deleteSession = useDeleteSession()
   const [newClass, setNewClass] = useState<string>('')
   const [newType, setNewType] = useState<'Qualifying' | 'Race'>('Qualifying')
+  const [newRaceNumber, setNewRaceNumber] = useState('1')
 
   const className = (id: number) => classes.find((c) => c.id === id)?.name ?? `#${id}`
   const classColor = (id: number) => classes.find((c) => c.id === id)?.color
@@ -547,11 +548,29 @@ function SessionsTab() {
           </Select>
         </Field>
         <Field label="Type">
-          <Select value={newType} onChange={(e) => setNewType(e.target.value as 'Qualifying' | 'Race')} className="w-40">
+          <Select
+            value={newType}
+            onChange={(e) => {
+              setNewType(e.target.value as 'Qualifying' | 'Race')
+              setNewRaceNumber('1')
+            }}
+            className="w-40"
+          >
             <option value="Qualifying">Qualifying</option>
             <option value="Race">Race</option>
           </Select>
         </Field>
+        {newType === 'Race' && (
+          <Field label="Race #">
+            <TextInput
+              type="number"
+              min={1}
+              value={newRaceNumber}
+              onChange={(e) => setNewRaceNumber(e.target.value)}
+              className="w-20"
+            />
+          </Field>
+        )}
         <PrimaryButton
           onClick={async () => {
             if (!newClass) return
@@ -561,8 +580,10 @@ function SessionsTab() {
               type: newType,
               scheduledStart: null,
               status: 'Scheduled',
+              raceNumber: newType === 'Race' ? Math.max(1, Number(newRaceNumber) || 1) : 1,
             })
             setNewClass('')
+            setNewRaceNumber('1')
           }}
           disabled={!newClass || createSession.isPending}
         >
@@ -596,7 +617,12 @@ function SessionsTab() {
                     </span>
                   </div>
                 </div>
-                <div className="border-b border-line px-4 py-3 font-mono text-[12px] text-ink-2">{s.type}</div>
+                <div className="border-b border-line px-4 py-3 font-mono text-[12px] text-ink-2">
+                  {s.type}
+                  {s.type === 'Race' && (
+                    <span className="ml-2 text-muted-2">R{s.raceNumber}</span>
+                  )}
+                </div>
                 <div className="border-b border-line px-4 py-3">
                   <Select
                     value={s.status}
@@ -608,6 +634,7 @@ function SessionsTab() {
                           scheduledStart: s.scheduledStart,
                           actualStart: s.actualStart,
                           status: e.target.value as (typeof SESSION_STATUSES)[number],
+                          raceNumber: s.raceNumber,
                         },
                       })
                     }

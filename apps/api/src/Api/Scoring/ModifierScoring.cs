@@ -31,9 +31,10 @@ public sealed class RoundScoringContext(IReadOnlyDictionary<long, (decimal Point
         basePointsByPick.TryGetValue(pickId, out var v) ? v : null;
 }
 
-/// <summary>Doubles the target pick's full MAIN total — both qualifying and race (ADR-0006 D4). Shared
-/// by DOUBLE_POINTS_TEAM (target is a car pick) and CAPTAIN (target is a driver pick); they differ only
-/// in the <c>AppliesTo</c> validated at PUT time, not in scoring.</summary>
+/// <summary>Doubles the target pick's full MAIN total — qualifying plus every race of the round
+/// (Q+R1+R2 on a multi-race weekend) (ADR-0006 D4). Shared by DOUBLE_POINTS_TEAM (target is a car
+/// pick) and CAPTAIN (target is a driver pick); they differ only in the <c>AppliesTo</c> validated
+/// at PUT time, not in scoring.</summary>
 public sealed class DoubleTargetPickScorer(string kind) : IModifierScorer
 {
     public string Kind { get; } = kind;

@@ -7,10 +7,12 @@ namespace ImsaFantasy.Api.Scoring;
 /// <summary>
 /// The scoring engine (ADR-0003). Computes each pick's points from the active, versioned rulesets
 /// for the three sources — MAIN: QualifyingPosition + RacePosition (class-relative car positions);
-/// IMPACT: RaceFastestLap (rank of the driver's fastest lap within class). Idempotent: re-running
-/// recomputes from current results, overwriting Score rows keyed (pick, source) and writing a
-/// ScoreAudit row whenever a value changes. Two-phase falls out naturally — run after quali to
-/// score QualifyingPosition, run again after the race to add RacePosition + RaceFastestLap.
+/// IMPACT: RaceFastestLap (rank of the driver's fastest lap within class). A multi-race round
+/// (MX-5 style R1/R2) earns one RacePosition row per race session, each priced from the same
+/// Active table. Idempotent: re-running recomputes from current results, overwriting Score rows
+/// keyed (pick, source, session) and writing a ScoreAudit row whenever a value changes; rows whose
+/// backing result disappeared are deleted (audited as "removed"). Two-phase falls out naturally —
+/// run after quali to score QualifyingPosition, run again after each race to add its RacePosition.
 /// </summary>
 public sealed class ScoringService(FantasyDbContext db)
 {
@@ -32,16 +34,21 @@ public sealed class ScoringService(FantasyDbContext db)
         decimal PointsFor(ScoringSource src, int rank) =>
             bySource.TryGetValue(src, out var rs) && rs.Points.TryGetValue(rank, out var pts) ? pts : 0m;
 
-        // Results lookups for this round.
+        // Results lookups for this round. Quali is unique per class; race sessions may be several
+        // per class (multi-race weekends), so they key by session and group per class in R order.
         var qualiSessions = await db.Sessions.Where(s => s.RoundId == roundId && s.Type == SessionType.Qualifying)
             .Select(s => s.Id).ToListAsync();
         var raceSessions = await db.Sessions.Where(s => s.RoundId == roundId && s.Type == SessionType.Race)
-            .Select(s => s.Id).ToListAsync();
+            .Select(s => new { s.Id, s.ClassId, s.RaceNumber }).ToListAsync();
+        var raceSessionsByClass = raceSessions
+            .GroupBy(s => s.ClassId)
+            .ToDictionary(g => g.Key, g => g.OrderBy(s => s.RaceNumber).Select(s => s.Id).ToList());
+        var raceSessionIds = raceSessions.Select(s => s.Id).ToList();
 
         var qualiPos = (await db.QualiResults.Where(q => qualiSessions.Contains(q.SessionId)).ToListAsync())
-            .ToDictionary(q => (q.ClassId, q.CarEntryId), q => q.Position);
-        var racePos = (await db.RaceResults.Where(q => raceSessions.Contains(q.SessionId)).ToListAsync())
-            .ToDictionary(q => (q.ClassId, q.CarEntryId), q => q.Position);
+            .ToDictionary(q => (q.ClassId, q.CarEntryId), q => (q.SessionId, q.Position));
+        var racePos = (await db.RaceResults.Where(q => raceSessionIds.Contains(q.SessionId)).ToListAsync())
+            .ToDictionary(q => (q.SessionId, q.CarEntryId), q => q.Position);
 
         // Driver -> car entry (for driver MAIN picks), scoped to season + class. Rows pinned to THIS
         // round (entry-list import) win over season-wide (round_id NULL) rows — TryAdd keeps the
@@ -67,11 +74,11 @@ public sealed class ScoringService(FantasyDbContext db)
                 (s.PickId != null && pickIds.Contains(s.PickId.Value)) ||
                 (s.RosterModifierId != null && modifierIds.Contains(s.RosterModifierId.Value)))
             .ToListAsync())
-            .ToDictionary(s => (s.PickId, s.RosterModifierId, s.Source));
+            .ToDictionary(s => (s.PickId, s.RosterModifierId, s.Source, s.SessionId));
 
         // Phase 1: compute pick-owned (position) scores, holding them so modifiers can read the base.
         var pickComputed = picks
-            .SelectMany(p => ComputePick(p).Select(x => (Pick: p, x.Source, x.Points)))
+            .SelectMany(p => ComputePick(p).Select(x => (Pick: p, x.Source, x.SessionId, x.Points)))
             .ToList();
         var basePointsByPick = pickComputed.GroupBy(x => x.Pick.Id).ToDictionary(
             g => g.Key,
@@ -84,18 +91,18 @@ public sealed class ScoringService(FantasyDbContext db)
             .SelectMany(m => ModifierScorers.For(m.Kind)!.Score(m, ctx).Select(b => (Modifier: m, b.Points, b.RuleVersion)))
             .ToList();
 
-        int inserted = 0, updated = 0;
+        int inserted = 0, updated = 0, deleted = 0;
 
-        // Idempotent upsert keyed by (owner, source); audits any changed value (ADR-0003 D8).
-        void Upsert(long? pickId, long? modifierId, long rosterId, ScoringSource source, decimal points, int version)
+        // Idempotent upsert keyed by (owner, source, session); audits any changed value (ADR-0003 D8).
+        void Upsert(long? pickId, long? modifierId, long? sessionId, long rosterId, ScoringSource source, decimal points, int version)
         {
-            if (existing.TryGetValue((pickId, modifierId, source), out var score))
+            if (existing.TryGetValue((pickId, modifierId, source, sessionId), out var score))
             {
                 if (score.Points != points)
                 {
                     db.Add(new ScoreAudit
                     {
-                        PickId = pickId, RosterModifierId = modifierId, Source = source,
+                        PickId = pickId, RosterModifierId = modifierId, SessionId = sessionId, Source = source,
                         OldPoints = score.Points, NewPoints = points, Reason = "recompute", ComputedAt = now
                     });
                     score.Points = points;
@@ -108,17 +115,43 @@ public sealed class ScoringService(FantasyDbContext db)
             {
                 db.Add(new Score
                 {
-                    RosterId = rosterId, PickId = pickId, RosterModifierId = modifierId, Source = source,
-                    Points = points, RuleVersion = version, ComputedAt = now
+                    RosterId = rosterId, PickId = pickId, RosterModifierId = modifierId, SessionId = sessionId,
+                    Source = source, Points = points, RuleVersion = version, ComputedAt = now
                 });
                 inserted++;
             }
         }
 
-        foreach (var (pick, source, points) in pickComputed)
-            Upsert(pick.Id, null, pick.RosterId, source, points, bySource[source].Version);
+        foreach (var (pick, source, sessionId, points) in pickComputed)
+            Upsert(pick.Id, null, sessionId, pick.RosterId, source, points, bySource[source].Version);
         foreach (var (modifier, points, version) in modComputed)
-            Upsert(null, modifier.Id, modifier.RosterId, ScoringSource.Bonus, points, version);
+            Upsert(null, modifier.Id, null, modifier.RosterId, ScoringSource.Bonus, points, version);
+
+        // Stale cleanup: a Score row whose backing result disappeared (deleted/corrected away, or a
+        // legacy row the multi-race backfill couldn't tie to a session) is deleted, audited as
+        // "removed". Guarded so a deactivated ruleset or an unshipped modifier scorer doesn't wipe
+        // rows it merely stopped computing.
+        var emitted = new HashSet<(long? PickId, long? ModifierId, ScoringSource Source, long? SessionId)>(
+            pickComputed.Select(x => ((long?)x.Pick.Id, (long?)null, x.Source, (long?)x.SessionId))
+                .Concat(modComputed.Select(x => ((long?)null, (long?)x.Modifier.Id, ScoringSource.Bonus, (long?)null))));
+        var modifierKindById = modifiers.ToDictionary(m => m.Id, m => m.Kind);
+        foreach (var (key, score) in existing)
+        {
+            if (emitted.Contains(key)) continue;
+            if (score.PickId is not null &&
+                (score.Source is not (ScoringSource.QualifyingPosition or ScoringSource.RacePosition) ||
+                 !bySource.ContainsKey(score.Source))) continue;
+            if (score.RosterModifierId is { } mid && ModifierScorers.For(modifierKindById[mid]) is null) continue;
+
+            db.Add(new ScoreAudit
+            {
+                PickId = score.PickId, RosterModifierId = score.RosterModifierId, SessionId = score.SessionId,
+                Source = score.Source, RuleVersion = score.RuleVersion,
+                OldPoints = score.Points, NewPoints = 0, Reason = "removed", ComputedAt = now
+            });
+            db.Remove(score);
+            deleted++;
+        }
 
         await db.SaveChangesAsync();
 
@@ -153,12 +186,13 @@ public sealed class ScoringService(FantasyDbContext db)
         return new ScoreRoundResult(
             roundId,
             bySource.Keys.Select(s => s.ToString()).OrderBy(s => s).ToArray(),
-            inserted, updated,
+            inserted, updated, deleted,
             totals.Select(t => new RegistrationTotal(t.Key, t.Value)).OrderByDescending(t => t.Points).ToList());
 
-        // Local: which (source, points) a MAIN pick earns. IMPACT/RaceFastestLap is retired (ADR-0006);
-        // bonuses now come from modifier handlers, not picks.
-        IEnumerable<(ScoringSource Source, decimal Points)> ComputePick(Pick pick)
+        // Local: which (source, session, points) rows a MAIN pick earns — one QualifyingPosition row
+        // plus one RacePosition row per race session with a result for the pick's car. IMPACT/
+        // RaceFastestLap is retired (ADR-0006); bonuses now come from modifier handlers, not picks.
+        IEnumerable<(ScoringSource Source, long SessionId, decimal Points)> ComputePick(Pick pick)
         {
             if (pick.SlotType != SlotType.Main) yield break;
 
@@ -169,14 +203,16 @@ public sealed class ScoringService(FantasyDbContext db)
 
             if (bySource.ContainsKey(ScoringSource.QualifyingPosition)
                 && qualiPos.TryGetValue((pick.ClassId, car), out var qp))
-                yield return (ScoringSource.QualifyingPosition, PointsFor(ScoringSource.QualifyingPosition, qp));
+                yield return (ScoringSource.QualifyingPosition, qp.SessionId, PointsFor(ScoringSource.QualifyingPosition, qp.Position));
 
             if (bySource.ContainsKey(ScoringSource.RacePosition)
-                && racePos.TryGetValue((pick.ClassId, car), out var rp))
-                yield return (ScoringSource.RacePosition, PointsFor(ScoringSource.RacePosition, rp));
+                && raceSessionsByClass.TryGetValue(pick.ClassId, out var races))
+                foreach (var sessionId in races)
+                    if (racePos.TryGetValue((sessionId, car), out var rp))
+                        yield return (ScoringSource.RacePosition, sessionId, PointsFor(ScoringSource.RacePosition, rp));
         }
     }
 }
 
-public sealed record ScoreRoundResult(long RoundId, string[] ActiveSources, int ScoresInserted, int ScoresUpdated, List<RegistrationTotal> Totals);
+public sealed record ScoreRoundResult(long RoundId, string[] ActiveSources, int ScoresInserted, int ScoresUpdated, int ScoresDeleted, List<RegistrationTotal> Totals);
 public sealed record RegistrationTotal(long RegistrationId, decimal Points);
