@@ -157,14 +157,17 @@ erDiagram
 | id | bigint PK | |
 | round_id | bigint FK → round | |
 | class_id | bigint FK → class | |
-| type | text | CHECK ∈ {QUALIFYING, RACE}; UNIQUE(round_id, class_id, type) |
+| type | text | CHECK ∈ {QUALIFYING, RACE} |
+| race_number | int | NOT NULL default 1; UNIQUE(round_id, class_id, type, race_number) — multi-race weekends (ADR-0013); always 1 for QUALIFYING |
 | scheduled_start | timestamptz | |
 | actual_start | timestamptz | nullable (set on ingest) |
 | status | text | SCHEDULED / LIVE / COMPLETE / PUBLISHED |
 
 > `session` carries class-level results; it is **not** the lock source — lock is
 > the single `round.quali_start` (ADR-0002). Composition rules are enforced only
-> for classes that have a `session` in the round (ADR-0001 D5).
+> for classes that have a `session` in the round (ADR-0001 D5). A round may carry
+> several RACE sessions per class (MX-5 R1/R2, ADR-0013) — still one pick set,
+> one lock.
 
 ### Pickable entities & economy
 
@@ -371,19 +374,23 @@ erDiagram
 | id | bigint PK | |
 | roster_id | bigint FK → roster | denormalized for fast roster rollups |
 | pick_id | bigint FK → pick | |
+| session_id | bigint FK → session | nullable (NULL for BONUS/modifier rows) — which race/quali earned it (ADR-0013) |
 | source | text | which source produced these points |
 | points | numeric | |
 | rule_version | int | stamped for reproducibility |
-| computed_at | timestamptz | UNIQUE(pick_id, source) — idempotent recompute (ADR-0003) |
+| computed_at | timestamptz | UNIQUE(pick_id, source, session_id) NULLS NOT DISTINCT — idempotent recompute (ADR-0003/0013) |
 
-> A MAIN pick has up to two `score` rows (QUALIFYING_POSITION + RACE_POSITION); an
-> IMPACT pick has one (RACE_FASTEST_LAP). `round_total` sums them all.
+> A MAIN pick has one QUALIFYING_POSITION row plus one RACE_POSITION row **per race
+> session** of its class (Q+R1+R2 on a multi-race weekend, ADR-0013). `round_total`
+> sums them all. A recompute deletes rows whose backing result disappeared
+> (audited as "removed").
 
 **`score_audit`** — one row per recompute (explains overnight changes, ADR-0003)
 | col | type | notes |
 |---|---|---|
 | id | bigint PK | |
 | pick_id | bigint FK → pick | |
+| session_id | bigint FK → session | nullable — which race a change touched (ADR-0013) |
 | source | text | |
 | rule_version | int | |
 | old_points | numeric | |

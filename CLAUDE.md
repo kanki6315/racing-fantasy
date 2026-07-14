@@ -6,7 +6,7 @@ pick teams/drivers under a salary cap each round (picks lock at qualifying), and
 add **bonus** points (first: Double Points Team — one pick scores double; see [ADR-0006](docs/adr/0006-roster-modifiers.md)).
 Standings run as a season-wide pool plus user-created public/private **leagues**.
 
-## Status (2026-06-19)
+## Status (2026-07-14)
 
 - **Deployed + post-MVP increments merged to `main`:** the app is live (S3/CloudFront web, Railway API+DB);
   since the MVP, these shipped — **DB-backed admin-editable class colors** (`class.color`); an
@@ -18,6 +18,13 @@ Standings run as a season-wide pool plus user-created public/private **leagues**
   (admin toggle → calendar status → roster GET/PUT enforcement). All reflected in the API surface +
   known-gaps below. **Local dev DB is now PostgreSQL 18** (`docker-compose.yml`; volume mounts at
   `/var/lib/postgresql`) to match Railway.
+- **Multi-race rounds (ADR-0013, merged 2026-07-14 — prod migration + API/web deploys pending):**
+  a round can score N races (MX-5 two-race weekends) with one pick set and one lock —
+  `session.race_number` + per-race `score.session_id` rows; race imports take `?raceNumber=`;
+  the same Active RacePosition table prices each race; UI shows Q/R1/R2 chips. The scoring
+  recompute also now **deletes stale scores** whose backing result disappeared (audited
+  "removed"). ⚠️ Deploy the `AddMultiRaceRounds` migration and the new API **together** (the
+  cleanup pass covers backfill leftovers).
 - **Backend: MVP-complete and tested on real IMSA data** — Phases 0–5 of [docs/roadmap.md](docs/roadmap.md):
   schema, catalog CRUD + bulk import, economy/picks/lock, results ingestion, scoring engine,
   leaderboards. Plus **auth + data minimization** (ADR-0004), **authorization** (ownership + admin),
@@ -221,13 +228,20 @@ pnpm build          # tsc typecheck + production build
 - **Scores/standings:** `GET /rounds/{id}/scores` (admin), `GET /seasons/{id}/leaderboard` (global, public),
   `GET /rounds/{id}/leaderboard`. The Standings page composes these behind a **Championship → Year → Round**
   filter (ADR-0008); the Total | round sub-filter (`RoundFilter`) is shared with league boards.
+- **Multi-race rounds (ADR-0013):** a round may carry several Race sessions per class, distinguished by
+  `SessionDto.raceNumber` (admin session CRUD validates Qualifying ⇒ 1). Race-results and race-fastest-laps
+  imports take **`?raceNumber=`** (default 1; wrong target → per-row "no race #N session" issues). Score
+  DTOs carry `raceNumber` per RacePosition row, and the scores/picks responses carry a server-derived
+  **`raceCount`** so clients label R (single-race) vs R1/R2 without inferring from sparse data. Scoring
+  (`POST /rounds/{id}/score`) emits one RacePosition row per race session and **deletes stale rows**
+  whose backing result disappeared (`scoresDeleted` in the response; audited "removed").
 - **View another player's picks (standings drill-in):** `GET /registrations/{registrationId}/rounds/{roundId}/picks`
   (any signed-in user — **no ownership check**, unlike the roster GET; gated on lock → `409 not_locked` until
-  quali starts so lineups can't be copied early). Returns `{ teamName, total, main:[{entityType,entityId,classId,
-  price,points,scores:[{source,points,ruleVersion}]}], modifiers:[{kind,target,points}] }` — reuses the same
-  `Score`/`RoundTotal` data as the admin scores endpoint (no schema change). On the player UI, **round-board**
+  quali starts so lineups can't be copied early). Returns `{ teamName, total, raceCount, main:[{entityType,entityId,
+  classId,price,points,scores:[{source,points,ruleVersion,raceNumber}]}], modifiers:[{kind,target,points}] }` —
+  reuses the same `Score`/`RoundTotal` data as the admin scores endpoint. On the player UI, **round-board**
   leaderboard rows link to the read-only `/standings/team/:registrationId/round/:roundId` page (Total-view rows
-  don't); it reuses the pick page's pit-lane look (`EntityThumb`/`DriverLineup`) with points + Q/R breakdown.
+  don't); it reuses the pick page's pit-lane look (`EntityThumb`/`DriverLineup`) with points + Q/R1/R2 breakdown.
 - **Leagues:** `POST /leagues`, `GET /leagues?seasonId=&mine=`, `GET /leagues/{id}`,
   `POST /leagues/{id}/join?joinCode=`, `POST /leagues/{id}/leave`, `DELETE /leagues/{id}`,
   `GET /leagues/{id}/leaderboard[?roundId=]` (private = members-only; `roundId` narrows to a single round).
@@ -258,6 +272,13 @@ pnpm build          # tsc typecheck + production build
 
 ## Known gaps / next steps
 
+- **Multi-race rounds (merged, NOT deployed — ADR-0013):** prod needs the `AddMultiRaceRounds`
+  migration (`dotnet ef database update`) **in the same Railway deploy as the new API** — the
+  scoring recompute's stale-score cleanup covers any backfill leftovers — then `pnpm deploy:web`.
+  Player note worth sending: Double Points Team / Captain now double the full Q+R1+R2 total on
+  multi-race weekends. Deferred: per-race quali (R2 grids are set by R1 results, not a second
+  quali — fine for MX-5); per-race columns in admin Score Review (it keeps one summed Race column;
+  the response already carries `raceNumber` when a drill-down is wanted).
 - **Email reminders + bounce handling (done, deployed — ADR-0009/0010):** see the Email (SES) section.
   Follow-ups: the **opt-in UI** (RegisterModal/Dashboard) ships via `pnpm deploy:web` (S3/CloudFront),
   **separate** from the API's Railway deploy — deploy web for it to be live. Domain is **warming** (first
