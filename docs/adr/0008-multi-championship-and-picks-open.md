@@ -182,6 +182,12 @@ Precedence (top wins): `finalized` → `scored` → first round locked → `pick
    screen gains Scored/Finalized switches and a lifecycle badge. `useCreateEvent`/`useUpdateEvent`/
    `useDeleteEvent` now also invalidate the player-facing `['events']` cache.
 
-**Not in scope:** the Landing calendar keeps its existing 4-state machine and still lists closed events
-(it's a season calendar — only the Dashboard hides them); the helper is written so Landing can adopt it
-later to remove the duplicated status logic. No leaderboard/scoring publish gating.
+**Landing calendar (follow-up, done):** the "Upcoming Events" calendar now adopts `deriveEventStatus()`
+too — its old 4-state machine (`PICKS OPEN / PICKS CLOSING / COMING SOON / LOCKED`) is replaced by the
+five lifecycle states, rendered with the calendar's bold solid-fill pills (WAITING→"COMING SOON",
+CLOSED→"COMPLETE"; `PICKS CLOSING` folds into `IN_PROGRESS`). It **collapses the past** to a single
+most-recent-finalized anchor (a scored-but-not-finalized weekend is the natural second item) and is
+**height-bounded** to the hero, sized to fit up to 4 events via a new `useElementSize` (ResizeObserver)
+hook — rows past the fold are clipped (`lg:invisible`, no scroll); mobile shows the full list.
+
+**Not in scope:** no leaderboard/scoring publish gating.
