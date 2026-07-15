@@ -207,6 +207,12 @@ pnpm build          # tsc typecheck + production build
   listed). The unified Landing calendar reads `GET /events` (public; ADR-0007), now decoupled from any
   single "active" championship; each event carries **`picksOpen`** (the admin pick-release gate) and its
   rounds with `championshipOrder`. `POST/PUT /events` accept `picksOpen`; the admin Events screen toggles it.
+  Events also carry two manual, display-only lifecycle flags **`scored`** + **`finalized`** (ADR-0008
+  amendment): the player Dashboard derives a **five-stage status** (Waiting → Picks Open → In Progress at
+  first-round quali → Scored → Closed) via the shared `deriveEventStatus()` helper
+  (`apps/web/src/lib/eventStatus.ts`) — Waiting/Closed are hidden, and the card badge is live (not
+  hardcoded). `finalized` retires a weekend from the Dashboard; `scored` shows a Scored badge so players
+  can review locked picks. Neither gates standings.
 - **Selection board:** `GET /rounds/{roundId}/prices` (public; cars + drivers + prices + display names).
   Each **car** item also carries its **driver lineup** (`drivers: [{ id, fullName }]`, co-drivers ordered
   by entry-driver id) and its race **`number`** (null for drivers). The pick board shows the lineup +
@@ -296,10 +302,14 @@ pnpm build          # tsc typecheck + production build
   now) and **production deploy**.
 - **Multi-championship support (done — ADR-0008):** player UI decoupled from a single "active"
   championship; `championship.sort_order`, event-driven calendar, `event.picks_open` gate, leaderboard
-  Championship → Year → Round filters. **Follow-ups (deferred):** series-specific registration call-outs
-  (registration still defaults to the order-first season); the event-driven calendar omits standalone
-  (no-event) rounds by design; `picks_open` is a manual admin toggle (a "still closed near first quali"
-  warning would help). See ADR-0008 *To revisit*.
+  Championship → Year → Round filters. **Event lifecycle (done — ADR-0008 amendment):** the Dashboard now
+  derives a five-stage status (Waiting/Picks Open/In Progress/Scored/Closed) from `picks_open` + first-round
+  quali + the manual `event.scored`/`event.finalized` flags, so past weekends retire (Closed = hidden) and
+  the card badge is honest instead of hardcoded. **Follow-ups (deferred):** series-specific registration
+  call-outs (registration still defaults to the order-first season); the event-driven calendar omits
+  standalone (no-event) rounds by design; a "still closed near first quali" admin warning; the Landing
+  calendar still runs its own 4-state machine (could adopt the shared `deriveEventStatus` helper). See
+  ADR-0008 *To revisit*.
 - **Admin richer affordances (deferred):** ingestion has an *issues-list* preview (no interactive
   per-row match resolution); scoring has no *publish gate* (standings are live once scored). Both
   need new backend — see the F4 build note in [docs/frontend-roadmap.md](docs/frontend-roadmap.md).

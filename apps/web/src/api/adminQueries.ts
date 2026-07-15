@@ -203,7 +203,8 @@ export function useCreateEvent() {
       if (error) throw error
       return data!
     },
-    onSuccess: () => invalidate(qc, ['admin', 'events']),
+    // ['events'] is the player-facing cache (Dashboard/Landing); refresh it too, not just admin's.
+    onSuccess: () => invalidate(qc, ['admin', 'events'], ['events']),
   })
 }
 
@@ -215,8 +216,9 @@ export function useUpdateEvent() {
       if (error) throw error
       return data!
     },
-    // A round may have changed event attachment elsewhere; refresh rounds too.
-    onSuccess: () => invalidate(qc, ['admin', 'events'], ['admin', 'rounds']),
+    // A round may have changed event attachment elsewhere; refresh rounds too. ['events'] is the
+    // player-facing cache — a scored/finalized/picks-open change must reflect on the Dashboard/Landing.
+    onSuccess: () => invalidate(qc, ['admin', 'events'], ['admin', 'rounds'], ['events']),
   })
 }
 
@@ -227,7 +229,7 @@ export function useDeleteEvent() {
       const { error } = await api.DELETE('/events/{id}', { params: { path: { id } } })
       if (error) throw error
     },
-    onSuccess: () => invalidate(qc, ['admin', 'events']),
+    onSuccess: () => invalidate(qc, ['admin', 'events'], ['events']),
   })
 }
 

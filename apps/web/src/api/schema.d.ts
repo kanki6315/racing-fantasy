@@ -3315,6 +3315,10 @@ export interface components {
             endsAt: null | string;
             /** @default false */
             picksOpen: boolean;
+            /** @default false */
+            scored: boolean;
+            /** @default false */
+            finalized: boolean;
         };
         CreateLeague: {
             /** Format: int64 */
@@ -3504,6 +3508,8 @@ export interface components {
             /** Format: date-time */
             endsAt: null | string;
             picksOpen: boolean;
+            scored: boolean;
+            finalized: boolean;
             rounds: components["schemas"]["EventRoundDto"][];
         };
         EventRoundDto: {
@@ -4096,6 +4102,10 @@ export interface components {
             endsAt: null | string;
             /** @default false */
             picksOpen: boolean;
+            /** @default false */
+            scored: boolean;
+            /** @default false */
+            finalized: boolean;
         };
         UpdateRosterModifierRule: {
             /** Format: int32 */

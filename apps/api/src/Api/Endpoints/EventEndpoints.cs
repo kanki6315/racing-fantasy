@@ -36,6 +36,8 @@ public static class EventEndpoints
                 EndsAt = dto.EndsAt?.UtcDateTime,
                 PicksOpen = dto.PicksOpen,
                 PicksOpenedAt = dto.PicksOpen ? DateTime.UtcNow : null, // start the PicksOpen window (ADR-0009)
+                Scored = dto.Scored,
+                Finalized = dto.Finalized,
             };
             db.Add(e);
             await db.SaveChangesAsync();
@@ -57,6 +59,8 @@ public static class EventEndpoints
             if (dto.PicksOpen && !e.PicksOpen) e.PicksOpenedAt = DateTime.UtcNow;
             else if (!dto.PicksOpen && e.PicksOpen) e.PicksOpenedAt = null;
             e.PicksOpen = dto.PicksOpen;
+            e.Scored = dto.Scored;
+            e.Finalized = dto.Finalized;
             await db.SaveChangesAsync();
             var updated = await WithRounds(db.Events).AsNoTracking().FirstAsync(x => x.Id == e.Id);
             return Results.Ok(Map(updated));
@@ -89,7 +93,7 @@ public static class EventEndpoints
         e.Id, e.Name, e.Circuit,
         e.StartsAt is { } s ? new DateTimeOffset(s, TimeSpan.Zero) : null,
         e.EndsAt is { } x ? new DateTimeOffset(x, TimeSpan.Zero) : null,
-        e.PicksOpen,
+        e.PicksOpen, e.Scored, e.Finalized,
         e.Rounds.OrderBy(r => r.QualiStart).Select(r => new EventRoundDto(
             r.Id, r.SeasonId, r.Season.ChampionshipId, r.Season.Championship.Name,
             r.Season.Championship.SortOrder, r.Season.Year, r.Name,
@@ -98,12 +102,13 @@ public static class EventEndpoints
 
 public record EventDto(
     long Id, string Name, string? Circuit,
-    DateTimeOffset? StartsAt, DateTimeOffset? EndsAt, bool PicksOpen, List<EventRoundDto> Rounds);
+    DateTimeOffset? StartsAt, DateTimeOffset? EndsAt, bool PicksOpen, bool Scored, bool Finalized,
+    List<EventRoundDto> Rounds);
 
 /// <summary>A championship's participation in an event — the round it opted in with.</summary>
 public record EventRoundDto(
     long RoundId, long SeasonId, long ChampionshipId, string ChampionshipName,
     int ChampionshipOrder, int Year, string RoundName, DateTimeOffset QualiStart);
 
-public record CreateEvent(string Name, string? Circuit, DateTimeOffset? StartsAt, DateTimeOffset? EndsAt, bool PicksOpen = false);
-public record UpdateEvent(string Name, string? Circuit, DateTimeOffset? StartsAt, DateTimeOffset? EndsAt, bool PicksOpen = false);
+public record CreateEvent(string Name, string? Circuit, DateTimeOffset? StartsAt, DateTimeOffset? EndsAt, bool PicksOpen = false, bool Scored = false, bool Finalized = false);
+public record UpdateEvent(string Name, string? Circuit, DateTimeOffset? StartsAt, DateTimeOffset? EndsAt, bool PicksOpen = false, bool Scored = false, bool Finalized = false);

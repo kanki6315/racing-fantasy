@@ -139,3 +139,49 @@ standalone (no-event) rounds by design.
    badge on the Events screen.
 6. [x] Docs: this ADR; `championship.sort_order` + `event.picks_open` in
    [data-model.md](../data-model.md); index in [docs/README.md](../README.md).
+
+## Amendment (2026-07-14): Event lifecycle status
+
+**Problem.** `event.picks_open` is a single boolean asked to express a whole lifecycle, and it was the
+*only* thing gating the player Dashboard. `picks_open = false` ambiguously meant both "not opened yet"
+and "closed", so in production every weekend an admin ever opened stayed on the Dashboard forever, and
+the card's "Picks Open" badge was hardcoded — it kept claiming PICKS OPEN even after the per-round quali
+lock had passed (the row-level lock is computed separately from `quali_start`).
+
+**Decision.** An event now has a **five-stage lifecycle**, and the display status is **derived**, not
+stored — time drives the open→locked transition automatically, and two new **manual, event-level** admin
+flags cover what time can't:
+
+| Status | Driven by | Dashboard | Badge |
+|---|---|---|---|
+| Waiting to Open | `!picks_open && now < firstQuali` | hidden | — |
+| Picks Open | `picks_open && now < firstQuali` | shown | green "Picks Open" |
+| In Progress | `now >= firstQuali` (**first** round to lock) | shown | amber "In Progress" |
+| Scored | `scored` flag (manual) | shown | blue "Scored" |
+| Closed | `finalized` flag (manual) | hidden | — |
+
+Precedence (top wins): `finalized` → `scored` → first round locked → `picks_open` → waiting.
+
+- **In Progress is purely time-derived and ignores `picks_open`** — so an admin toggling picks off *after*
+  quali can neither hide the event nor revert the badge to "open". We deliberately did **not** add a "was
+  ever released" signal; the only case not covered is an admin opening then closing picks *before* quali
+  (a rare deliberate pause → returns to Waiting/hidden), which is acceptable.
+- **`scored` / `finalized` are event-level and display-only.** They do **not** gate leaderboards or
+  scoring (standings stay live once scored — the separate deferred publish-gate gap). Event-level because
+  a shared weekend's races publish at different times; the admin flips `scored` once all are in.
+- The `picks_open` reminder-window logic (`picks_opened_at`, ADR-0009) is unchanged.
+
+**Implementation.**
+1. Schema: `event.scored` + `event.finalized` (migration `AddEventScoredFinalized`; both `bool NOT NULL
+   DEFAULT false`).
+2. API: `EventDto` / `CreateEvent` / `UpdateEvent` gain `scored` + `finalized`; `POST`/`PUT /events`
+   persist them.
+3. Frontend: a single shared `deriveEventStatus()` helper (`apps/web/src/lib/eventStatus.ts`) is the source
+   of truth (status enum + `EVENT_STATUS_META` label/color + `SHOWN_ON_DASHBOARD`). The Dashboard filters
+   on it and renders a live badge (ticks via `useCountdown` so it flips exactly at quali); the admin Events
+   screen gains Scored/Finalized switches and a lifecycle badge. `useCreateEvent`/`useUpdateEvent`/
+   `useDeleteEvent` now also invalidate the player-facing `['events']` cache.
+
+**Not in scope:** the Landing calendar keeps its existing 4-state machine and still lists closed events
+(it's a season calendar — only the Dashboard hides them); the helper is written so Landing can adopt it
+later to remove the duplicated status logic. No leaderboard/scoring publish gating.

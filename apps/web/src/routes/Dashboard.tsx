@@ -22,6 +22,7 @@ import { RateLimitModal } from '../components/RateLimitModal'
 import { EntityThumb } from '../components/EntityThumb'
 import { DriverLineup } from '../components/DriverLineup'
 import { EmailPreferenceControls, prefsFromList } from '../components/EmailPreferences'
+import { deriveEventStatus, isShownOnDashboard, EVENT_STATUS_META } from '../lib/eventStatus'
 
 type Registration = Me['registrations'][number]
 
@@ -32,6 +33,8 @@ type PickCard = {
   eventName: string
   eventCircuit: string | null
   startsAt: string | null
+  scored: boolean
+  firstQuali: string | null
   rows: PickRow[]
 }
 
@@ -74,13 +77,14 @@ export function Dashboard() {
       .filter((x): x is { champId: number; name: string; seasonId: number; year: number } => x != null)
   }, [user?.registrations, seasons.data, champs.data])
 
-  // Picks are grouped by the open event (ADR-0008 picksOpen): one card per released weekend, one row per
-  // championship the user is registered in for it. No open events → "no picks to be made" (off-season).
+  // Cards are grouped by the event's lifecycle status (ADR-0008 amendment): one card per weekend that's
+  // OPEN / IN_PROGRESS / SCORED, one row per championship the user is registered in. Waiting-to-open (not
+  // released) and Closed (finalized) weekends drop off. No shown events → "no picks to be made".
   const picksCards = useMemo<PickCard[]>(() => {
     const regList = user?.registrations ?? []
     const cards: PickCard[] = []
     for (const e of events.data ?? []) {
-      if (!e.picksOpen) continue
+      if (!isShownOnDashboard(deriveEventStatus(e))) continue
       const rows: PickRow[] = []
       for (const er of e.rounds) {
         const reg = regList.find((r) => r.seasonId === er.seasonId)
@@ -94,7 +98,16 @@ export function Dashboard() {
       }
       if (rows.length === 0) continue
       rows.sort((a, b) => a.champOrder - b.champOrder)
-      cards.push({ eventId: e.id, eventName: e.name, eventCircuit: e.circuit, startsAt: e.startsAt, rows })
+      // Earliest quali across ALL the weekend's series (not just the user's rows) = the first round to
+      // lock. Same basis as the deriveEventStatus filter above, so the badge and visibility agree.
+      const firstQuali = e.rounds.reduce<string | null>(
+        (min, r) => (min == null || r.qualiStart < min ? r.qualiStart : min),
+        null,
+      )
+      cards.push({
+        eventId: e.id, eventName: e.name, eventCircuit: e.circuit, startsAt: e.startsAt,
+        scored: e.scored, firstQuali, rows,
+      })
     }
     cards.sort((a, b) => (a.startsAt ?? '').localeCompare(b.startsAt ?? '') || a.eventName.localeCompare(b.eventName))
     return cards
@@ -247,15 +260,23 @@ function EmptyPicks() {
   )
 }
 
-// ---- Your-picks card: one open event (ADR-0008), a row per championship the user is registered in. ----
+// ---- Your-picks card: one weekend (ADR-0008), a row per championship the user is registered in. The
+// header badge reflects the live lifecycle status (Picks Open → In Progress at first quali → Scored). ----
 function PicksCard({ card }: { card: PickCard }) {
+  // Tick every second so the badge flips from Picks Open → In Progress exactly at the first round's quali.
+  useCountdown(card.firstQuali ?? undefined)
+  const status = deriveEventStatus(
+    { picksOpen: true, scored: card.scored, finalized: false, rounds: card.firstQuali ? [{ qualiStart: card.firstQuali }] : [] },
+    Date.now(),
+  )
+  const badge = EVENT_STATUS_META[status]
   return (
     <div className="overflow-hidden rounded-[4px] border border-line border-l-[3px] border-l-brand bg-surface">
       <div className="flex flex-wrap items-center gap-x-3 gap-y-1 border-b border-line bg-surface-2/40 px-[15px] py-[10px]">
         <span className="font-display text-[14px] font-bold uppercase tracking-[0.04em] text-ink">{card.eventName}</span>
         {card.eventCircuit && <span className="font-sans text-[12px] text-muted">{card.eventCircuit}</span>}
-        <span className="ml-auto rounded-full border border-success/40 bg-success/10 px-[9px] py-[2px] font-mono text-[10px] uppercase tracking-[0.06em] text-success">
-          Picks Open
+        <span className={`ml-auto rounded-full border px-[9px] py-[2px] font-mono text-[10px] uppercase tracking-[0.06em] ${badge.className}`}>
+          {badge.label}
         </span>
       </div>
       <div className="flex flex-col divide-y divide-line">
