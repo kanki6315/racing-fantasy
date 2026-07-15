@@ -63,6 +63,16 @@ public class Event
     /// PicksOpen reminder to a fresh window so it isn't sent long after opening (ADR-0009 amendment).</summary>
     public DateTime? PicksOpenedAt { get; set; }
 
+    /// <summary>Manual admin flag: this weekend's results have been scored. Drives the SCORED lifecycle
+    /// badge so players can review locked picks with points. Display-only — it does not gate standings
+    /// (ADR-0008 lifecycle amendment). Event-level because a shared weekend's races publish at different
+    /// times; the admin flips it once all are in.</summary>
+    public bool Scored { get; set; }
+
+    /// <summary>Manual admin flag: this weekend is finalized/archived. The CLOSED lifecycle state — the
+    /// event drops off the player Dashboard (ADR-0008 lifecycle amendment). Display-only.</summary>
+    public bool Finalized { get; set; }
+
     public ICollection<Round> Rounds { get; set; } = new List<Round>();
 }
 

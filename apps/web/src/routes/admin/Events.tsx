@@ -8,6 +8,7 @@ import {
   useDeleteEvent,
   type EventDto,
 } from '../../api/adminQueries'
+import { deriveEventStatus, EVENT_STATUS_META } from '../../lib/eventStatus'
 
 // datetime-local <-> ISO (mirrors Catalog's helpers; kept local to avoid a shared-export churn).
 function isoToLocalInput(iso: string | null | undefined): string {
@@ -70,11 +71,14 @@ export function Events() {
                   </div>
                 </div>
                 <div className="flex items-center gap-2">
-                  {ev.picksOpen && (
-                    <span className="rounded-[2px] bg-brand/15 px-[7px] py-[2px] font-display text-[9px] font-semibold tracking-[0.08em] text-brand-3">
-                      OPEN
-                    </span>
-                  )}
+                  {(() => {
+                    const m = EVENT_STATUS_META[deriveEventStatus(ev)]
+                    return (
+                      <span className={`rounded-[2px] border px-[7px] py-[2px] font-display text-[9px] font-semibold uppercase tracking-[0.08em] ${m.className}`}>
+                        {m.label}
+                      </span>
+                    )
+                  })()}
                   <span className="font-mono text-[11px] text-ink-2">{ev.rounds.length} series</span>
                 </div>
               </ListRow>
@@ -93,6 +97,8 @@ function EventForm({ event, onSaved }: { event: EventDto | null; onSaved: (id: n
   const [startsAt, setStartsAt] = useState(isoToLocalInput(event?.startsAt))
   const [endsAt, setEndsAt] = useState(isoToLocalInput(event?.endsAt))
   const [picksOpen, setPicksOpen] = useState(event?.picksOpen ?? false)
+  const [scored, setScored] = useState(event?.scored ?? false)
+  const [finalized, setFinalized] = useState(event?.finalized ?? false)
   const [error, setError] = useState<string | null>(null)
   const create = useCreateEvent()
   const update = useUpdateEvent()
@@ -106,6 +112,8 @@ function EventForm({ event, onSaved }: { event: EventDto | null; onSaved: (id: n
       startsAt: localInputToIso(startsAt),
       endsAt: localInputToIso(endsAt),
       picksOpen,
+      scored,
+      finalized,
     }
     try {
       if (event) await update.mutateAsync({ id: event.id, body })
@@ -173,6 +181,28 @@ function EventForm({ event, onSaved }: { event: EventDto | null; onSaved: (id: n
           </p>
         </Field>
 
+        <Field label="Lifecycle">
+          <div className="flex flex-wrap gap-2">
+            <LifecycleSwitch
+              on={scored}
+              onToggle={() => setScored((v) => !v)}
+              onLabel="Scored"
+              offLabel="Not scored"
+            />
+            <LifecycleSwitch
+              on={finalized}
+              onToggle={() => setFinalized((v) => !v)}
+              onLabel="Finalized"
+              offLabel="Not finalized"
+            />
+          </div>
+          <p className="mt-1 font-sans text-[11px] text-muted">
+            <span className="text-ink-2">Scored</span> shows a Scored badge so players can review locked picks (does not
+            gate standings). <span className="text-ink-2">Finalized</span> closes the weekend — it drops off the player
+            dashboard. Flip Scored once every series' results are in.
+          </p>
+        </Field>
+
         {event && (
           <div className="border-t border-line pt-4">
             <div className="mb-2 font-mono text-[9px] tracking-[0.12em] uppercase text-muted-2">
@@ -218,5 +248,25 @@ function EventForm({ event, onSaved }: { event: EventDto | null; onSaved: (id: n
         </div>
       </div>
     </div>
+  )
+}
+
+// A toggle for the manual lifecycle flags (scored/finalized), styled to match the Picks switch above.
+function LifecycleSwitch({
+  on, onToggle, onLabel, offLabel,
+}: { on: boolean; onToggle: () => void; onLabel: string; offLabel: string }) {
+  return (
+    <button
+      type="button"
+      role="switch"
+      aria-checked={on}
+      onClick={onToggle}
+      className={`inline-flex h-8 items-center gap-2 rounded-[3px] border px-3 font-display text-[12px] font-semibold uppercase tracking-[0.04em] transition-colors cursor-pointer ${
+        on ? 'border-brand/50 bg-brand/10 text-brand-3' : 'border-line-2 text-muted hover:text-ink-2'
+      }`}
+    >
+      <span className={`h-[8px] w-[8px] rounded-full ${on ? 'bg-brand' : 'bg-line-2'}`} />
+      {on ? onLabel : offLabel}
+    </button>
   )
 }
