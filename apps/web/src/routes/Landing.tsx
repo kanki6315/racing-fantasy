@@ -1,4 +1,4 @@
-import { Fragment, useMemo, useState } from 'react'
+import { Fragment, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import { Leaderboard } from '../components/Leaderboard'
 import { RegisterModal } from '../components/RegisterModal'
@@ -6,6 +6,8 @@ import { ErrorBox, SkeletonTable } from './LeagueStandings'
 import { useAuth } from '../auth/AuthContext'
 import { useActiveSeason, useSeasonLeaderboard, useRounds, useEvents, useGlobalStats } from '../api/queries'
 import { useCountdown } from '../lib/useCountdown'
+import { useElementSize } from '../lib/useElementSize'
+import { deriveEventStatus, type EventStatus } from '../lib/eventStatus'
 
 /** One weekend on the unified calendar (ADR-0007), driven by the Event API — every series racing it. */
 type CalSeries = { name: string; order: number; isActive: boolean }
@@ -17,16 +19,28 @@ type CalItem = {
   dateMs: number
   series: CalSeries[]
   activeRoundId?: number // the active championship's round here, if any (links the hero to its weekend)
-  picksOpen: boolean // admin-released the board for this weekend → gates COMING SOON vs PICKS OPEN
-  earliestQuali: string // soonest quali across the weekend's series — drives PICKS OPEN → CLOSING
-  latestQuali: string // last quali across the weekend's series — once passed, the weekend is LOCKED
+  picksOpen: boolean // admin-released the board for this weekend
+  scored: boolean // manual admin flag → SCORED lifecycle state
+  finalized: boolean // manual admin flag → CLOSED (collapsed to a single anchor on the calendar)
+  earliestQuali: string // soonest quali across the weekend's series — the first round to lock
+  latestQuali: string // last quali across the weekend's series
 }
 
-const statusStyle: Record<string, string> = {
-  'PICKS OPEN': 'text-ink bg-brand',
-  'PICKS CLOSING': 'text-ink bg-warn',
-  'COMING SOON': 'text-ink-2 bg-line',
-  LOCKED: 'text-muted bg-surface-2',
+// The calendar keeps its bold, solid-fill "timing screen" pills, but the state now comes from the shared
+// deriveEventStatus() lifecycle (single source of truth). Label + fill per EventStatus.
+const statusStyle: Record<EventStatus, string> = {
+  OPEN: 'text-ink bg-brand',
+  WAITING: 'text-ink-2 bg-line',
+  IN_PROGRESS: 'text-ink bg-warn',
+  SCORED: 'text-ink bg-lmp2',
+  CLOSED: 'text-muted bg-surface-2',
+}
+const statusLabel: Record<EventStatus, string> = {
+  OPEN: 'PICKS OPEN',
+  WAITING: 'COMING SOON',
+  IN_PROGRESS: 'IN PROGRESS',
+  SCORED: 'SCORED',
+  CLOSED: 'COMPLETE',
 }
 
 /** "Jun 28" from an ISO date. */
@@ -45,7 +59,7 @@ export function Landing() {
   const navigate = useNavigate()
   const [modalOpen, setModalOpen] = useState(false)
 
-  // Season calendar — event-centric (ADR-0007). The unified weekend calendar: every event (with all
+  // Upcoming events — event-centric (ADR-0007). The unified weekend calendar: every event (with all
   // series racing it as pills) plus the active championship's standalone rounds. Includes weekends the
   // active championship sits out.
   const roundsQ = useRounds(active?.season.id)
@@ -86,11 +100,18 @@ export function Landing() {
         series,
         activeRoundId: mine?.roundId,
         picksOpen: e.picksOpen,
+        scored: e.scored,
+        finalized: e.finalized,
         earliestQuali: new Date(Math.min(...qualis)).toISOString(),
         latestQuali: new Date(Math.max(...qualis)).toISOString(),
       })
     }
-    return items.sort((a, b) => a.dateMs - b.dateMs)
+    items.sort((a, b) => a.dateMs - b.dateMs)
+    // Collapse the past: keep every non-finalized weekend, plus only the most-recent finalized one as a
+    // historical anchor (a scored-but-not-finalized weekend is the natural second item). Flag-driven, so
+    // no dependency on `now` — the per-row pill re-derives its live status separately.
+    const lastFinalizedKey = [...items].reverse().find((i) => i.finalized)?.key ?? null
+    return items.filter((i) => !i.finalized || i.key === lastFinalizedKey)
   }, [active, eventsQ.data, activeRounds])
 
   const calLoading = roundsQ.isLoading || eventsQ.isLoading
@@ -120,6 +141,49 @@ export function Landing() {
     else if (needsRegistration) setModalOpen(true)
     else navigate('/dashboard')
   }
+
+  // Size the calendar to fit up to FIT_TARGET upcoming rows (lg only), but never shorter than the hero,
+  // then render exactly the rows that fully fit. `heroRef` measures the hero's *inner* content (never the
+  // min-height we apply below) so the target can't feed back on itself. Rows past the fold get lg:invisible
+  // (kept in layout so they stay measurable on resize; hidden only at lg). `calH` drives both columns.
+  const FIT_TARGET = 4
+  const [heroRef, heroSize] = useElementSize<HTMLDivElement>()
+  const headerRef = useRef<HTMLDivElement>(null)
+  const rowsRef = useRef<HTMLDivElement>(null)
+  const [fitCount, setFitCount] = useState(Number.POSITIVE_INFINITY)
+  const [calH, setCalH] = useState(0)
+  const [resizeTick, setResizeTick] = useState(0)
+  useEffect(() => {
+    const onResize = () => setResizeTick((t) => t + 1)
+    window.addEventListener('resize', onResize)
+    return () => window.removeEventListener('resize', onResize)
+  }, [])
+  useLayoutEffect(() => {
+    const list = rowsRef.current
+    if (!list) return
+    const isLg = window.matchMedia('(min-width: 1024px)').matches
+    if (!isLg || !heroSize.height) {
+      setFitCount(Number.POSITIVE_INFINITY) // mobile/tablet or pre-measure: no clipping, show everything
+      setCalH(0)
+      return
+    }
+    const rows = Array.from(list.querySelectorAll<HTMLElement>('[data-cal-row]'))
+    const headerH = headerRef.current?.offsetHeight ?? 0
+    // Height the leading FIT_TARGET rows need; floor the column at the hero so it's never shorter.
+    let targetRowsH = 0
+    for (let i = 0; i < Math.min(FIT_TARGET, rows.length); i++) targetRowsH += rows[i].offsetHeight
+    const target = Math.max(heroSize.height, headerH + targetRowsH)
+    const avail = target - headerH
+    let used = 0
+    let count = 0
+    for (const row of rows) {
+      used += row.offsetHeight
+      if (used > avail + 1) break
+      count++
+    }
+    setFitCount(count)
+    setCalH(target)
+  }, [heroSize.height, calendar, resizeTick])
 
   return (
     <>
@@ -158,9 +222,16 @@ export function Landing() {
         </div>
       )}
 
-      <div className="flex flex-col bg-black lg:flex-row">
-        {/* hero — next round + lock countdown */}
-        <div className="w-full border-b border-line bg-gradient-to-b from-surface-3 to-bg px-4 py-[26px] sm:px-7 lg:w-[420px] lg:shrink-0 lg:border-b-0 lg:border-r">
+      {/* Both columns share --cal-h (the measured target). lg:items-start prevents implicit stretch; the
+          hero fills to --cal-h via min-height, the calendar is clipped to it. */}
+      <div
+        style={{ ['--cal-h' as string]: calH ? `${calH}px` : undefined }}
+        className="flex flex-col bg-black lg:flex-row lg:items-start"
+      >
+        {/* hero — next round + lock countdown. Outer holds the frame + fill; the inner (measured) is the
+            natural content, so the min-height never feeds back into the measurement. */}
+        <div className="w-full border-b border-line bg-gradient-to-b from-surface-3 to-bg lg:min-h-[var(--cal-h)] lg:w-[420px] lg:shrink-0 lg:border-b-0 lg:border-r">
+        <div ref={heroRef} className="px-4 py-[26px] sm:px-7">
           <div className="mb-[14px] font-mono text-[11px] tracking-[0.14em] text-brand">// NEXT_EVENT</div>
           <h1 className="font-display text-[34px] font-extrabold italic uppercase leading-[0.92] text-ink sm:text-[40px]">
             {heroTitle}
@@ -207,13 +278,14 @@ export function Landing() {
             </div>
           )}
         </div>
+        </div>
 
-        {/* season calendar */}
-        <div className="min-w-0 flex-1">
-          <div className="flex items-center justify-between px-4 pb-[14px] pt-[18px] sm:px-[26px]">
-            <h2 className="font-display text-[22px] font-extrabold italic uppercase text-ink">Season Calendar</h2>
+        {/* upcoming events — pinned to --cal-h and clipped at lg (no scroll); natural flow below */}
+        <div className="min-w-0 flex-1 lg:flex lg:h-[var(--cal-h)] lg:flex-col lg:overflow-hidden">
+          <div ref={headerRef} className="flex shrink-0 items-center justify-between px-4 pb-[14px] pt-[18px] sm:px-[26px]">
+            <h2 className="font-display text-[22px] font-extrabold italic uppercase text-ink">Upcoming Events</h2>
           </div>
-          <div className="font-mono">
+          <div ref={rowsRef} className="font-mono lg:min-h-0 lg:flex-1 lg:overflow-hidden">
             {calLoading ? (
               <div className="px-4 py-6 sm:px-[26px]">
                 <SkeletonTable />
@@ -227,8 +299,8 @@ export function Landing() {
                 The {active?.season.year ?? ''} schedule hasn't been published yet.
               </p>
             ) : (
-              calendar.map((item) => (
-                <CalendarRow key={item.key} item={item} />
+              calendar.map((item, i) => (
+                <CalendarRow key={item.key} item={item} hiddenAtLg={i >= fitCount} />
               ))
             )}
           </div>
@@ -248,37 +320,24 @@ export function Landing() {
  * its series and no pick-lock (the active championship sits this one out). Three lines: round / track /
  * series pills (the active championship's pill is highlighted).
  */
-function CalendarRow({ item }: { item: CalItem }) {
-  const earliest = +new Date(item.earliestQuali)
-  const latest = +new Date(item.latestQuali)
-  // Count down to whichever lock boundary is next. useCountdown re-renders every second, so the phase
-  // stays current.
-  const cd = useCountdown(Date.now() < earliest ? item.earliestQuali : item.latestQuali)
-  const now = Date.now()
-  // Status machine: a passed weekend is LOCKED; an un-released board is COMING SOON; once the admin
-  // opens the event (Event.picksOpen) picks are OPEN until the first series qualifies, then CLOSING as
-  // each series locks in turn. Openness is per-event, so any number of weekends can be open at once.
-  const status =
-    now >= latest ? 'LOCKED' : !item.picksOpen ? 'COMING SOON' : now < earliest ? 'PICKS OPEN' : 'PICKS CLOSING'
-  const text = status === 'LOCKED' ? '—' : cd.text
-  const hi = status === 'PICKS OPEN'
+function CalendarRow({ item, hiddenAtLg }: { item: CalItem; hiddenAtLg?: boolean }) {
+  // Count down to the first series' quali (the next lock). useCountdown re-renders every second, so the
+  // derived status below stays live as the weekend crosses into IN_PROGRESS.
+  const cd = useCountdown(item.earliestQuali)
+  // Status now comes from the shared lifecycle (deriveEventStatus), same source of truth as the dashboard
+  // and admin. earliestQuali is the first round to lock, which is exactly the firstQuali the helper uses.
+  const status = deriveEventStatus(
+    { picksOpen: item.picksOpen, scored: item.scored, finalized: item.finalized, rounds: [{ qualiStart: item.earliestQuali }] },
+    Date.now(),
+  )
+  // Countdown only reads meaningfully before lock (Picks Open / Coming Soon); afterwards there's nothing
+  // to count down to.
+  const text = status === 'OPEN' || status === 'WAITING' ? cd.text : '—'
+  const hi = status === 'OPEN'
   const label = item.seq != null ? `R${String(item.seq).padStart(2, '0')}` : '·'
   const date = fmtDate(new Date(item.dateMs).toISOString()).toUpperCase()
-  const closing = status === 'PICKS CLOSING'
   const pillClass = `inline-block rounded-[2px] px-[9px] py-[3px] font-display text-[11px] tracking-[0.06em] ${statusStyle[status]}`
-  const badge = closing ? (
-    <span className="group relative inline-block shrink-0" tabIndex={0}>
-      <span className={`${pillClass} cursor-help`}>{status}</span>
-      <span
-        role="tooltip"
-        className="pointer-events-none absolute right-0 top-full z-30 mt-[7px] hidden w-[210px] rounded-[4px] border border-line-2 bg-surface-3 px-3 py-2 font-sans text-[11px] leading-snug text-ink shadow-[0_8px_24px_rgba(0,0,0,0.5)] group-hover:block group-focus-within:block"
-      >
-        Once Qualifying starts, picks for a Championship are locked
-      </span>
-    </span>
-  ) : (
-    <span className={`${pillClass} shrink-0`}>{status}</span>
-  )
+  const badge = <span className={`${pillClass} shrink-0`}>{statusLabel[status]}</span>
   // All series racing this weekend, the active championship highlighted.
   const pills = (
     <div className="mt-[5px] flex flex-wrap items-center gap-[5px]">
@@ -297,11 +356,13 @@ function CalendarRow({ item }: { item: CalItem }) {
 
   return (
     <Fragment>
-      {/* sm+ : grid row */}
+      {/* sm+ : grid row. data-cal-row + lg:invisible drive the measured fit (rows past the fold keep
+          their layout box so they stay measurable on resize, but show nothing at lg). */}
       <div
+        data-cal-row
         className={`hidden grid-cols-[54px_1fr_130px_120px_110px] items-center border-b border-line px-[26px] py-[13px] sm:grid ${
           hi ? 'border-t border-t-line bg-brand/[0.07]' : ''
-        }`}
+        } ${hiddenAtLg ? 'lg:invisible' : ''}`}
       >
         <span className={`text-[13px] font-bold ${hi ? 'text-brand' : 'text-muted'}`}>{label}</span>
         <div>
