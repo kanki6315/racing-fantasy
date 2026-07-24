@@ -1,4 +1,4 @@
-import { Fragment, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react'
+import { Fragment, useMemo, useState } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import { Leaderboard } from '../components/Leaderboard'
 import { RegisterModal } from '../components/RegisterModal'
@@ -6,7 +6,6 @@ import { ErrorBox, SkeletonTable } from './LeagueStandings'
 import { useAuth } from '../auth/AuthContext'
 import { useActiveSeason, useSeasonLeaderboard, useRounds, useEvents, useGlobalStats } from '../api/queries'
 import { useCountdown } from '../lib/useCountdown'
-import { useElementSize } from '../lib/useElementSize'
 import { deriveEventStatus, type EventStatus } from '../lib/eventStatus'
 
 /** One weekend on the unified calendar (ADR-0007), driven by the Event API — every series racing it. */
@@ -31,16 +30,20 @@ type CalItem = {
 const statusStyle: Record<EventStatus, string> = {
   OPEN: 'text-ink bg-brand',
   WAITING: 'text-ink-2 bg-line',
-  IN_PROGRESS: 'text-ink bg-warn',
-  SCORED: 'text-ink bg-lmp2',
+  IN_PROGRESS: 'text-bg bg-warn',
+  AWAITING: 'text-ink-2 bg-surface-2',
+  SCORED: 'text-bg bg-ink', // checkered-flag white: results posted, distinct from FINAL's dim neutral
   CLOSED: 'text-muted bg-surface-2',
 }
+// "FINAL" (racing vocabulary: results official, weekend archived) — distinct from SCORED (points
+// posted, go review). Mirrors EVENT_STATUS_META's label so the two pill vocabularies agree.
 const statusLabel: Record<EventStatus, string> = {
   OPEN: 'PICKS OPEN',
   WAITING: 'COMING SOON',
   IN_PROGRESS: 'IN PROGRESS',
+  AWAITING: 'AWAITING RESULTS',
   SCORED: 'SCORED',
-  CLOSED: 'COMPLETE',
+  CLOSED: 'FINAL',
 }
 
 /** "Jun 28" from an ISO date. */
@@ -48,10 +51,21 @@ function fmtDate(iso: string) {
   return new Date(iso).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })
 }
 
+/** "SAT · JUL 30 · 11:05 AM" — the absolute wall-clock moment behind a countdown (viewer's timezone). */
+function fmtLockTime(iso: string) {
+  const d = new Date(iso)
+  const wd = d.toLocaleDateString('en-US', { weekday: 'short' })
+  const md = d.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })
+  const t = d.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' })
+  return `${wd} · ${md} · ${t}`.toUpperCase()
+}
+
 /**
- * Landing (public + logged-in variants). The championships strip (in the shell) is live; hero +
- * calendar are demo content until F3. When a signed-in user isn't registered for the active season,
- * the registration call-out + team-name modal appear (the front of F2).
+ * Landing (public + logged-in variants). A full-width hero band (the next event, promoted from the
+ * calendar: status pill, lock countdown + absolute time, primary CTA) over the unified event calendar
+ * (rows start at the event after the hero's) and the global leaderboard. When a signed-in user isn't
+ * registered for any season, the registration call-out + team-name modal appear and the hero CTA
+ * demotes to secondary.
  */
 export function Landing() {
   const { isAuthenticated, user, loginWithGoogle } = useAuth()
@@ -139,51 +153,27 @@ export function Landing() {
   const onHeroCta = () => {
     if (!isAuthenticated) loginWithGoogle()
     else if (needsRegistration) setModalOpen(true)
+    // Straight to the lineup when the hero has an active-championship round — the CTA says
+    // "Set Your Lineup", so land on it (the pick page handles not-open/locked states itself).
+    else if (nextEvent?.activeRoundId) navigate(`/pick/${nextEvent.activeRoundId}`)
     else navigate('/dashboard')
   }
 
-  // Size the calendar to fit up to FIT_TARGET upcoming rows (lg only), but never shorter than the hero,
-  // then render exactly the rows that fully fit. `heroRef` measures the hero's *inner* content (never the
-  // min-height we apply below) so the target can't feed back on itself. Rows past the fold get lg:invisible
-  // (kept in layout so they stay measurable on resize; hidden only at lg). `calH` drives both columns.
-  const FIT_TARGET = 4
-  const [heroRef, heroSize] = useElementSize<HTMLDivElement>()
-  const headerRef = useRef<HTMLDivElement>(null)
-  const rowsRef = useRef<HTMLDivElement>(null)
-  const [fitCount, setFitCount] = useState(Number.POSITIVE_INFINITY)
-  const [calH, setCalH] = useState(0)
-  const [resizeTick, setResizeTick] = useState(0)
-  useEffect(() => {
-    const onResize = () => setResizeTick((t) => t + 1)
-    window.addEventListener('resize', onResize)
-    return () => window.removeEventListener('resize', onResize)
-  }, [])
-  useLayoutEffect(() => {
-    const list = rowsRef.current
-    if (!list) return
-    const isLg = window.matchMedia('(min-width: 1024px)').matches
-    if (!isLg || !heroSize.height) {
-      setFitCount(Number.POSITIVE_INFINITY) // mobile/tablet or pre-measure: no clipping, show everything
-      setCalH(0)
-      return
-    }
-    const rows = Array.from(list.querySelectorAll<HTMLElement>('[data-cal-row]'))
-    const headerH = headerRef.current?.offsetHeight ?? 0
-    // Height the leading FIT_TARGET rows need; floor the column at the hero so it's never shorter.
-    let targetRowsH = 0
-    for (let i = 0; i < Math.min(FIT_TARGET, rows.length); i++) targetRowsH += rows[i].offsetHeight
-    const target = Math.max(heroSize.height, headerH + targetRowsH)
-    const avail = target - headerH
-    let used = 0
-    let count = 0
-    for (const row of rows) {
-      used += row.offsetHeight
-      if (used > avail + 1) break
-      count++
-    }
-    setFitCount(count)
-    setCalH(target)
-  }, [heroSize.height, calendar, resizeTick])
+  // The hero band IS the calendar's top entry, promoted — so its status pill derives from the same
+  // lifecycle as the rows, and the rows below start at the event after it (no duplication).
+  const heroStatus = nextEvent
+    ? deriveEventStatus(
+        {
+          picksOpen: nextEvent.picksOpen,
+          scored: nextEvent.scored,
+          finalized: nextEvent.finalized,
+          rounds: [{ qualiStart: nextEvent.earliestQuali }, { qualiStart: nextEvent.latestQuali }],
+        },
+        now,
+      )
+    : null
+  const heroLockIso = nextEvent ? (heroOpen ? nextEvent.earliestQuali : nextEvent.latestQuali) : null
+  const upcomingRows = calendar.filter((c) => c.key !== nextEvent?.key)
 
   return (
     <>
@@ -193,10 +183,10 @@ export function Landing() {
           <div className="pointer-events-none absolute inset-0 bg-[repeating-linear-gradient(135deg,transparent_0_22px,rgba(225,6,0,0.04)_22px_23px)]" />
           <div className="relative min-w-0 flex-1">
             <div className="mb-[13px] inline-flex h-6 items-center gap-2 rounded-[2px] bg-brand px-[11px]">
-              <span className="h-[6px] w-[6px] rounded-full bg-ink [animation:blink_1.4s_infinite]" />
+              <span className="h-[6px] w-[6px] rounded-full bg-ink" />
               <span className="font-mono text-[11px] font-semibold tracking-[0.1em] text-ink">2026 REGISTRATION OPEN</span>
             </div>
-            <div className="font-display text-[26px] font-extrabold italic uppercase leading-[0.96] text-ink sm:text-[34px]">
+            <div className="font-display text-[26px] font-extrabold uppercase leading-[1.02] text-ink sm:text-[34px]">
               Welcome{user?.name ? `, ${user.name.split(' ')[0]}` : ''}.<br />Claim your team for the {active.season.year} season.
             </div>
             <div className="mt-[11px] max-w-[560px] font-sans text-[14px] text-ink-2">
@@ -207,7 +197,7 @@ export function Landing() {
               <button
                 type="button"
                 onClick={() => setModalOpen(true)}
-                className="flex h-12 items-center justify-center gap-[9px] rounded-[3px] bg-brand px-[26px] cursor-pointer hover:bg-[#ff140d] transition-colors"
+                className="flex h-12 items-center justify-center gap-[9px] rounded-[3px] bg-brand px-[26px] cursor-pointer hover:bg-brand-2 transition-colors"
               >
                 <span className="font-display text-[17px] font-bold italic tracking-[0.05em] uppercase text-ink">
                   Register for {active.season.year}
@@ -222,70 +212,107 @@ export function Landing() {
         </div>
       )}
 
-      {/* Both columns share --cal-h (the measured target). lg:items-start prevents implicit stretch; the
-          hero fills to --cal-h via min-height, the calendar is clipped to it. */}
-      <div
-        style={{ ['--cal-h' as string]: calH ? `${calH}px` : undefined }}
-        className="flex flex-col bg-black lg:flex-row lg:items-start"
-      >
-        {/* hero — next round + lock countdown. Outer holds the frame + fill; the inner (measured) is the
-            natural content, so the min-height never feeds back into the measurement. */}
-        <div className="w-full border-b border-line bg-gradient-to-b from-surface-3 to-bg lg:min-h-[var(--cal-h)] lg:w-[420px] lg:shrink-0 lg:border-b-0 lg:border-r">
-        <div ref={heroRef} className="px-4 py-[26px] sm:px-7">
-          <div className="mb-[14px] font-mono text-[11px] tracking-[0.14em] text-brand">// NEXT_EVENT</div>
-          <h1 className="font-display text-[34px] font-extrabold italic uppercase leading-[0.92] text-ink sm:text-[40px]">
-            {heroTitle}
-          </h1>
-          {heroWhere && <div className="mt-[10px] font-sans text-[14px] text-muted">{heroWhere}</div>}
-          {heroSeries.length > 0 && (
-            <div className="mt-[10px] flex flex-wrap items-center gap-[6px]">
-              {heroSeries.map((s) => (
-                <span
-                  key={s.name}
-                  className={`rounded-[2px] border px-[7px] py-[2px] font-sans text-[11px] ${
-                    s.isActive ? 'border-brand/50 bg-brand/10 text-brand-3' : 'border-line-2 bg-surface-2 text-ink-2'
-                  }`}
-                >
-                  {s.name}
-                </span>
-              ))}
+      {/* hero band — the next event as a broadcast lower-third: identity left, timing + action right.
+          The band IS the calendar's top entry, promoted; the rows below start at the following event. */}
+      <div className="bg-black">
+        <div className="border-b border-line bg-gradient-to-b from-surface-3 to-bg">
+          {calLoading ? (
+            <div className="px-4 py-[26px] sm:px-[26px]" aria-hidden>
+              <div className="h-[11px] w-[120px] animate-pulse rounded-[2px] bg-surface-2" />
+              <div className="mt-[14px] h-[38px] max-w-[560px] animate-pulse rounded-[3px] bg-surface-2" />
+              <div className="mt-[12px] h-[14px] w-[220px] animate-pulse rounded-[2px] bg-surface-2" />
             </div>
-          )}
+          ) : (
+            <div className="flex flex-col gap-[26px] px-4 py-[26px] sm:px-[26px] lg:flex-row lg:items-center lg:gap-12">
+              {/* identity */}
+              <div className="min-w-0 flex-1">
+                <div className="mb-[14px] flex flex-wrap items-center gap-[10px]">
+                  <span className="font-mono text-[11px] tracking-[0.14em] text-muted">// NEXT_EVENT</span>
+                  {nextEvent?.seq != null && (
+                    <span className="font-mono text-[13px] font-bold leading-none text-ink">
+                      R{String(nextEvent.seq).padStart(2, '0')}
+                    </span>
+                  )}
+                  {heroStatus && (
+                    <span className={`inline-block rounded-[2px] px-[9px] py-[3px] font-display text-[11px] tracking-[0.06em] ${statusStyle[heroStatus]}`}>
+                      {statusLabel[heroStatus]}
+                    </span>
+                  )}
+                </div>
+                <h1 className="font-display text-[34px] font-extrabold uppercase leading-[0.98] text-ink [text-wrap:balance] sm:text-[40px]">
+                  {heroTitle}
+                </h1>
+                {heroWhere && <div className="mt-[10px] font-sans text-[14px] text-muted">{heroWhere}</div>}
+                {heroSeries.length > 0 && (
+                  <div className="mt-[10px] flex flex-wrap items-center gap-[6px]">
+                    {heroSeries.map((s) => (
+                      <span
+                        key={s.name}
+                        className={`rounded-[2px] border px-[7px] py-[2px] font-sans text-[11px] ${
+                          s.isActive ? 'border-line-3 bg-surface-2 font-medium text-ink' : 'border-line-2 bg-surface-2 text-ink-2'
+                        }`}
+                      >
+                        {s.name}
+                      </span>
+                    ))}
+                  </div>
+                )}
+                {!isAuthenticated && (
+                  <p className="mt-[16px] max-w-[62ch] font-sans text-[14px] leading-[1.5] text-ink-2 [text-wrap:pretty]">
+                    Endurance fantasy racing: pick your teams and drivers within a salary cap and rack up points as they race.
+                  </p>
+                )}
+              </div>
 
-          <div className="mt-[22px] rounded-[3px] border border-line border-l-[3px] border-l-brand bg-black px-4 py-[14px]">
-            <div className="mb-[7px] font-display text-[11px] tracking-[0.16em] text-muted-2">PICKS LOCK IN</div>
-            <div className="font-mono text-[34px] font-bold tracking-[0.02em] text-ink">{heroCd.text}</div>
-          </div>
-
-          <button
-            type="button"
-            onClick={onHeroCta}
-            className="mt-4 flex h-[46px] w-full items-center justify-center gap-2 rounded-[3px] bg-brand cursor-pointer"
-          >
-            {needsRegistration && (
-              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#fff" strokeWidth="2.4">
-                <rect x="5" y="11" width="14" height="10" rx="1.5" />
-                <path d="M8 11V7a4 4 0 0 1 8 0v4" />
-              </svg>
-            )}
-            <span className="font-display text-[17px] font-bold italic tracking-[0.06em] uppercase text-ink">
-              {needsRegistration ? 'Register to Set Lineup' : 'Set Your Lineup →'}
-            </span>
-          </button>
-          {needsRegistration && (
-            <div className="mt-[10px] flex items-center justify-center gap-[7px]">
-              <span className="font-sans text-[12px] text-muted-2">Lineups unlock once you've claimed a team name</span>
+              {/* timing + action */}
+              {nextEvent && (
+                <div className="w-full lg:w-[340px] lg:shrink-0">
+                  <div className="rounded-[3px] border border-line bg-black px-4 py-[14px]">
+                    <div className="mb-[7px] flex items-center gap-[7px]">
+                      <span className="h-[10px] w-[4px] flex-none bg-brand [transform:skewX(-14deg)]" />
+                      <span className="font-display text-[11px] tracking-[0.16em] text-muted">
+                        {heroOpen ? 'PICKS LOCK IN' : 'WEEKEND LOCKS IN'}
+                      </span>
+                    </div>
+                    <div className="font-mono text-[34px] font-bold tracking-[0.02em] text-ink">{heroCd.text}</div>
+                    {heroLockIso && (
+                      <div className="mt-[6px] font-mono text-[11px] tracking-[0.08em] text-muted">{fmtLockTime(heroLockIso)}</div>
+                    )}
+                  </div>
+                  {/* When the registration banner is on screen its CTA is THE primary action — the hero's
+                      copy of it demotes to a secondary button so only one red italic CTA exists per view
+                      (The Italic-Restraint Rule / One Red Rule). */}
+                  <button
+                    type="button"
+                    onClick={onHeroCta}
+                    className={`mt-4 flex h-[46px] w-full items-center justify-center gap-2 rounded-[3px] cursor-pointer transition-colors ${
+                      needsRegistration
+                        ? 'border border-line-2 bg-surface text-ink-2 hover:border-line-3 hover:text-ink'
+                        : 'bg-brand text-ink hover:bg-brand-2'
+                    }`}
+                  >
+                    {needsRegistration && (
+                      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4">
+                        <rect x="5" y="11" width="14" height="10" rx="1.5" />
+                        <path d="M8 11V7a4 4 0 0 1 8 0v4" />
+                      </svg>
+                    )}
+                    <span className={`font-display text-[17px] font-bold tracking-[0.06em] uppercase ${needsRegistration ? '' : 'italic'}`}>
+                      {!isAuthenticated ? 'Sign in to Play' : needsRegistration ? 'Register to Set Lineup' : 'Set Your Lineup →'}
+                    </span>
+                  </button>
+                </div>
+              )}
             </div>
           )}
         </div>
-        </div>
 
-        {/* upcoming events — pinned to --cal-h and clipped at lg (no scroll); natural flow below */}
-        <div className="min-w-0 flex-1 lg:flex lg:h-[var(--cal-h)] lg:flex-col lg:overflow-hidden">
-          <div ref={headerRef} className="flex shrink-0 items-center justify-between px-4 pb-[14px] pt-[18px] sm:px-[26px]">
-            <h2 className="font-display text-[22px] font-extrabold italic uppercase text-ink">Upcoming Events</h2>
+        {/* upcoming events — full-width, natural height; the hero's event is promoted above */}
+        <div className="min-w-0">
+          <div className="flex items-center justify-between px-4 pb-[14px] pt-[18px] sm:px-[26px]">
+            <h2 className="font-display text-[22px] font-extrabold uppercase text-ink">Race Calendar</h2>
           </div>
-          <div ref={rowsRef} className="font-mono lg:min-h-0 lg:flex-1 lg:overflow-hidden">
+          <div className="font-mono">
             {calLoading ? (
               <div className="px-4 py-6 sm:px-[26px]">
                 <SkeletonTable />
@@ -295,13 +322,15 @@ export function Landing() {
                 <ErrorBox message="Couldn't load the schedule." />
               </div>
             ) : calendar.length === 0 ? (
-              <p className="px-4 py-6 text-[13px] text-muted-2 sm:px-[26px]">
+              <p className="px-4 py-6 text-[13px] text-muted sm:px-[26px]">
                 The {active?.season.year ?? ''} schedule hasn't been published yet.
               </p>
+            ) : upcomingRows.length === 0 ? (
+              <p className="px-4 py-6 text-[13px] text-muted sm:px-[26px]">
+                That's the season — no events after this one.
+              </p>
             ) : (
-              calendar.map((item, i) => (
-                <CalendarRow key={item.key} item={item} hiddenAtLg={i >= fitCount} />
-              ))
+              upcomingRows.map((item) => <CalendarRow key={item.key} item={item} />)
             )}
           </div>
         </div>
@@ -320,20 +349,29 @@ export function Landing() {
  * its series and no pick-lock (the active championship sits this one out). Three lines: round / track /
  * series pills (the active championship's pill is highlighted).
  */
-function CalendarRow({ item, hiddenAtLg }: { item: CalItem; hiddenAtLg?: boolean }) {
+function CalendarRow({ item }: { item: CalItem }) {
   // Count down to the first series' quali (the next lock). useCountdown re-renders every second, so the
   // derived status below stays live as the weekend crosses into IN_PROGRESS.
   const cd = useCountdown(item.earliestQuali)
-  // Status now comes from the shared lifecycle (deriveEventStatus), same source of truth as the dashboard
-  // and admin. earliestQuali is the first round to lock, which is exactly the firstQuali the helper uses.
+  // Status comes from the shared lifecycle (deriveEventStatus), same source of truth as the dashboard
+  // and admin. Both qualis go in so IN_PROGRESS can time-decay to AWAITING off the LAST lock.
   const status = deriveEventStatus(
-    { picksOpen: item.picksOpen, scored: item.scored, finalized: item.finalized, rounds: [{ qualiStart: item.earliestQuali }] },
+    {
+      picksOpen: item.picksOpen,
+      scored: item.scored,
+      finalized: item.finalized,
+      rounds: [{ qualiStart: item.earliestQuali }, { qualiStart: item.latestQuali }],
+    },
     Date.now(),
   )
   // Countdown only reads meaningfully before lock (Picks Open / Coming Soon); afterwards there's nothing
   // to count down to.
   const text = status === 'OPEN' || status === 'WAITING' ? cd.text : '—'
   const hi = status === 'OPEN'
+  const dim = status === 'CLOSED' // retired weekends recede
+  // Every row is a door: an open round links straight to its pick board; everything else lands on the
+  // standings surface (no round-level deep link exists yet — revisit when one does).
+  const href = status === 'OPEN' && item.activeRoundId != null ? `/pick/${item.activeRoundId}` : '/standings'
   const label = item.seq != null ? `R${String(item.seq).padStart(2, '0')}` : '·'
   const date = fmtDate(new Date(item.dateMs).toISOString()).toUpperCase()
   const pillClass = `inline-block rounded-[2px] px-[9px] py-[3px] font-display text-[11px] tracking-[0.06em] ${statusStyle[status]}`
@@ -344,8 +382,8 @@ function CalendarRow({ item, hiddenAtLg }: { item: CalItem; hiddenAtLg?: boolean
       {item.series.map((s) => (
         <span
           key={s.name}
-          className={`rounded-[2px] border px-[6px] py-[1px] text-[10px] ${
-            s.isActive ? 'border-brand/50 bg-brand/10 text-brand-3' : 'border-line-2 bg-surface-2 text-ink-2'
+          className={`rounded-[2px] border px-[6px] py-[2px] text-[11px] ${
+            s.isActive ? 'border-line-3 bg-surface-2 font-medium text-ink' : 'border-line-2 bg-surface-2 text-ink-2'
           }`}
         >
           {s.name}
@@ -356,99 +394,81 @@ function CalendarRow({ item, hiddenAtLg }: { item: CalItem; hiddenAtLg?: boolean
 
   return (
     <Fragment>
-      {/* sm+ : grid row. data-cal-row + lg:invisible drive the measured fit (rows past the fold keep
-          their layout box so they stay measurable on resize, but show nothing at lg). */}
-      <div
-        data-cal-row
-        className={`hidden grid-cols-[54px_1fr_130px_120px_110px] items-center border-b border-line px-[26px] py-[13px] sm:grid ${
-          hi ? 'border-t border-t-line bg-brand/[0.07]' : ''
-        } ${hiddenAtLg ? 'lg:invisible' : ''}`}
+      {/* sm+ : grid row (a link — open rounds go to their pick board, the rest to standings) */}
+      <Link
+        to={href}
+        className={`hidden grid-cols-[54px_1fr_130px_120px_110px] items-center border-b border-line px-[26px] py-[13px] transition-colors sm:grid ${
+          hi ? 'border-t border-t-line bg-brand/[0.07] hover:bg-brand/[0.12]' : 'hover:bg-surface-2'
+        } ${dim ? 'opacity-70' : ''}`}
       >
-        <span className={`text-[13px] font-bold ${hi ? 'text-brand' : 'text-muted'}`}>{label}</span>
+        <span className={`text-[13px] font-bold ${hi ? 'text-brand-2' : 'text-muted'}`}>{label}</span>
         <div>
           <div className="font-display text-[17px] font-bold uppercase text-ink">{item.title}</div>
-          {item.track && <div className="text-[11px] text-muted-2">{item.track}</div>}
+          {item.track && <div className="text-[11px] text-muted">{item.track}</div>}
           {pills}
         </div>
         <span className="text-[13px] text-ink-2">{date}</span>
         <div>{badge}</div>
-        <span className={`text-right text-[12px] ${hi ? 'text-brand' : 'text-muted-2'}`}>{text}</span>
-      </div>
+        <span className={`text-right text-[12px] ${hi ? 'text-brand-2' : 'text-muted'}`}>{text}</span>
+      </Link>
 
-      {/* < sm : card */}
-      <div
-        className={`flex flex-col gap-[7px] border-b border-line px-4 py-3 sm:hidden ${
-          hi ? 'border-t border-t-line bg-brand/[0.07]' : ''
-        }`}
+      {/* < sm : card (same link; active state gives touch feedback) */}
+      <Link
+        to={href}
+        className={`flex flex-col gap-[7px] border-b border-line px-4 py-3 transition-colors sm:hidden ${
+          hi ? 'border-t border-t-line bg-brand/[0.07] active:bg-brand/[0.12]' : 'active:bg-surface-2'
+        } ${dim ? 'opacity-70' : ''}`}
       >
         <div className="flex items-start gap-3">
-          <span className={`mt-[2px] text-[13px] font-bold ${hi ? 'text-brand' : 'text-muted'}`}>{label}</span>
+          <span className={`mt-[2px] text-[13px] font-bold ${hi ? 'text-brand-2' : 'text-muted'}`}>{label}</span>
           <div className="min-w-0 flex-1">
             <div className="font-display text-[16px] font-bold uppercase text-ink">{item.title}</div>
-            {item.track && <div className="text-[11px] text-muted-2">{item.track}</div>}
+            {item.track && <div className="text-[11px] text-muted">{item.track}</div>}
             {pills}
           </div>
           {badge}
         </div>
         <div className="flex items-center justify-between pl-[27px] text-[12px]">
           <span className="text-ink-2">{date}</span>
-          <span className={`${hi ? 'text-brand' : 'text-muted-2'}`}>{text}</span>
+          <span className={`${hi ? 'text-brand-2' : 'text-muted'}`}>{text}</span>
         </div>
-      </div>
+      </Link>
     </Fragment>
   )
 }
 
-/** Bottom of the Landing: the real season pool (top rows) + demo stat tiles. */
+/** Bottom of the Landing: the real season pool (top rows) + live player/league counts. */
 function GlobalLeaderboard({ seasonId, myRegistrationId }: { seasonId?: number; myRegistrationId?: number }) {
   const lb = useSeasonLeaderboard(seasonId)
   const top = (lb.data?.entries ?? []).slice(0, 8)
   const stats = useGlobalStats()
 
   return (
-    <div className="flex flex-col gap-6 border-t border-line bg-bg px-4 py-7 sm:px-[26px] lg:flex-row">
-      {/* stat tiles (mocked) */}
-      <div className="flex shrink-0 gap-3 lg:w-[300px] lg:flex-col">
-        <div className="mb-1 hidden font-display text-[11px] tracking-[0.14em] uppercase text-muted-2 lg:block">// SEASON_PULSE</div>
-        <Tile
-          label="Players"
-          value={stats.data ? stats.data.players.toLocaleString() : '—'}
-        />
-        <Tile
-          label="Leagues"
-          value={stats.data ? stats.data.leagues.toLocaleString() : '—'}
-        />
-      </div>
-
-      {/* global leaderboard (real) */}
-      <div className="min-w-0 flex-1">
-        <div className="mb-[14px] flex items-end justify-between">
-          <h2 className="font-display text-[22px] font-extrabold italic uppercase text-ink">Global Leaderboard</h2>
+    <div className="border-t border-line bg-bg px-4 py-7 sm:px-[26px]">
+      <div className="mb-[14px] flex flex-wrap items-end justify-between gap-x-6 gap-y-2">
+        <h2 className="font-display text-[22px] font-extrabold uppercase text-ink">Global Leaderboard</h2>
+        <div className="flex items-center gap-5">
+          {stats.data && (
+            <span className="font-mono text-[11px] tracking-[0.08em] text-muted">
+              {stats.data.players.toLocaleString()} PLAYERS · {stats.data.leagues.toLocaleString()} LEAGUES
+            </span>
+          )}
           <Link to="/standings" className="font-display text-[12px] font-semibold uppercase tracking-[0.05em] text-muted hover:text-ink-2 transition-colors">
             Full standings →
           </Link>
         </div>
-        {lb.isLoading ? (
-          <SkeletonTable />
-        ) : lb.isError ? (
-          <ErrorBox message="Couldn't load the global board." />
-        ) : (
-          <Leaderboard
-            entries={top}
-            myRegistrationId={myRegistrationId}
-            emptyMessage="The global board opens once the first round is scored."
-          />
-        )}
       </div>
-    </div>
-  )
-}
-
-function Tile({ label, value }: { label: string; value: string }) {
-  return (
-    <div className="flex-1 rounded-[3px] border border-line border-l-[3px] border-l-brand bg-surface px-4 py-[14px]">
-      <div className="font-display text-[11px] tracking-[0.12em] uppercase text-muted-2">{label}</div>
-      <div className="mt-1 font-mono text-[26px] font-bold text-ink">{value}</div>
+      {lb.isLoading ? (
+        <SkeletonTable />
+      ) : lb.isError ? (
+        <ErrorBox message="Couldn't load the global board." />
+      ) : (
+        <Leaderboard
+          entries={top}
+          myRegistrationId={myRegistrationId}
+          emptyMessage="The global board opens once the first round is scored."
+        />
+      )}
     </div>
   )
 }

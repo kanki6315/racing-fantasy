@@ -2,11 +2,11 @@ import type { ElementType } from 'react'
 import { Link } from 'react-router-dom'
 import type { LeaderboardEntry } from '../api/queries'
 
-/** Podium accent for the top three ranks; everyone else is plain ink. */
+/** Podium emphasis: the leader carries the one red, then the ink ramp dims down the order. */
 function rankColor(rank: number): string {
   if (rank === 1) return 'text-brand-2'
   if (rank === 2) return 'text-ink'
-  if (rank === 3) return 'text-gtdpro-2'
+  if (rank === 3) return 'text-ink-2'
   return 'text-ink-2'
 }
 
@@ -17,7 +17,7 @@ function rankColor(rank: number): string {
 function Movement({ value }: { value?: number | null }) {
   if (value == null) return null
   const label = value > 0 ? `up ${value}` : value < 0 ? `down ${-value}` : 'no change'
-  const tone = value > 0 ? 'text-success' : value < 0 ? 'text-danger' : 'text-muted-2'
+  const tone = value > 0 ? 'text-success' : value < 0 ? 'text-danger' : 'text-muted'
   return (
     <span aria-label={`Moved ${label} since last round`} className={`font-mono text-[10px] leading-none ${tone}`}>
       {value > 0 ? `▲${value}` : value < 0 ? `▼${-value}` : '—'}
@@ -56,11 +56,16 @@ export function Leaderboard({
     ? 'grid-cols-[64px_1fr_minmax(0,1fr)_110px_90px]'
     : 'grid-cols-[64px_1fr_110px_90px]'
 
+  // Integer points render without the ".0" — but if ANY row is fractional, every row keeps one
+  // decimal so the column still aligns to the digit (The Tabular-Numeral Rule).
+  const showDecimals = entries.some((e) => !Number.isInteger(e.points))
+  const fmtPoints = (p: number) => (showDecimals ? p.toFixed(1) : p.toLocaleString())
+
   return (
     <div className="overflow-hidden rounded-[4px] border border-line bg-surface">
       {/* sm+ : the full grid table */}
       <div className="hidden sm:block">
-        <div className={`grid ${cols} items-center border-b border-line bg-surface-3 px-[18px] py-[10px] font-display text-[11px] tracking-[0.1em] uppercase text-muted-2`}>
+        <div className={`grid ${cols} items-center border-b border-line bg-surface-3 px-[18px] py-[10px] font-display text-[11px] tracking-[0.1em] uppercase text-muted`}>
           <span>#</span>
           <span>Team</span>
           {showName && <span>Player</span>}
@@ -76,7 +81,7 @@ export function Leaderboard({
               key={e.registrationId}
               {...(href ? { to: href } : {})}
               className={`grid ${cols} items-center border-b border-surface-2 px-[18px] py-[13px] ${
-                mine ? 'border-l-[3px] border-l-brand bg-brand/[0.06]' : ''
+                mine ? 'bg-brand/[0.07]' : ''
               } ${href ? 'transition-colors hover:bg-surface-2' : ''}`}
             >
               <span className="flex items-baseline gap-1.5">
@@ -86,11 +91,11 @@ export function Leaderboard({
               <span className="flex items-center gap-2 truncate font-display text-[15px] font-bold uppercase tracking-[0.02em] text-ink">
                 <span className={`h-[15px] w-[4px] flex-none [transform:skewX(-14deg)] ${mine ? 'bg-brand' : 'bg-line-3'}`} />
                 <span className="truncate">{e.teamName}</span>
-                {mine && <span className="flex-none rounded-[2px] bg-brand px-[6px] py-[1px] font-mono text-[9px] tracking-[0.08em] text-ink">YOU</span>}
+                {mine && <span className="flex-none rounded-[2px] bg-brand px-[6px] py-[1px] font-mono text-[10px] tracking-[0.08em] text-ink">YOU</span>}
               </span>
               {showName && <span className="truncate font-sans text-[12px] text-muted">{e.name ?? '—'}</span>}
-              <span className="text-right font-mono text-[15px] font-semibold text-ink">{e.points.toFixed(1)}</span>
-              <span className="text-right font-mono text-[12px] text-muted-2">{e.roundsScored}</span>
+              <span className="text-right font-mono text-[15px] font-semibold text-ink">{fmtPoints(e.points)}</span>
+              <span className="text-right font-mono text-[12px] text-muted">{e.roundsScored}</span>
             </Row>
           )
         })}
@@ -107,7 +112,7 @@ export function Leaderboard({
               key={e.registrationId}
               {...(href ? { to: href } : {})}
               className={`flex items-center gap-3 border-b border-surface-2 px-4 py-3 ${
-                mine ? 'border-l-[3px] border-l-brand bg-brand/[0.06]' : ''
+                mine ? 'bg-brand/[0.07]' : ''
               } ${href ? 'transition-colors active:bg-surface-2' : ''}`}
             >
               <span className="flex w-7 shrink-0 flex-col items-center gap-0.5">
@@ -118,16 +123,16 @@ export function Leaderboard({
                 <div className="flex items-center gap-2">
                   <span className={`h-[14px] w-[4px] flex-none [transform:skewX(-14deg)] ${mine ? 'bg-brand' : 'bg-line-3'}`} />
                   <span className="truncate font-display text-[15px] font-bold uppercase tracking-[0.02em] text-ink">{e.teamName}</span>
-                  {mine && <span className="flex-none rounded-[2px] bg-brand px-[6px] py-[1px] font-mono text-[9px] tracking-[0.08em] text-ink">YOU</span>}
+                  {mine && <span className="flex-none rounded-[2px] bg-brand px-[6px] py-[1px] font-mono text-[10px] tracking-[0.08em] text-ink">YOU</span>}
                 </div>
-                <div className="mt-[3px] flex items-center gap-1.5 truncate font-mono text-[11px] text-muted-2">
+                <div className="mt-[3px] flex items-center gap-1.5 truncate font-mono text-[11px] text-muted">
                   <span>{e.roundsScored} {e.roundsScored === 1 ? 'round' : 'rounds'}</span>
                   {showName && e.name && <span className="truncate text-muted">· {e.name}</span>}
                 </div>
               </div>
               <div className="shrink-0 text-right">
-                <div className="font-mono text-[17px] font-bold leading-none text-ink">{e.points.toFixed(1)}</div>
-                <div className="mt-[3px] font-mono text-[9px] uppercase tracking-[0.1em] text-muted-2">pts</div>
+                <div className="font-mono text-[17px] font-bold leading-none text-ink">{fmtPoints(e.points)}</div>
+                <div className="mt-[3px] font-mono text-[10px] uppercase tracking-[0.1em] text-muted">pts</div>
               </div>
             </Row>
           )

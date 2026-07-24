@@ -20,24 +20,24 @@ colors:
   class-lmp2: "#2e7dff"
   class-gtdpro: "#ffb400"
   class-gtd: "#4ade80"
-  success: "#4ade80"
-  warn: "#ffc23d"
+  success: "#2dd4bf"
+  warn: "#ff9e2c"
   danger: "#ff5d5d"
 typography:
   display:
-    fontFamily: "Saira Condensed, sans-serif"
+    fontFamily: "Saira Semi Condensed, sans-serif"
     fontSize: "clamp(2rem, 5vw, 3.25rem)"
     fontWeight: 700
     lineHeight: 1.0
     letterSpacing: "0.0em"
   headline:
-    fontFamily: "Saira Condensed, sans-serif"
+    fontFamily: "Saira Semi Condensed, sans-serif"
     fontSize: "1.5rem"
     fontWeight: 600
     lineHeight: 1.1
     letterSpacing: "0.0em"
   title:
-    fontFamily: "Saira Condensed, sans-serif"
+    fontFamily: "Saira Semi Condensed, sans-serif"
     fontSize: "0.875rem"
     fontWeight: 600
     lineHeight: 1.2
@@ -120,7 +120,7 @@ things that matter: the live state, the primary action, the bar under the wordma
 
 It is broadcast-fluent but never cluttered. Where real timing software drowns the viewer in
 density, this system breathes: generous gutters, clear hierarchy, one accent at a time. The
-condensed display face (Saira Condensed) carries the trackside, engineered character; the humanist
+condensed display face (Saira Semi Condensed) carries the trackside, engineered character; the humanist
 body face (Saira) keeps prose calm and readable; the mono (Spline Sans Mono) is reserved for data
 and micro-labels. The result reads as *precise, fast, premium* — the focus of the grid before
 lights-out, not the noise of a casino floor.
@@ -157,9 +157,13 @@ load-bearing racing-class hues that function as wayfinding.
   (`class.color`) and must only ever signify class — never reused as generic accent or status.
 
 ### Tertiary — Status
-- **Success Green** (`#4ade80`): positive deltas, confirmed/scored states.
-- **Warn Amber** (`#ffc23d`): caution — not-registered, lock-approaching, attention-needed.
+Status hues are deliberately offset from the class hues (teal ≠ GTD green, orange ≠ GTD PRO amber)
+so a status signal can never be mistaken for class wayfinding.
+- **Success Teal** (`#2dd4bf`): positive deltas, confirmed states.
+- **Warn Orange** (`#ff9e2c`): caution — not-registered, lock-approaching, attention-needed.
 - **Danger Red** (`#ff5d5d`): errors, destructive actions, lockouts.
+- **Flag White** (ink on `ink/10`, or solid `ink` fill with dark text): results posted — the SCORED
+  lifecycle pill; the checkered-flag moment, distinct from FINAL's dim neutral.
 
 ### Neutral
 - **Void** (`#0a0b0d`): the page background; the broadcast black everything sits on.
@@ -180,20 +184,20 @@ elsewhere breaks the map.
 
 ## 3. Typography
 
-**Display Font:** Saira Condensed (with `sans-serif` fallback)
+**Display Font:** Saira Semi Condensed (with `sans-serif` fallback)
 **Body Font:** Saira (with `sans-serif` fallback)
 **Label/Mono Font:** Spline Sans Mono (with `monospace` fallback)
 
-**Character:** A single condensed/regular sans family pairing (Saira Condensed + Saira) keeps the
+**Character:** A single condensed/regular sans family pairing (Saira Semi Condensed + Saira) keeps the
 voice unified and engineered — the condensed cut does the trackside shouting, the regular cut keeps
 prose humane. Spline Sans Mono is the timing-screen numeral: tabular, exact, used for every figure
 and micro-label so numbers align and scan.
 
 ### Hierarchy
-- **Display** (Saira Condensed, 700, clamp(2rem→3.25rem), lh 1.0): page and hero titles, scoreboard
+- **Display** (Saira Semi Condensed, 700, clamp(2rem→3.25rem), lh 1.0): page and hero titles, scoreboard
   headers. Uppercase. Reserve true italic for the single primary CTA.
-- **Headline** (Saira Condensed, 600, ~1.5rem, lh 1.1): section and panel titles.
-- **Title** (Saira Condensed, 600, ~0.875rem, +0.08em, uppercase): nav links, button labels, table
+- **Headline** (Saira Semi Condensed, 600, ~1.5rem, lh 1.1): section and panel titles.
+- **Title** (Saira Semi Condensed, 600, ~0.875rem, +0.08em, uppercase): nav links, button labels, table
   headers — the engineered all-caps voice.
 - **Body** (Saira, 400, ~0.8125rem, lh 1.5): prose, descriptions, helper text. Cap measure at 65–75ch.
 - **Label** (Spline Sans Mono, 500, ~0.625rem, +0.08em): micro-labels, status pills, and all numeric
@@ -231,7 +235,7 @@ the primary action always wins the eye.
 
 ### Buttons
 - **Shape:** sharp, engineered corners — 3px (`rounded.sm`) for actions, never pill-rounded.
-- **Primary:** solid IMSA red (`#e10600`) fill, white ink, Saira Condensed uppercase title type,
+- **Primary:** solid IMSA red (`#e10600`) fill, white ink, Saira Semi Condensed uppercase title type,
   ~44px tall. The one true action per view; italic permitted here only.
 - **Hover / Focus:** brighten to `#ff2d2d`; keyboard focus shows the global 2px `#ff5d5d` ring at
   2px offset. Transitions are color-only and fast (~150ms).
@@ -260,7 +264,7 @@ the primary action always wins the eye.
 
 ### Navigation
 - **Style:** pure-black top bar with a 2px IMSA-red bottom border — the broadcast lower-third edge.
-  Links are Saira Condensed uppercase, tracked. Active link carries a `brand` underline (the border
+  Links are Saira Semi Condensed uppercase, tracked. Active link carries a `brand` underline (the border
   is present-but-transparent when idle, so labels never shift). Idle `muted` → hover `ink-2`.
 - **Mobile:** the inline nav collapses to a horizontally scrollable section row beneath the bar;
   the identity block replaces the initials avatar with name/email.

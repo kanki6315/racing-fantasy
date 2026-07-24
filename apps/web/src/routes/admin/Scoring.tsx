@@ -84,9 +84,9 @@ export function Scoring() {
 
       {/* Source totals */}
       <div className="mb-5 grid grid-cols-3 gap-3">
-        <SourceTile label="Qualifying" value={totals.quali} dot="bg-lmp2" />
-        <SourceTile label="Race" value={totals.race} dot="bg-gtp" />
-        <SourceTile label="Bonus" value={totals.bonus} dot="bg-gtdpro" />
+        <SourceTile label="Qualifying" value={totals.quali} dot="bg-success" />
+        <SourceTile label="Race" value={totals.race} dot="bg-brand-2" />
+        <SourceTile label="Bonus" value={totals.bonus} dot="bg-warn" />
       </div>
 
       {isLoading ? (
@@ -112,9 +112,9 @@ export function Scoring() {
             >
               <div className="font-mono text-[13px] text-muted">{i + 1}</div>
               <div className="truncate font-display text-[13px] font-semibold uppercase text-ink">{r.team}</div>
-              <div className="text-right font-mono text-[12px] text-lmp2-2">{r.quali || '—'}</div>
+              <div className="text-right font-mono text-[12px] text-success">{r.quali || '—'}</div>
               <div className="text-right font-mono text-[12px] text-brand-2">{r.race || '—'}</div>
-              <div className="text-right font-mono text-[12px] text-gtdpro-2">{r.bonus || '—'}</div>
+              <div className="text-right font-mono text-[12px] text-warn">{r.bonus || '—'}</div>
               <div className="text-right font-mono text-[13px] font-semibold text-ink">{r.total}</div>
             </div>
           ))}

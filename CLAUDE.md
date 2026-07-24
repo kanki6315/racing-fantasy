@@ -208,13 +208,18 @@ pnpm build          # tsc typecheck + production build
   single "active" championship; each event carries **`picksOpen`** (the admin pick-release gate) and its
   rounds with `championshipOrder`. `POST/PUT /events` accept `picksOpen`; the admin Events screen toggles it.
   Events also carry two manual, display-only lifecycle flags **`scored`** + **`finalized`** (ADR-0008
-  amendment): the player Dashboard **and** the Landing calendar derive a **five-stage status** (Waiting →
-  Picks Open → In Progress at first-round quali → Scored → Closed) via the shared `deriveEventStatus()`
-  helper (`apps/web/src/lib/eventStatus.ts`) — on the Dashboard Waiting/Closed are hidden and the card badge
-  is live (not hardcoded); the Landing calendar keeps its bold pill vocabulary (WAITING="COMING SOON",
-  CLOSED="COMPLETE"), collapses the past to one most-recent-finalized anchor, and is height-bounded to fit
-  ~4 events. `finalized` retires a weekend from the Dashboard; `scored` shows a Scored badge so players can
-  review locked picks. Neither gates standings.
+  amendment): the player Dashboard **and** the Landing calendar derive a **six-stage status** (Waiting →
+  Picks Open → In Progress at first-round quali → Awaiting Results → Scored → Closed) via the shared
+  `deriveEventStatus()` helper (`apps/web/src/lib/eventStatus.ts`) — IN_PROGRESS **time-decays to
+  AWAITING** 72h after the last quali if the manual `scored` flag hasn't been set, so a stale flag can't
+  leave a weekend reading "In Progress". On the Dashboard Waiting/Closed are hidden and the card badge is
+  live (not hardcoded); the Landing "Race Calendar" keeps its bold pill vocabulary (WAITING="COMING SOON",
+  AWAITING="AWAITING RESULTS", CLOSED="FINAL"), collapses the past to one most-recent-finalized anchor
+  (dimmed), and renders **every row as a link** (open → `/pick/{roundId}`, else `/standings`). The old
+  hero column was replaced by a full-width **hero band** (the next event promoted from the calendar:
+  status pill, R-number chip, lock countdown + absolute wall-clock time, primary CTA) — the
+  height-matching machinery is gone. `finalized` retires a weekend from the Dashboard; `scored` shows a
+  Scored badge so players can review locked picks. Neither gates standings.
 - **Selection board:** `GET /rounds/{roundId}/prices` (public; cars + drivers + prices + display names).
   Each **car** item also carries its **driver lineup** (`drivers: [{ id, fullName }]`, co-drivers ordered
   by entry-driver id) and its race **`number`** (null for drivers). The pick board shows the lineup +
@@ -304,16 +309,24 @@ pnpm build          # tsc typecheck + production build
   now) and **production deploy**.
 - **Multi-championship support (done — ADR-0008):** player UI decoupled from a single "active"
   championship; `championship.sort_order`, event-driven calendar, `event.picks_open` gate, leaderboard
-  Championship → Year → Round filters. **Event lifecycle (done — ADR-0008 amendment):** both the Dashboard
-  and the Landing calendar derive a five-stage status (Waiting/Picks Open/In Progress/Scored/Closed) from
-  `picks_open` + first-round quali + the manual `event.scored`/`event.finalized` flags via the shared
-  `deriveEventStatus()` helper (`apps/web/src/lib/eventStatus.ts`), so past weekends retire and badges are
-  honest instead of hardcoded. The Landing calendar ("Upcoming Events") also **collapses the past** to a
-  single most-recent-finalized anchor and is **height-bounded** to fit up to 4 events (measured, via
-  `useElementSize`; the "Closed" pill reads "COMPLETE"). **Follow-ups (deferred):** series-specific
-  registration call-outs (registration still defaults to the order-first season); the event-driven calendar
-  omits standalone (no-event) rounds by design; a "still closed near first quali" admin warning. See
-  ADR-0008 *To revisit*.
+  Championship → Year → Round filters. **Event lifecycle (done — ADR-0008 amendment, extended 2026-07-24):**
+  both the Dashboard and the Landing calendar derive a **six-stage** status (Waiting/Picks Open/In
+  Progress/**Awaiting Results**/Scored/Closed) from `picks_open` + quali times + the manual
+  `event.scored`/`event.finalized` flags via the shared `deriveEventStatus()` helper
+  (`apps/web/src/lib/eventStatus.ts`); IN_PROGRESS time-decays to AWAITING 72h after the last quali so a
+  stale `scored` flag can't leave a weekend "in progress" forever. **Landing redesign (2026-07-24 design
+  pass, critique 24→30/40):** the two-column hero was replaced by a full-width **hero band** (next event
+  promoted from the calendar: status pill + R-chip + countdown + absolute lock time + CTA; the
+  `useElementSize` height-matching is gone); the calendar (retitled "Race Calendar") renders every row as
+  a link and dims FINAL rows; the terminal pill reads **"FINAL"** (was "COMPLETE") in both vocabularies;
+  status tokens were de-collided from class colors (`success` #2dd4bf teal, `warn` #ff9e2c orange; SCORED
+  is now a "flag white" ink treatment, not LMP2 blue); the display face is **Saira Semi Condensed** (was
+  Saira Condensed); the stat tiles were folded into a leaderboard-header mono strip; and contrast/red-budget
+  /italic-restraint violations were cleared per DESIGN.md's named rules. **Follow-ups (deferred):**
+  series-specific registration call-outs (registration still defaults to the order-first season); the
+  event-driven calendar omits standalone (no-event) rounds by design; a "still closed near first quali"
+  admin warning; md-width signed-in nav collision; landing onboarding strip; per-row action labels. See
+  ADR-0008 *To revisit* and `apps/web/.impeccable/critique/` for the scored critique history.
 - **Admin richer affordances (deferred):** ingestion has an *issues-list* preview (no interactive
   per-row match resolution); scoring has no *publish gate* (standings are live once scored). Both
   need new backend — see the F4 build note in [docs/frontend-roadmap.md](docs/frontend-roadmap.md).
@@ -356,8 +369,9 @@ Frontend design is governed by two root files in `apps/web/` (read before UI wor
   anti-references (generic SaaS, DraftKings/betting, cluttered timing software, toy/cartoonish),
   and design principles.
 - **[DESIGN.md](apps/web/DESIGN.md)** — visual system (Stitch format): North Star **"The Timing
-  Screen"**, the near-black broadcast palette + class colors, Saira/Saira Condensed/Spline Sans Mono
-  typography, flat-void elevation, and component specs. Machine-readable tokens mirror `src/index.css`.
+  Screen"**, the near-black broadcast palette + class colors (status hues deliberately offset from class
+  hues), Saira/Saira Semi Condensed/Spline Sans Mono typography, flat-void elevation, and component
+  specs. Machine-readable tokens mirror `src/index.css`.
 
 The `/impeccable` skill (and its sub-commands) reads these. Visual variants run via `/impeccable live`
 (configured in `apps/web/.impeccable/`).

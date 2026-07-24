@@ -103,9 +103,9 @@ export function GlobalNav() {
             <button
               type="button"
               onClick={() => void devLogin('dev-user', 'Dev User', 'dev@dev.local')}
-              className="font-mono text-[11px] tracking-[0.05em] uppercase text-muted-2 border border-line-2 rounded-[3px] px-3 h-9 hover:text-ink-2 transition-colors cursor-pointer"
+              className="shrink-0 whitespace-nowrap font-mono text-[11px] tracking-[0.05em] uppercase text-muted-2 border border-line-2 rounded-[3px] px-3 h-9 hover:text-ink-2 transition-colors cursor-pointer"
             >
-              Dev sign in
+              Dev<span className="hidden sm:inline"> sign in</span>
             </button>
           )}
           <button
@@ -119,7 +119,9 @@ export function GlobalNav() {
               <path fill="#FBBC05" d="M11.1 28.2c-.5-1.4-.8-2.9-.8-4.2s.3-2.9.7-4.2l-6.8-5.3C2.6 17.2 2 20.5 2 24s.6 6.8 2.2 9.5l6.9-5.3z" />
               <path fill="#EA4335" d="M24 10.5c3.4 0 5.6 1.4 6.9 2.6l5.8-5.7C33.1 3.9 28.9 2 24 2 15.1 2 7.5 7.2 4.3 14.5l6.8 5.3C12.9 14.5 18 10.5 24 10.5z" />
             </svg>
-            <span className="font-sans text-[14px] font-semibold text-[#1a1a1a]">Sign in with Google</span>
+            <span className="whitespace-nowrap font-sans text-[14px] font-semibold text-[#1a1a1a]">
+              Sign in<span className="hidden sm:inline"> with Google</span>
+            </span>
           </button>
         </div>
       )}
