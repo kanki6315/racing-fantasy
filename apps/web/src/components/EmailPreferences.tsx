@@ -49,7 +49,7 @@ export function EmailPreferenceControls({
           <span className={`h-[15px] w-[4px] flex-none [transform:skewX(-14deg)] ${bothOn ? 'bg-brand' : 'bg-line-3'}`} />
           All race emails
         </span>
-        <span className="flex-none font-display text-[11px] font-bold uppercase tracking-[0.06em] text-muted-2">
+        <span className="flex-none font-display text-[11px] font-bold uppercase tracking-[0.06em] text-muted">
           {bothOn ? 'Unsub all' : 'Sub all'}
         </span>
       </button>
@@ -73,7 +73,7 @@ export function EmailPreferenceControls({
                 <span className={`h-[13px] w-[3px] flex-none [transform:skewX(-14deg)] ${on ? 'bg-brand' : 'bg-line-3'}`} />
                 <span className="min-w-0">
                   <span className="block font-display text-[12px] font-semibold uppercase tracking-[0.04em] text-ink-2">{label}</span>
-                  <span className="block font-sans text-[10px] leading-[13px] text-muted-2">{hint}</span>
+                  <span className="block font-sans text-[10px] leading-[13px] text-muted">{hint}</span>
                 </span>
               </span>
               {on ? (
@@ -81,7 +81,7 @@ export function EmailPreferenceControls({
                   <path d="M5 13l4 4L19 7" />
                 </svg>
               ) : (
-                <span className="flex-none font-display text-[10px] font-bold uppercase tracking-[0.06em] text-muted-2">Off</span>
+                <span className="flex-none font-display text-[10px] font-bold uppercase tracking-[0.06em] text-muted">Off</span>
               )}
             </button>
           )

@@ -1,4 +1,5 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
+import { useSearchParams } from 'react-router-dom'
 import { useAuth } from '../auth/AuthContext'
 import {
   useChampionships,
@@ -11,25 +12,40 @@ import { Leaderboard } from '../components/Leaderboard'
 import { FilterRow, FilterTab, RoundFilter } from '../components/StandingsFilters'
 import { ErrorBox, SkeletonTable } from './LeagueStandings'
 
+/** `?champ=&season=&round=` → a number, when it's actually a number. */
+function param(v: string | null): number | null {
+  const n = Number(v)
+  return v != null && v !== '' && Number.isInteger(n) ? n : null
+}
+
 /**
  * F3 season standings, now multi-championship. Three filter levels — Championship → Year → Total/round —
  * replace the old single "active season" anchor, so any series' board is reachable.
+ *
+ * The three levels also seed from `?champ=&season=&round=`, so other surfaces can deep-link a
+ * specific board (the Landing calendar sends a finished weekend straight to its own round). The
+ * params are read once as initial state; the filter pills own it from there.
  */
 export function Standings() {
   const { user } = useAuth()
   const { data: champs = [] } = useChampionships()
+  const [search] = useSearchParams()
 
   // Championship — default/heal to the first (lowest sort order).
-  const [champId, setChampId] = useState<number | null>(null)
+  const [champId, setChampId] = useState<number | null>(() => param(search.get('champ')))
   useEffect(() => {
     if (champs.length === 0) return
     if (champId == null || !champs.some((c) => c.id === champId)) setChampId(champs[0].id)
   }, [champs, champId])
 
   // Year — default/heal to the newest season of the selected championship.
-  const { data: seasons = [] } = useSeasons(champId ?? undefined)
-  const [seasonId, setSeasonId] = useState<number | null>(null)
+  const seasonsQ = useSeasons(champId ?? undefined)
+  const seasons = seasonsQ.data ?? []
+  const [seasonId, setSeasonId] = useState<number | null>(() => param(search.get('season')))
   useEffect(() => {
+    // Only heal once the list has actually arrived — an in-flight query looks identical to "this
+    // series has no seasons", and clearing the selection mid-load throws away a `?season=` seed.
+    if (!seasonsQ.isSuccess) return
     if (seasons.length === 0) {
       setSeasonId(null)
       return
@@ -37,16 +53,32 @@ export function Standings() {
     if (seasonId == null || !seasons.some((s) => s.id === seasonId)) {
       setSeasonId([...seasons].sort((a, b) => b.year - a.year)[0].id)
     }
-  }, [seasons, seasonId])
+  }, [seasonsQ.isSuccess, seasons, seasonId])
 
-  // Total | round — reset to season-wide whenever the season changes.
+  // Total | round — seeded from `?round=`, then reset to season-wide whenever the user *changes* the
+  // season (tracking the previous value, so the initial null → resolved-season settle doesn't count
+  // as a change and clobber a deep link).
   const rounds = useRounds(seasonId ?? undefined)
-  const [tab, setTab] = useState<'season' | number>('season')
-  useEffect(() => setTab('season'), [seasonId])
+  const [tab, setTab] = useState<'season' | number>(() => param(search.get('round')) ?? 'season')
+  const prevSeason = useRef<number | null>(null)
+  useEffect(() => {
+    if (prevSeason.current != null && prevSeason.current !== seasonId) setTab('season')
+    prevSeason.current = seasonId
+  }, [seasonId])
 
-  const season = useSeasonLeaderboard(tab === 'season' ? (seasonId ?? undefined) : undefined)
-  const round = useRoundLeaderboard(typeof tab === 'number' ? tab : undefined)
-  const active$ = tab === 'season' ? season : round
+  // A round tab is only trusted once this season's round list has arrived. A `?round=` from a stale
+  // link or the wrong series falls back to the season pool — derived rather than healed into state,
+  // so no doomed leaderboard request is ever made for it.
+  const roundPending = typeof tab === 'number' && !rounds.data
+  const roundOk = typeof tab === 'number' && !!rounds.data && rounds.data.some((r) => r.id === tab)
+  const view: 'season' | number = roundOk || roundPending ? tab : 'season'
+
+  const season = useSeasonLeaderboard(view === 'season' ? (seasonId ?? undefined) : undefined)
+  const round = useRoundLeaderboard(roundOk ? tab : undefined)
+  const active$ = view === 'season' ? season : round
+  // While a deep-linked round is still unverified its query is idle, not loading — keep the skeleton
+  // up rather than flashing an empty board.
+  const boardLoading = active$.isLoading || roundPending
 
   const myRegId = user?.registrations.find((r) => r.seasonId === seasonId)?.id
   const champ = champs.find((c) => c.id === champId)
@@ -87,7 +119,7 @@ export function Standings() {
 
       {/* Total | round sub-filter */}
       <div className="mt-5">
-        <RoundFilter rounds={rounds.data ?? []} value={tab} onChange={setTab} />
+        <RoundFilter rounds={rounds.data ?? []} value={view} onChange={setTab} />
       </div>
 
       <div className="mt-6">
@@ -95,7 +127,7 @@ export function Standings() {
           <ErrorBox message="No championships found." />
         ) : seasonId == null ? (
           <ErrorBox message="This series has no seasons yet." />
-        ) : active$.isLoading ? (
+        ) : boardLoading ? (
           <SkeletonTable />
         ) : active$.isError ? (
           <ErrorBox message="Couldn't load these standings." />
@@ -108,12 +140,12 @@ export function Standings() {
             // Gated on auth: the detail page is RequireAuth, so don't offer the link (or its hover) to
             // logged-out visitors — they'd only be bounced home.
             rowHref={
-              user && typeof tab === 'number'
-                ? (e) => `/standings/team/${e.registrationId}/round/${tab}`
+              user && typeof view === 'number'
+                ? (e) => `/standings/team/${e.registrationId}/round/${view}`
                 : undefined
             }
             emptyMessage={
-              tab === 'season'
+              view === 'season'
                 ? 'The season pool is empty — standings appear once the first round is scored.'
                 : 'This round has no scores yet.'
             }

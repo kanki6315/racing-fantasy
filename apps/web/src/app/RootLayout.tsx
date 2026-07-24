@@ -13,7 +13,7 @@ export function RootLayout() {
       </div>
       <footer className="border-t border-line px-4 py-4 text-center font-sans text-[12px] text-muted sm:px-[26px]">
         Built by <Link to="https://arjunakankipati.com" className="text-muted hover:text-ink-2 transition-colors">Arjuna Kankipati</Link> with <AiPolicyModal triggerClassName="text-muted hover:text-ink-2 transition-colors cursor-pointer" />
-        <span className="mx-2 text-muted-2">|</span>
+        <span className="mx-2 text-muted">|</span>
         <PrivacyPolicyModal triggerClassName="text-muted hover:text-ink-2 transition-colors cursor-pointer" />
       </footer>
     </div>
