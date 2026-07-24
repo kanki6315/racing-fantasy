@@ -19,8 +19,8 @@ import {
  */
 
 const SOURCES: { id: ScoringSource; label: string; dot: string }[] = [
-  { id: 'QualifyingPosition', label: 'Qualifying Position', dot: 'bg-lmp2' },
-  { id: 'RacePosition', label: 'Race Position', dot: 'bg-gtp' },
+  { id: 'QualifyingPosition', label: 'Qualifying Position', dot: 'bg-success' },
+  { id: 'RacePosition', label: 'Race Position', dot: 'bg-brand-2' },
 ]
 
 /** F1-style starting table (ADR-0003 example) used to seed a brand-new source. */

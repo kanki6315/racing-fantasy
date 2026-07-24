@@ -50,7 +50,8 @@ name/email — see [Backend prep](#backend-prep-just-in-time).
 ## Design mapping
 
 The handoff bundle gives three bespoke screens in one racing-broadcast design
-language (Saira / Saira Condensed / Spline Sans Mono; near-black surfaces; the
+language (Saira / Saira Semi Condensed / Spline Sans Mono — the display face widened
+from Saira Condensed in the 2026-07 design pass; near-black surfaces; the
 **class-color palette** — GTP red, LMP2 blue, GTD PRO amber, GTD green — as a
 load-bearing token; skew/stripe/pit-lane motifs).
 

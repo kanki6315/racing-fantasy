@@ -192,7 +192,7 @@ export function Dashboard() {
       <div className="min-w-0 flex-1 bg-bg">
         <div className="flex flex-wrap items-center gap-x-[11px] gap-y-1 px-4 pb-1 pt-[22px] sm:px-[26px]">
           <h1 className="font-display text-[22px] font-extrabold italic uppercase text-ink">Your Picks</h1>
-          <span className="hidden rounded-full border border-lmp2/35 bg-lmp2/10 px-[10px] py-[3px] font-sans text-[11px] text-lmp2-2 sm:inline-block">
+          <span className="hidden rounded-full border border-line-2 bg-surface-2 px-[10px] py-[3px] font-sans text-[11px] text-ink-2 sm:inline-block">
             One lineup per championship — scored across all your leagues
           </span>
         </div>

@@ -191,3 +191,26 @@ most-recent-finalized anchor (a scored-but-not-finalized weekend is the natural 
 hook — rows past the fold are clipped (`lg:invisible`, no scroll); mobile shows the full list.
 
 **Not in scope:** no leaderboard/scoring publish gating.
+
+## Amendment (2026-07-24): AWAITING decay + Landing redesign
+
+A scored critique/fix cycle on the Landing page (`apps/web/.impeccable/critique/`, 24→30/40) extended
+the lifecycle and superseded parts of the 2026-07-14 amendment above:
+
+- **Sixth stage — Awaiting Results.** IN_PROGRESS now **time-decays to `AWAITING`** once the *last*
+  quali is 72h in the past without the manual `scored` flag (`AWAITING_GRACE_MS` in `eventStatus.ts`).
+  Rationale: a manually-flagged status is not honest enough for a timing-screen brand — a forgotten
+  flag left a weekend reading "In Progress" for two weeks. Precedence is now: `finalized` → `scored` →
+  first round locked (decaying to AWAITING) → `picks_open` → waiting. AWAITING is shown on the
+  Dashboard (neutral "Awaiting Results" badge).
+- **Label changes:** the terminal pill reads **"FINAL"** (was "COMPLETE"/"Closed") in both the Landing
+  solid-fill vocabulary and `EVENT_STATUS_META` — racing vocabulary, unambiguous next to SCORED.
+- **Hero band replaces the two-column hero.** The next event is *promoted from the calendar* into a
+  full-width band (status pill + round chip + countdown + absolute lock time + CTA); the calendar
+  (retitled **"Race Calendar"**) starts at the following event. The `useElementSize` height-matching
+  described above is **removed** — the calendar flows at natural height. Every calendar row is a link
+  (OPEN → `/pick/{roundId}`, else `/standings`); FINAL rows render dimmed.
+- **Design-system alignment (see DESIGN.md):** status tokens de-collided from class colors
+  (`success` → #2dd4bf teal, `warn` → #ff9e2c orange; SCORED = "flag white" ink treatment, not LMP2
+  blue); display face widened to **Saira Semi Condensed**; contrast, One-Red-Rule, and
+  Italic-Restraint violations cleared.

@@ -8,7 +8,7 @@
  */
 @theme {
   --font-sans: 'Saira', sans-serif;
-  --font-display: 'Saira Condensed', sans-serif;
+  --font-display: 'Saira Semi Condensed', sans-serif;
   --font-mono: 'Spline Sans Mono', monospace;
 
   /* surfaces & lines (near-black broadcast palette) */
@@ -39,9 +39,10 @@
   --color-gtdpro-2: #ffc23d;
   --color-gtd: #4ade80;
 
-  /* status */
-  --color-success: #4ade80;
-  --color-warn: #ffc23d;
+  /* status — deliberately distinct from the class hues (success ≠ gtd green, warn ≠ gtdpro amber)
+     so a status signal can never be mistaken for class wayfinding (The Class-Color Reserve). */
+  --color-success: #2dd4bf;
+  --color-warn: #ff9e2c;
   --color-danger: #ff5d5d;
 }
 
