@@ -24,7 +24,7 @@ const linkClass = (isActive: boolean, accent = false, compact = false) => {
   // keeping the underline a touch above the bar's bottom edge. The border is in BOTH states
   // (transparent when idle) so the label never shifts when a link becomes active. Desktop: an h-11
   // box centered in the h-16 bar puts the text mid-bar with the underline ~10px up; the compact
-  // mobile row fills its short height with the underline at the bottom.
+  // second-row nav fills its short height with the underline at the bottom.
   const box = compact ? 'h-full' : 'h-11'
   const border = isActive ? 'border-brand' : 'border-transparent'
   return `${isActive ? active : `${idle} transition-colors`} flex items-center border-b-2 ${border} ${box} shrink-0`
@@ -57,8 +57,11 @@ export function GlobalNav() {
       <div className="flex items-center justify-between h-16 px-4 sm:px-[26px]">
         <div className="flex min-w-0 items-center gap-4 sm:gap-[30px]">
           <Logo />
-          {/* desktop: inline section nav; mobile shows the scrollable row below instead */}
-          {sectionNav('hidden gap-4 md:flex lg:gap-6')}
+          {/* Inline section nav from lg only. Below that the bar can't hold logo + 3–4 nav links +
+              the identity cluster (pill / name / avatar / sign out) side by side — at md the nav
+              links, being shrink-0, used to overlap the identity block and swallow a destination.
+              Under lg the links live in the scrollable second row instead. */}
+          {sectionNav('hidden gap-4 lg:flex lg:gap-6')}
         </div>
 
       {isAuthenticated && user ? (
@@ -69,22 +72,26 @@ export function GlobalNav() {
               <span className="font-mono text-[9px] tracking-[0.06em] text-warn">NOT REGISTERED</span>
             </span>
           )}
-          {/* the identity block is the way into the dashboard. name/email replaces the avatar on
-              mobile; when not registered the pill takes the slot instead (mobile has no room for both
-              — the registration banner shows the name anyway) */}
+          {/* The identity block is the way into the dashboard. Its text half is the widest, least
+              load-bearing piece, so it only shows where there's room: below sm (no avatar, and only
+              when the NOT REGISTERED pill isn't already using that slot) and again at xl. In
+              between, the initials avatar carries the identity on its own. */}
           <Link
             to="/dashboard"
             aria-label="Go to your dashboard"
             className="group flex min-w-0 items-center gap-2 sm:gap-3 cursor-pointer"
           >
-            <div className={`${notRegistered ? 'hidden sm:block' : 'block'} min-w-0 text-right leading-tight`}>
+            <div
+              className={`min-w-0 text-right leading-tight xl:block ${notRegistered ? 'hidden' : 'block sm:hidden'}`}
+            >
               <div className="truncate font-sans text-[13px] font-semibold text-ink transition-colors group-hover:text-brand-3">
                 {user.name ?? user.registrations[0]?.teamName ?? 'Player'}
               </div>
               <div className="truncate font-mono text-[10px] text-muted">{user.email}</div>
             </div>
-            {/* initials avatar is desktop-only — the name/email replaces it on mobile */}
-            <div className="hidden h-9 w-9 shrink-0 items-center justify-center rounded-full bg-brand font-display text-[14px] font-bold text-ink ring-2 ring-transparent transition-shadow group-hover:ring-brand-3/40 sm:flex">
+            {/* Initials avatar — neutral at rest so it doesn't spend a fourth red on the
+                signed-in-unregistered view (The One Red Rule); red is the hover state only. */}
+            <div className="hidden h-9 w-9 shrink-0 items-center justify-center rounded-full border border-line-2 bg-surface-2 font-display text-[14px] font-bold text-ink-2 transition-colors group-hover:border-brand-3/60 group-hover:text-ink sm:flex">
               {initials(user)}
             </div>
           </Link>
@@ -127,8 +134,8 @@ export function GlobalNav() {
       )}
       </div>
 
-      {/* mobile-only second row: the section links the top bar can't fit horizontally, scrollable */}
-      {sectionNav('flex gap-5 overflow-x-auto px-4 h-11 items-center border-t border-line/60 md:hidden [scrollbar-width:none] [&::-webkit-scrollbar]:hidden', true)}
+      {/* second row (below lg): the section links the top bar can't fit horizontally, scrollable */}
+      {sectionNav('flex gap-5 overflow-x-auto px-4 h-11 items-center border-t border-line/60 lg:hidden [scrollbar-width:none] [&::-webkit-scrollbar]:hidden', true)}
     </div>
   )
 }

@@ -39,7 +39,8 @@ export function RegisterModal({
   const showError = touched && !valid && trimmed.length > 0
   const errorMsg = hasAt ? "Team name can't contain '@'." : 'Team name needs at least 3 characters.'
   const count = name.length
-  const countColor = count > MAX ? 'text-danger' : count >= 28 ? 'text-warn' : 'text-muted-2'
+  // `muted` is the floor for de-emphasised text — muted-2 lands around 3.2:1 on the modal's well.
+  const countColor = count > MAX ? 'text-danger' : count >= 28 ? 'text-warn' : 'text-muted'
 
   const submit = async () => {
     if (!valid || register.isPending) {
@@ -74,7 +75,7 @@ export function RegisterModal({
           <div className="px-7 pt-[26px]">
             <div className="flex items-start justify-between">
               <div>
-                <div className="font-mono text-[11px] tracking-[0.14em] text-brand mb-[9px]">// JOIN_2026</div>
+                <div className="font-mono text-[11px] tracking-[0.14em] text-brand-3 mb-[9px]">// JOIN_2026</div>
                 <Dialog.Title className="font-display text-[28px] font-extrabold italic uppercase leading-[0.96] text-ink">
                   Name your team
                 </Dialog.Title>
@@ -104,7 +105,7 @@ export function RegisterModal({
                 maxLength={MAX}
                 autoFocus
                 placeholder="e.g. No Lift Crew"
-                className={`h-[50px] w-full rounded-[4px] border bg-[#070809] px-[15px] font-display text-[20px] font-bold tracking-[0.02em] text-ink outline-none placeholder:text-line-3 ${
+                className={`h-[50px] w-full rounded-[4px] border bg-[#070809] px-[15px] font-display text-[20px] font-bold tracking-[0.02em] text-ink outline-none placeholder:text-muted ${
                   showError ? 'border-danger' : valid ? 'border-[#3a6e3f]' : 'border-line-2'
                 }`}
               />
@@ -123,24 +124,24 @@ export function RegisterModal({
 
             {/* live leaderboard preview */}
             <div className="mt-[14px] rounded-[4px] border border-line bg-[#070809] px-[15px] py-[13px]">
-              <div className="mb-[9px] font-display text-[10px] tracking-[0.14em] uppercase text-muted-2">Leaderboard preview</div>
+              <div className="mb-[9px] font-display text-[10px] tracking-[0.14em] uppercase text-muted">Leaderboard preview</div>
               <div className="grid grid-cols-[34px_1fr_70px] items-center">
                 <span className="font-mono text-[14px] font-bold text-ink">—</span>
-                <span className={`font-sans text-[14px] font-bold ${trimmed ? 'text-ink' : 'text-line-3'}`}>
+                <span className={`font-sans text-[14px] font-bold ${trimmed ? 'text-ink' : 'text-muted'}`}>
                   {trimmed || 'Your Team'}
                 </span>
                 <span className="text-right">
                   <span className="font-mono text-[14px] font-bold text-ink">0</span>
-                  <span className="ml-1 font-display text-[10px] tracking-[0.06em] text-muted-2">PTS</span>
+                  <span className="ml-1 font-display text-[10px] tracking-[0.06em] text-muted">PTS</span>
                 </span>
               </div>
             </div>
 
             {/* Picks-reminder email preferences (ADR-0009 amendment) — always shown, off by default. */}
             <div className="mt-[16px]">
-              <div className="mb-[8px] font-display text-[11px] tracking-[0.12em] uppercase text-muted-2">Race emails</div>
+              <div className="mb-[8px] font-display text-[11px] tracking-[0.12em] uppercase text-muted">Race emails</div>
               <EmailPreferenceControls prefs={prefs} onChange={setPref} pending={register.isPending} />
-              <p className="mt-[8px] font-sans text-[11px] leading-[15px] text-muted-2">
+              <p className="mt-[8px] font-sans text-[11px] leading-[15px] text-muted">
                 Optional — one email each, unsubscribe anytime. Change these later from your dashboard.
               </p>
             </div>

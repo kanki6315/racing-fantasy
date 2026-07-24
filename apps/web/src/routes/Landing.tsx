@@ -182,9 +182,14 @@ export function Landing() {
         <div className="relative flex items-center gap-[34px] overflow-hidden border-b border-[#2a0d0c] bg-[linear-gradient(110deg,#1a0604_0%,#120608_46%,#0a0b0d_100%)] px-4 py-7 sm:px-[30px] sm:py-[30px]">
           <div className="pointer-events-none absolute inset-0 bg-[repeating-linear-gradient(135deg,transparent_0_22px,rgba(225,6,0,0.04)_22px_23px)]" />
           <div className="relative min-w-0 flex-1">
-            <div className="mb-[13px] inline-flex h-6 items-center gap-2 rounded-[2px] bg-brand px-[11px]">
-              <span className="h-[6px] w-[6px] rounded-full bg-ink" />
-              <span className="font-mono text-[11px] font-semibold tracking-[0.1em] text-ink">2026 REGISTRATION OPEN</span>
+            {/* Tinted wash, not a solid fill: this view already spends red on the banner CTA (the
+                primary action) and the hero's PICKS OPEN pill (the live state). A third solid red
+                here — plus a red avatar in the nav — broke the One Red Rule. */}
+            <div className="mb-[13px] inline-flex h-6 items-center gap-2 rounded-[2px] border border-brand/40 bg-brand/15 px-[11px]">
+              <span className="h-[6px] w-[6px] rounded-full bg-brand-2" />
+              <span className="font-mono text-[11px] font-semibold tracking-[0.1em] text-brand-3">
+                {active.season.year} REGISTRATION OPEN
+              </span>
             </div>
             <div className="font-display text-[26px] font-extrabold uppercase leading-[1.02] text-ink sm:text-[34px]">
               Welcome{user?.name ? `, ${user.name.split(' ')[0]}` : ''}.<br />Claim your team for the {active.season.year} season.
@@ -305,6 +310,11 @@ export function Landing() {
               )}
             </div>
           )}
+
+          {/* The whole game in three beats — shown to anyone without a team, since the hero's CTA
+              otherwise asks for a Google sign-in on faith. Same chip/mono vocabulary as the hero
+              label; deliberately a strip, not a card grid. */}
+          {!hasAnyRegistration && <HowItWorks />}
         </div>
 
         {/* upcoming events — full-width, natural height; the hero's event is promoted above */}
@@ -330,7 +340,14 @@ export function Landing() {
                 That's the season — no events after this one.
               </p>
             ) : (
-              upcomingRows.map((item) => <CalendarRow key={item.key} item={item} />)
+              upcomingRows.map((item) => (
+                <CalendarRow
+                  key={item.key}
+                  item={item}
+                  champId={active?.championship.id}
+                  seasonId={active?.season.id}
+                />
+              ))
             )}
           </div>
         </div>
@@ -344,12 +361,67 @@ export function Landing() {
 }
 
 /**
+ * The three beats of a race weekend, in order. Terse on purpose — this is a strip under the hero,
+ * not a feature section: enough for a first-time visitor to know what signing in buys them.
+ */
+const BEATS = [
+  { key: 'Pick', detail: 'teams & drivers under a salary cap' },
+  { key: 'Lock', detail: 'lineups freeze when qualifying starts' },
+  { key: 'Score', detail: 'points from qualifying + race position' },
+] as const
+
+/** A single-row (lg+) / stacked (below lg) how-it-works strip in the hero band's own vocabulary. */
+function HowItWorks() {
+  return (
+    <div className="border-t border-line px-4 pb-[22px] pt-[18px] sm:px-[26px] lg:pb-[20px]">
+      <div className="flex flex-col gap-[9px] lg:flex-row lg:items-baseline lg:gap-0">
+        <span className="font-mono text-[11px] tracking-[0.14em] text-muted lg:mr-[22px] lg:shrink-0">
+          // HOW_IT_WORKS
+        </span>
+        {BEATS.map((b, i) => (
+          // The arrow leads its own beat rather than floating between flex columns, so every beat
+          // starts on the same left edge and the sequence still reads left-to-right.
+          <div key={b.key} className="flex min-w-0 items-baseline gap-[10px] lg:flex-1">
+            {i > 0 && (
+              <svg
+                className="hidden shrink-0 -translate-y-[1px] self-center text-muted-2 lg:block"
+                width="13"
+                height="13"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="2.6"
+                aria-hidden="true"
+              >
+                <path d="M5 12h14M13 6l6 6-6 6" />
+              </svg>
+            )}
+            <span className="w-[46px] shrink-0 font-display text-[13px] font-bold uppercase tracking-[0.1em] text-ink lg:w-auto">
+              {b.key}
+            </span>
+            <span className="font-sans text-[13px] leading-[1.45] text-ink-2">{b.detail}</span>
+          </div>
+        ))}
+      </div>
+    </div>
+  )
+}
+
+/**
  * One weekend on the unified calendar (sm+ grid + mobile card). Owns its own lock countdown from the
  * active championship's quali_start when it races this weekend; otherwise it shows the weekend with all
  * its series and no pick-lock (the active championship sits this one out). Three lines: round / track /
  * series pills (the active championship's pill is highlighted).
  */
-function CalendarRow({ item }: { item: CalItem }) {
+function CalendarRow({
+  item,
+  champId,
+  seasonId,
+}: {
+  item: CalItem
+  champId?: number
+  seasonId?: number
+}) {
   // Count down to the first series' quali (the next lock). useCountdown re-renders every second, so the
   // derived status below stays live as the weekend crosses into IN_PROGRESS.
   const cd = useCountdown(item.earliestQuali)
@@ -364,26 +436,56 @@ function CalendarRow({ item }: { item: CalItem }) {
     },
     Date.now(),
   )
-  // Countdown only reads meaningfully before lock (Picks Open / Coming Soon); afterwards there's nothing
-  // to count down to.
-  const text = status === 'OPEN' || status === 'WAITING' ? cd.text : '—'
+  // Countdown only reads meaningfully before lock (Picks Open / Coming Soon); afterwards there's
+  // nothing to count down to and the cell stays empty rather than printing a dead "—".
+  const text = status === 'OPEN' || status === 'WAITING' ? cd.text : ''
   const hi = status === 'OPEN'
   const dim = status === 'CLOSED' // retired weekends recede
-  // Every row is a door: an open round links straight to its pick board; everything else lands on the
-  // standings surface (no round-level deep link exists yet — revisit when one does).
-  const href = status === 'OPEN' && item.activeRoundId != null ? `/pick/${item.activeRoundId}` : '/standings'
+  // Every row is a door — and now says where it goes. Open rounds link to their pick board; a
+  // weekend whose results are in deep-links to THAT round's board (?round=); anything else falls
+  // back to the season pool, scoped to the series/year we know about.
+  const scope = [champId != null && `champ=${champId}`, seasonId != null && `season=${seasonId}`]
+    .filter(Boolean)
+    .join('&')
+  const standingsHref = (roundId?: number) => {
+    const q = [scope, roundId != null && `round=${roundId}`].filter(Boolean).join('&')
+    return q ? `/standings?${q}` : '/standings'
+  }
+  const canDeepLink = (status === 'SCORED' || status === 'CLOSED') && item.activeRoundId != null
+  const href =
+    status === 'OPEN' && item.activeRoundId != null
+      ? `/pick/${item.activeRoundId}`
+      : standingsHref(canDeepLink ? item.activeRoundId : undefined)
+  const action = hi && item.activeRoundId != null ? 'Set lineup' : canDeepLink ? 'View results' : 'View standings'
   const label = item.seq != null ? `R${String(item.seq).padStart(2, '0')}` : '·'
   const date = fmtDate(new Date(item.dateMs).toISOString()).toUpperCase()
   const pillClass = `inline-block rounded-[2px] px-[9px] py-[3px] font-display text-[11px] tracking-[0.06em] ${statusStyle[status]}`
   const badge = <span className={`${pillClass} shrink-0`}>{statusLabel[status]}</span>
-  // All series racing this weekend, the active championship highlighted.
+  // The row's destination, always visible so it isn't a mystery-meat link. Quiet at rest (muted is
+  // the contrast floor for de-emphasised text), brightening with the row on hover.
+  const actionLabel = (
+    <span
+      className={`whitespace-nowrap text-[10px] tracking-[0.1em] uppercase transition-colors ${
+        hi ? 'text-brand-3' : 'text-muted'
+      } group-hover:text-ink-2`}
+    >
+      {action} →
+    </span>
+  )
+  // All series racing this weekend, the active championship highlighted. Retired weekends recede by
+  // dropping the pill FILL (a non-text signal) rather than fading the row — row opacity stacked on
+  // already-muted 11px text and broke AA contrast.
   const pills = (
     <div className="mt-[5px] flex flex-wrap items-center gap-[5px]">
       {item.series.map((s) => (
         <span
           key={s.name}
           className={`rounded-[2px] border px-[6px] py-[2px] text-[11px] ${
-            s.isActive ? 'border-line-3 bg-surface-2 font-medium text-ink' : 'border-line-2 bg-surface-2 text-ink-2'
+            dim
+              ? 'border-line bg-transparent text-muted'
+              : s.isActive
+                ? 'border-line-3 bg-surface-2 font-medium text-ink'
+                : 'border-line-2 bg-surface-2 text-ink-2'
           }`}
         >
           {s.name}
@@ -391,46 +493,53 @@ function CalendarRow({ item }: { item: CalItem }) {
       ))}
     </div>
   )
+  const titleColor = dim ? 'text-ink-2' : 'text-ink'
 
   return (
     <Fragment>
       {/* sm+ : grid row (a link — open rounds go to their pick board, the rest to standings) */}
       <Link
         to={href}
-        className={`hidden grid-cols-[54px_1fr_130px_120px_110px] items-center border-b border-line px-[26px] py-[13px] transition-colors sm:grid ${
+        className={`group hidden grid-cols-[54px_1fr_112px_120px_132px] items-center border-b border-line px-[26px] py-[13px] transition-colors sm:grid ${
           hi ? 'border-t border-t-line bg-brand/[0.07] hover:bg-brand/[0.12]' : 'hover:bg-surface-2'
-        } ${dim ? 'opacity-70' : ''}`}
+        }`}
       >
         <span className={`text-[13px] font-bold ${hi ? 'text-brand-2' : 'text-muted'}`}>{label}</span>
         <div>
-          <div className="font-display text-[17px] font-bold uppercase text-ink">{item.title}</div>
+          <div className={`font-display text-[17px] font-bold uppercase ${titleColor}`}>{item.title}</div>
           {item.track && <div className="text-[11px] text-muted">{item.track}</div>}
           {pills}
         </div>
         <span className="text-[13px] text-ink-2">{date}</span>
         <div>{badge}</div>
-        <span className={`text-right text-[12px] ${hi ? 'text-brand-2' : 'text-muted'}`}>{text}</span>
+        <div className="text-right">
+          {text && <div className={`text-[12px] ${hi ? 'text-brand-2' : 'text-muted'}`}>{text}</div>}
+          <div className={text ? 'mt-[4px]' : ''}>{actionLabel}</div>
+        </div>
       </Link>
 
       {/* < sm : card (same link; active state gives touch feedback) */}
       <Link
         to={href}
-        className={`flex flex-col gap-[7px] border-b border-line px-4 py-3 transition-colors sm:hidden ${
+        className={`group flex flex-col gap-[7px] border-b border-line px-4 py-3 transition-colors sm:hidden ${
           hi ? 'border-t border-t-line bg-brand/[0.07] active:bg-brand/[0.12]' : 'active:bg-surface-2'
-        } ${dim ? 'opacity-70' : ''}`}
+        }`}
       >
         <div className="flex items-start gap-3">
           <span className={`mt-[2px] text-[13px] font-bold ${hi ? 'text-brand-2' : 'text-muted'}`}>{label}</span>
           <div className="min-w-0 flex-1">
-            <div className="font-display text-[16px] font-bold uppercase text-ink">{item.title}</div>
+            <div className={`font-display text-[16px] font-bold uppercase ${titleColor}`}>{item.title}</div>
             {item.track && <div className="text-[11px] text-muted">{item.track}</div>}
             {pills}
           </div>
           {badge}
         </div>
-        <div className="flex items-center justify-between pl-[27px] text-[12px]">
-          <span className="text-ink-2">{date}</span>
-          <span className={`${hi ? 'text-brand-2' : 'text-muted'}`}>{text}</span>
+        <div className="flex items-center justify-between gap-3 pl-[27px] text-[12px]">
+          <span className="min-w-0 truncate text-ink-2">
+            {date}
+            {text && <span className={`ml-[10px] ${hi ? 'text-brand-2' : 'text-muted'}`}>{text}</span>}
+          </span>
+          {actionLabel}
         </div>
       </Link>
     </Fragment>
