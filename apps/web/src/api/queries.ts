@@ -15,12 +15,27 @@ export type Championship = components['schemas']['ChampionshipDto']
 export type Season = components['schemas']['SeasonDto']
 export type Registration = components['schemas']['RegistrationDto']
 
+/**
+ * Fail a query on any non-2xx, including the ones that carry no body.
+ *
+ * `if (error) throw error` alone is not enough. When a request fails with an empty body — a 502 from
+ * a proxy with the API down is the everyday case — there is nothing for the client to decode, so it
+ * hands back `{ data: undefined, error: undefined }`. The guard doesn't fire, `data ?? []` resolves,
+ * and the query *succeeds with an empty list*: the API being unreachable renders as "there are no
+ * championships", identical to a genuinely empty database. Consulting `response.ok` closes that gap,
+ * which is what makes an error state (and its retry) reachable at all.
+ */
+function assertOk(response: Response, error: unknown): void {
+  if (error) throw error
+  if (!response.ok) throw new Error(`Request failed with status ${response.status}`)
+}
+
 export function useChampionships() {
   return useQuery({
     queryKey: qk.championships,
     queryFn: async () => {
-      const { data, error } = await api.GET('/championships')
-      if (error) throw error
+      const { data, error, response } = await api.GET('/championships')
+      assertOk(response, error)
       return data ?? []
     },
   })
@@ -107,8 +122,8 @@ export function useSeasons(championshipId: number | undefined) {
     queryKey: ['seasons', championshipId],
     enabled: championshipId != null,
     queryFn: async () => {
-      const { data, error } = await api.GET('/seasons', { params: { query: { championshipId } } })
-      if (error) throw error
+      const { data, error, response } = await api.GET('/seasons', { params: { query: { championshipId } } })
+      assertOk(response, error)
       return data ?? []
     },
   })
@@ -306,8 +321,8 @@ export function useRounds(seasonId: number | undefined) {
     queryKey: ['rounds', seasonId],
     enabled: seasonId != null,
     queryFn: async () => {
-      const { data, error } = await api.GET('/rounds', { params: { query: { seasonId } } })
-      if (error) throw error
+      const { data, error, response } = await api.GET('/rounds', { params: { query: { seasonId } } })
+      assertOk(response, error)
       return data ?? []
     },
   })
