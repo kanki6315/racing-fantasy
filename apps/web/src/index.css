@@ -1,6 +1,14 @@
 @import 'tailwindcss';
 
 /*
+ * Input-method variants. Touch target sizing keys off the pointer, not the viewport: a 640px
+ * breakpoint calls every touch tablet "desktop" and hands it 36px controls. Tailwind v4 ships no
+ * built-in pointer variant, so `pointer-coarse:h-11` silently generates nothing without this.
+ */
+@custom-variant pointer-coarse (@media (pointer: coarse));
+@custom-variant pointer-fine (@media (pointer: fine));
+
+/*
  * Endurance Fantasy design tokens. The canonical spec is DESIGN.md at the app root — these values
  * and its frontmatter must agree.
  * Tailwind v4 turns each token into utilities, e.g. --color-surface → bg-surface / text-surface,
@@ -68,6 +76,32 @@ body {
   50% {
     opacity: 0.35;
   }
+}
+
+/*
+ * Stacking order. Two steps, both stock Tailwind utilities so there are no arbitrary z-values:
+ *   z-30  sticky page chrome (the standings position bug)
+ *   z-50  overlays — modal backdrops and content (see the modal components)
+ * Anything new goes between these, never above 50.
+ */
+
+/*
+ * Arrival flash for the "jump to my row" landing. Starts at a hotter wash of the same brand tint the
+ * row already carries and settles back to it, so the animation ends on the row's resting colour with
+ * nothing to clean up. Reduced-motion collapses this to ~0ms via the block below — the persistent
+ * focus outline on the row is what marks the arrival in that case.
+ */
+@keyframes row-flash {
+  0% {
+    background-color: color-mix(in oklab, var(--color-brand) 42%, transparent);
+  }
+  100% {
+    background-color: color-mix(in oklab, var(--color-brand) 14%, transparent);
+  }
+}
+
+.row-flash {
+  animation: row-flash 900ms cubic-bezier(0.165, 0.84, 0.44, 1);
 }
 
 /*

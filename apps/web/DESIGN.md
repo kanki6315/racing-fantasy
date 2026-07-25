@@ -249,6 +249,10 @@ page — modals, dropdowns, tooltips.
 ### Named Rules
 **The Flat-Void Rule.** In-page surfaces never cast shadows. Depth at rest is tonal layering plus a
 lightening border. A shadow on a card is a 2014 tell; if a panel looks like it's floating, flatten it.
+The one in-page exception is *pinned* sticky chrome — the standings Position Bug takes the Popover
+shadow only while stuck to the viewport, and drops it the moment it returns to normal flow. It is
+genuinely floating over scrolling content at that point, which is exactly what the rule reserves
+shadow for.
 
 ## 5. Components
 
@@ -270,12 +274,36 @@ the primary action always wins the eye.
   wash of its own semantic hue (`warn/10` + `warn/35` border, `brand/15`, `surface-3` neutral).
 - **State:** a leading dot or icon plus text always accompanies color — pills read "NOT REGISTERED"
   with an amber dot, never amber alone. Selected vs. idle shifts border + fill, not just hue.
-- **Filter / selection chips.** 3px corners, `h-11` on phones tightening to `h-9` at `sm` (a filter
-  is a touch target before it is a label). Idle: `line-2` border, `muted` label. Selected: `line-3`
+- **Filter / selection chips.** 3px corners, sized off the **pointer, not the viewport**: `h-9` for a
+  fine pointer, `h-11` under `@media (pointer: coarse)` at any width. A filter is a touch target
+  before it is a label, and the `sm:h-9` this replaces called every touch tablet a desktop and handed
+  it 36px controls. Tailwind v4 ships no pointer variant — `pointer-coarse:` / `pointer-fine:` are
+  registered via `@custom-variant` in `index.css`, and silently generate *nothing* without it.
+  Idle: `line-2` border, `muted` label. Selected: `line-3`
   border + `surface-2` fill + `ink` label + a 2px brand underline as an *inset* shadow — the nav's
   active-link language, borrowed so selection reads the same everywhere. Always carries
   `aria-pressed`. **Never fill a filter with solid brand red:** selection is neither the primary
   action nor the live state, and three filter rows can be active at once.
+- **Filter rows scroll, they never wrap.** Six championship names and eleven event names wrapped to
+  four stacked rows — ~330px of chrome on desktop and about 1000px on a phone, two and a half screens
+  before a single standing. Each row is now one line that scrolls sideways, borrowing the nav's own
+  idiom (`overflow-x-auto`, scrollbar hidden, children `shrink-0`). The row label sits *outside* the
+  scroller so the legend doesn't scroll away from its own content. Three obligations come with it:
+  the overflow must be visible as overflow (a mask fades whichever edge still has content behind it);
+  the active pill must be scrolled into view, or a `?round=` deep link selects something off-screen
+  with no cue; and a mouse — which has no horizontal wheel — needs edge nudge buttons, rendered under
+  `pointer-fine` only, since touch swipes and Tab already reach the far end on their own.
+- **A filter offering one choice is not a filter.** The Year row renders only when a series has more
+  than one season; otherwise it was a labelled row containing the word "2026" and nothing to do, and
+  the subtitle already states the year.
+- **The URL is the filter state.** Every standings level lives in `?champ=&season=&round=` and writes
+  back to it, so a board is linkable and Back undoes a filter instead of leaving the page. Two rules
+  keep the history stack honest: values the *app* resolved (defaults, healing) use `replace`, values
+  the *user* picked use `push` — so Back walks through the boards someone chose, not through every
+  default the page settled on. And picking a level clears the levels below it, because a round id
+  belongs to exactly one season. Invalid params are validated, never trusted: an unknown round falls
+  back to the season pool without ever issuing a doomed request, and is then dropped from the URL so
+  the address bar can't describe a view nobody is looking at.
 - **Lifecycle pills — two vocabularies, one state machine.** A race weekend has six derived stages
   (Waiting → Picks Open → In Progress → Awaiting Results → Scored → Final). The **calendar** speaks
   the loud broadcast dialect: solid fills, condensed caps, terse copy ("COMING SOON", "PICKS OPEN",
@@ -331,12 +359,97 @@ The row is this product's real workhorse — more screens are rows than are card
 - **Hover:** background lifts to `surface-2` (or `brand/[0.12]` on a live row); no transform, no
   scale — the row is a target, not a toy.
 - **Every row is a door, and says where it goes.** A row-level link carries a quiet destination
-  label ("Set lineup →", "View results →", "View standings →") in `muted`, brightening to `ink-2`
-  with the row. Mystery-meat rows — clickable with no stated destination — are forbidden.
+  label ("Set lineup →", "View results →", "View standings →", "View picks →") in `muted`,
+  brightening to `ink-2` with the row. Mystery-meat rows — clickable with no stated destination —
+  are forbidden. Visible at rest, never hover-only: a label that appears under a cursor tells a touch
+  user nothing, and "is this row clickable" is the question it exists to answer. On the leaderboard
+  it takes the Rounds column, which prints "1" on every row of exactly the per-round boards whose
+  rows link — the dead figure pays for the label, so no width is added to say it.
+- **A board that can't be drilled into says so.** Season totals have no single round to show a
+  lineup for, so their rows are inert; one quiet line under the table ("Pick a round above to see
+  each team's lineup") answers the question the difference raises. Only for signed-in viewers —
+  picking a round doesn't unlock the link for anyone else, and offering it would be a lie.
+- **A prompt on a board being *read* is an annotation, not a call to action.** The unregistered
+  notice sits above the table as one muted line with a `brand-3` text link — not a filled button. A
+  board is something a player reads; registering is not its primary action, so it does not get the
+  page's one solid red. A viewer browsing five series met five identical red CTAs at 74px desktop and
+  ~250px mobile, and the nav already carries a NOT REGISTERED pill for the app-level version of the
+  same message. **But quiet never costs the tap target:** demoted to a plain inline link it measured
+  17px tall, so it keeps its own box — 24px beside the sentence on a pointer, wrapping to a 44px row
+  under `pointer: coarse`.
+- **Ties are marked, not implied.** Shared ranks render `T10`, never a bare repeated `10` — two
+  identical numbers followed by a jump to 12 reads as a rendering bug rather than a dead heat. The
+  position bug marks your row the same way.
+- **The board's column tracks live in one constant** (`lib/standings.ts`), because the table and the
+  position bug ride the same grid and a width changed in one and not the other silently breaks the
+  alignment the bug depends on. Spelled as whole literal class strings: Tailwind scans source text,
+  so a template-composed `grid-cols-[…]` generates no CSS and fails silently.
 - **Receding a row:** archived/finalized rows step the title to `ink-2` and drop the pill *fill*
   (border-only). Never `opacity` (The Contrast Floor Rule).
-- **The "you" row:** highlighted by the Broadcast Slash going red plus a solid `YOU` chip — position
-  and mark, not color alone.
+- **Podium emphasis is three tiers, and all three are real:** rank 1 takes `brand-2` (the board's one
+  red), the rest of the top three take `ink`, everyone below takes `ink-2`. A ramp with two steps
+  wearing three is drift — it reads as a bug in the data, not as a podium.
+- **A skeleton mirrors the table it replaces**, header band included, at the same header and row
+  heights. Six bars of a different height and no header band means the loading state's last act is a
+  layout shift.
+- **The board carries table semantics, the cards carry list semantics.** At `sm`+ the grid takes ARIA
+  table roles (`table` → `rowgroup` → `row` → `columnheader`/`cell`); below it, the card list is a
+  `ul`/`li`. Two structures because there are genuinely two presentations — claiming aligned columns
+  for a card that has none would describe a layout nobody is looking at. Without the roles a row
+  announced as one run-on string (`"1TG-Racing1,7951"`) with the trailing numbers unlabelled. The
+  roles sit on top of the existing CSS grid and change nothing visually.
+- **When two layouts differ structurally, render one — don't hide the other.** `hidden sm:block` /
+  `sm:hidden` is right for a few nodes and wrong for a list: on a 65-team board it kept 825 of 1464
+  nodes mounted behind `display:none`, 56% of the board invisible on every device. Long lists pick
+  their branch in JS (`useMediaQuery(SM)`) so only the one on screen is built. Two rules come with
+  it: subscribe with `useSyncExternalStore`, so the first render already knows the answer and there
+  is no flash of the wrong layout; and express the breakpoint in **rem** (`40rem`), because Tailwind's
+  `sm` is rem-based and a hard-coded `640px` silently disagrees with the CSS for anyone whose root
+  font size isn't 16px.
+- **A clickable row is a link *inside* a cell, stretched over the row.** Never an `<a>` wrapping the
+  row: `role="row"` on an anchor destroys the link semantics, and leaving it a bare anchor hands it
+  the whole row's text as its accessible name. The link wraps the team name and covers the row with
+  an `after:absolute after:inset-0` pseudo-element, which keeps the full-width pointer target, a
+  clean name ("Nuttytrain — view picks"), and real table structure at once. The `truncate` on the
+  cell does not clip it — the cell is unpositioned, so the row remains the containing block.
+- **Every board names itself out loud.** A polite, atomic `aria-live` region states the championship,
+  the round, and the team count, and stays mounted across loading/error/loaded — a live region
+  inserted at the same moment its text appears is unreliably announced. Filter changes used to
+  replace 65 rows in silence.
+- **The "you" row:** the Broadcast Slash goes red, a solid `YOU` chip follows the team name, and the
+  row takes a `brand/14` fill plus a full `brand/40` hairline drawn as an *inset* ring (so it gains an
+  edge without shifting a pixel). Position and mark, never color alone. The two washes are the forms
+  the One Red Rule sanctions, so the row still spends no solid red. Hover on a linked "you" row goes
+  to `brand/20` — never to `surface-2`, which would erase the identity on the way to clicking it.
+  The earlier `brand/7` wash measured 1.02:1 against the surface and was invisible in practice; 14%
+  is the floor for a mark a player is meant to find in a 65-row board.
+
+### Signature — The Position Bug
+
+The standings answer to "where do I place?", named for the broadcast bug it behaves like. A 52px strip
+above the board carrying the viewer's rank · team · points · movement, `sticky top-0` (`z-30`; overlays
+stay at `z-50`) so it follows the player down a long table.
+
+- **It rides the board's own grid.** Same columns (`64px 1fr 110px 90px`, or the 5-column private-league
+  variant), same 18px gutters, same rank and points type as a row — so its figures align to the digit
+  with the table beneath it and it reads as *your row lifted out*, not a separate widget. The board's
+  Rounds column becomes the destination label ("JUMP →"), which is how it satisfies the every-row-says-
+  where-it-goes rule. If the table's columns ever change, the bug's change with them or it is broken.
+- **It retires when the real row is on screen.** An IntersectionObserver on the row fades it out (200ms,
+  `opacity` + `translate`, `inert` while hidden); a 1px sentinel supplies the pinned signal, because
+  retiring while still in normal flow would leave a 52px hole. A proxy for something already visible is
+  clutter. Default state is *visible* — the observer only ever hides it, so a headless or backgrounded
+  renderer fails safe rather than shipping a blank strip.
+- **It is not red.** The bug is neither the primary action nor the live state: `surface-2` fill,
+  `brand/40` hairline, ink numerals, red slash and `YOU` chip carried over from the row. It takes the
+  Popover shadow only while pinned — the one case where in-page chrome genuinely floats (see Elevation).
+- **Only the positional shape is sticky.** The two notice shapes — registered-but-unscored, and signed-in-
+  but-unregistered — are static: a strip earns the right to follow you by having a position to track, and
+  a permanently pinned notice is a nag. Signed-out visitors and empty boards get nothing at all.
+- **Jumping moves focus, not just the viewport.** `scrollIntoView({block:'center'})` plus `focus()` on the
+  row, so keyboard and screen-reader users land there too; the row flashes from `brand/42` back to its
+  resting `brand/14`. Under reduced motion the scroll is instant and the flash collapses — the row's
+  persistent focus outline is what marks the arrival instead.
 
 ### Signature — The Broadcast Slash
 A skewed red bar (`background: brand; transform: skewX(-14deg)`) used as a section/leading accent and
