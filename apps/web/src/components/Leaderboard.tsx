@@ -1,12 +1,17 @@
+import type { ReactNode } from 'react'
 import { Link } from 'react-router-dom'
 import type { LeaderboardEntry } from '../api/queries'
 import { BOARD_COLS, boardColsKey, tiedRanks } from '../lib/standings'
 
-/** Podium emphasis: the leader carries the one red, then the ink ramp dims down the order. */
+/**
+ * Podium emphasis: the leader carries the one red, then the ink ramp dims down the order.
+ *
+ * Three tiers, and now actually three — ranks 3 and 4+ both returned `ink-2`, so a function shaped
+ * like a podium rendered two steps. The podium is the top three, so the top three share `ink`.
+ */
 function rankColor(rank: number): string {
   if (rank === 1) return 'text-brand-2'
-  if (rank === 2) return 'text-ink'
-  if (rank === 3) return 'text-ink-2'
+  if (rank <= 3) return 'text-ink'
   return 'text-ink-2'
 }
 
@@ -35,12 +40,15 @@ export function Movement({ value }: { value?: number | null }) {
  * hairline, drawn as an inset ring so the row doesn't shift by a pixel) with the solid slash and YOU
  * chip already on the row. Still no solid-red *fill*, so the page's red budget is untouched.
  *
+ * `inset-ring-brand/40` rather than a hand-mixed `rgba(225,6,0,0.4)`: the literal was a second copy
+ * of `--color-brand` that would have kept the old red through any future token change.
+ *
  * `focus:` rather than `:focus-visible:` is deliberate — {@link YourPosition} moves focus here
  * programmatically after a mouse click, which never matches `:focus-visible`, and the arrival has to
  * be visible. It doubles as the reduced-motion alternative to the flash.
  */
 const MINE_ROW =
-  'bg-brand/[0.14] shadow-[inset_0_0_0_1px_rgba(225,6,0,0.4)] focus:outline-2 focus:outline-offset-[-2px] focus:outline-brand-3'
+  'bg-brand/[0.14] inset-ring-1 inset-ring-brand/40 focus:outline-2 focus:outline-offset-[-2px] focus:outline-brand-3'
 
 /** Marks the viewer's row for the position bug to find, scroll to, and focus. */
 const MINE_PROPS = { 'data-my-row': '', tabIndex: -1 } as const
@@ -64,6 +72,7 @@ export function Leaderboard({
   myRegistrationId,
   showName = false,
   emptyMessage = 'No standings yet — rows appear once a round is scored.',
+  emptyAction,
   rowHref,
   caption = 'Standings',
   action = 'View picks',
@@ -72,6 +81,8 @@ export function Leaderboard({
   myRegistrationId?: number
   showName?: boolean
   emptyMessage?: string
+  /** A way out of a dead end — an empty board explains itself but leaves nowhere to go. */
+  emptyAction?: ReactNode
   /** When set, each row links to this URL — used to drill into a player's picks for a scored round. */
   rowHref?: (entry: LeaderboardEntry) => string
   /** Names the table for assistive tech — "a table" is not a useful thing to land on. */
@@ -82,7 +93,8 @@ export function Leaderboard({
   if (entries.length === 0) {
     return (
       <div className="rounded-[4px] border border-dashed border-line-2 px-5 py-12 text-center font-sans text-[13px] text-muted">
-        {emptyMessage}
+        <p>{emptyMessage}</p>
+        {emptyAction && <div className="mt-4">{emptyAction}</div>}
       </div>
     )
   }
@@ -136,7 +148,7 @@ export function Leaderboard({
                 key={e.registrationId}
                 role="row"
                 {...(mine ? MINE_PROPS : {})}
-                className={`group relative grid ${cols} items-center border-b border-surface-2 px-[18px] py-[13px] ${
+                className={`group relative grid ${cols} items-center border-b border-line px-[18px] py-[13px] ${
                   mine ? MINE_ROW : ''
                 } ${href ? `transition-colors ${mine ? 'hover:bg-brand/[0.2]' : 'hover:bg-surface-2'}` : ''}`}
               >
@@ -181,7 +193,7 @@ export function Leaderboard({
             <li
               key={e.registrationId}
               {...(mine ? MINE_PROPS : {})}
-              className={`group relative flex items-center gap-3 border-b border-surface-2 px-4 py-3 ${
+              className={`group relative flex items-center gap-3 border-b border-line px-4 py-3 ${
                 mine ? MINE_ROW : ''
               } ${href ? `transition-colors ${mine ? 'active:bg-brand/[0.2]' : 'active:bg-surface-2'}` : ''}`}
             >

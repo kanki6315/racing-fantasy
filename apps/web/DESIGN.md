@@ -378,6 +378,12 @@ The row is this product's real workhorse — more screens are rows than are card
   so a template-composed `grid-cols-[…]` generates no CSS and fails silently.
 - **Receding a row:** archived/finalized rows step the title to `ink-2` and drop the pill *fill*
   (border-only). Never `opacity` (The Contrast Floor Rule).
+- **Podium emphasis is three tiers, and all three are real:** rank 1 takes `brand-2` (the board's one
+  red), the rest of the top three take `ink`, everyone below takes `ink-2`. A ramp with two steps
+  wearing three is drift — it reads as a bug in the data, not as a podium.
+- **A skeleton mirrors the table it replaces**, header band included, at the same header and row
+  heights. Six bars of a different height and no header band means the loading state's last act is a
+  layout shift.
 - **The board carries table semantics, the cards carry list semantics.** At `sm`+ the grid takes ARIA
   table roles (`table` → `rowgroup` → `row` → `columnheader`/`cell`); below it, the card list is a
   `ul`/`li`. Two structures because there are genuinely two presentations — claiming aligned columns

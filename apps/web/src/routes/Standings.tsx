@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo } from 'react'
-import { useSearchParams } from 'react-router-dom'
+import { Link, useSearchParams } from 'react-router-dom'
 import { useAuth } from '../auth/AuthContext'
 import {
   useChampionships,
@@ -221,6 +221,14 @@ export function Standings() {
               // Gated on auth: the detail page is RequireAuth, so don't offer the link (or its hover) to
               // logged-out visitors — they'd only be bounced home.
               rowHref={linked ? (e) => `/standings/team/${e.registrationId}/round/${view}` : undefined}
+              emptyAction={
+                <Link
+                  to="/"
+                  className="font-mono text-[11px] uppercase tracking-[0.1em] text-muted transition-colors hover:text-ink-2"
+                >
+                  See the race calendar →
+                </Link>
+              }
               emptyMessage={
                 view === 'season'
                   ? 'The season pool is empty — standings appear once the first round is scored.'

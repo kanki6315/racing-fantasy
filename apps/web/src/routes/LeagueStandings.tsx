@@ -128,6 +128,14 @@ export function LeagueStandings() {
               // Same as the season standings board: drill into a team's lineup only from a per-round view
               // (the round is unambiguous and, being scored, locked). Season-total rows don't link.
               rowHref={linked ? (e) => `/standings/team/${e.registrationId}/round/${view}` : undefined}
+              emptyAction={
+                <Link
+                  to="/"
+                  className="font-mono text-[11px] uppercase tracking-[0.1em] text-muted transition-colors hover:text-ink-2"
+                >
+                  See the race calendar →
+                </Link>
+              }
               emptyMessage={
                 view === 'season'
                   ? 'No standings yet — they fill in once a round is scored.'
@@ -149,11 +157,21 @@ export function LeagueStandings() {
   )
 }
 
+/**
+ * Placeholder shaped like the table it stands in for.
+ *
+ * It used to be six 46px bars with no header band, so the real board's `surface-3` header and its
+ * 51px rows pushed everything down the moment data landed — the layout shift was the loading state's
+ * parting gift. Matching the header height and the row height keeps the top of the table still.
+ * `aria-hidden` because it is pulse bars with no text; the live region already says "Loading
+ * standings…".
+ */
 export function SkeletonTable() {
   return (
     <div aria-hidden className="overflow-hidden rounded-[4px] border border-line bg-surface">
+      <div className="h-[38px] border-b border-line bg-surface-3" />
       {Array.from({ length: 6 }).map((_, i) => (
-        <div key={i} className="h-[46px] animate-pulse border-b border-surface-2 bg-surface-2/40" />
+        <div key={i} className="h-[51px] animate-pulse border-b border-line bg-surface-2/40" />
       ))}
     </div>
   )
