@@ -193,7 +193,12 @@ export function Stats() {
           `${scored ? `, sorted by ${activeSort.key === 'own' ? 'ownership' : activeSort.key === 'pts' ? 'points' : 'swing'}` : ', not yet scored'}`
 
   return (
-    <div className="mx-auto max-w-[1080px] px-4 py-7 sm:px-[26px]">
+    // 920, not 1080. The board's widest team name measures 341px, so a 550px entity column left
+    // 421px of nothing between "#57 Winward Racing" and its ownership figure — half the table's
+    // width separating a row's subject from its numbers. Narrowing the page closes that without
+    // touching the type, and lands Stats in the same proportion as the 860px standings board, which
+    // is the same kind of object one column narrower.
+    <div className="mx-auto max-w-[920px] px-4 py-7 sm:px-[26px]">
       <div className="flex items-center gap-[13px]">
         <span className="h-[28px] w-[6px] flex-none bg-brand [transform:skewX(-14deg)]" />
         <div>
@@ -204,8 +209,16 @@ export function Stats() {
         </div>
       </div>
 
-      {/* Championship → Year → Round selectors */}
-      <div className="mt-6 flex flex-col gap-3">
+      {/*
+       * Championship → Year → Round selectors, closed with a hairline.
+       *
+       * The page ran header → filters → board on three identical 24px gaps, so nothing grouped:
+       * every block was equally far from every other one and the eye had no reason to read the
+       * three selector rows as one thing. Tight inside the group (10px between rows), a rule under
+       * it, and a more generous gap to the board — the same border-closed filter block the
+       * standings round filter already uses.
+       */}
+      <div className="mt-[22px] flex flex-col gap-[10px] border-b border-line pb-5">
         <FilterRow label="Series">
           {champs.map((c) => (
             <FilterTab key={c.id} active={c.id === champId} onClick={() => setChampPick(c.id)}>
@@ -260,7 +273,7 @@ export function Stats() {
           at the same moment its text appears is unreliably announced. */}
       <BoardStatus text={boardStatus} />
 
-      <div className="mt-6">
+      <div className="mt-7">
         {/*
          * Order matters here, and it is the fix for the page's worst state bug: loading is checked
          * before emptiness, so an in-flight request can no longer render as "nothing found".
@@ -299,7 +312,10 @@ export function Stats() {
           <>
             {/* Your round (when signed in and you entered), then the field's context + bonus usage */}
             {myRound && (
-              <div className="mb-3 flex flex-wrap items-center gap-x-5 gap-y-2 rounded-[4px] border border-success/30 bg-success/[0.07] px-[18px] py-[11px] font-mono text-[12px] text-muted">
+              // `w-fit`: the panel hugs its scoreline instead of stretching the full 868px for
+              // three short figures. A highlighted box that is mostly empty reads as weaker than
+              // the plain text under it, which defeats the point of highlighting it.
+              <div className="mb-[7px] flex w-fit flex-wrap items-center gap-x-5 gap-y-2 rounded-[4px] border border-success/30 bg-success/[0.07] px-[18px] py-[11px] font-mono text-[12px] text-muted">
                 <span className="font-display text-[11px] tracking-[0.12em] uppercase text-ink-2">Your round</span>
                 <Metric label="pts" value={fmtScore(myRound.total)} />
                 {stats.avgScore != null && (
@@ -310,7 +326,16 @@ export function Stats() {
                 )}
               </div>
             )}
-            <div className="flex flex-wrap items-center gap-x-6 gap-y-2 rounded-[4px] border border-line bg-surface-3 px-[18px] py-[11px] font-mono text-[12px] text-muted">
+            {/*
+             * The field's context, deliberately unboxed.
+             *
+             * It used to be a second full-width panel identical in height, radius and type to the
+             * "your round" strip above it — two twins where one is the player's own scoreline and
+             * the other is background. Nothing is gained by putting a caption in a box; dropping
+             * the border and fill leaves exactly one emphasised element in this block and lets the
+             * teal strip actually read as emphasis.
+             */}
+            <div className="flex flex-wrap items-center gap-x-6 gap-y-1 px-[2px] font-mono text-[12px] text-muted">
               <Metric label="entered" value={`${stats.rosters}`} />
               {stats.highScore != null && <Metric label="high" value={fmtScore(stats.highScore)} />}
               {stats.avgScore != null && <Metric label="avg" value={fmtScore(stats.avgScore)} />}
@@ -331,8 +356,9 @@ export function Stats() {
               ))}
             </div>
 
-            {/* Class filter */}
-            <div className="mt-4">
+            {/* Class filter. The round's two summary lines sit tight together above; the gap opens
+                here because this is where the block turns from reporting into controls. */}
+            <div className="mt-6">
               <FilterRow label="Class">
                 <FilterTab active={classId === 'all'} onClick={() => setClassId('all')}>
                   All
@@ -348,8 +374,8 @@ export function Stats() {
               </FilterRow>
             </div>
 
-            {/* The board */}
-            <div className="mt-5">
+            {/* The board — tight to the class chips that filter it. */}
+            <div className="mt-[14px]">
               {!scored && (
                 <p className="mb-3 font-sans text-[13px] text-muted">
                   Picks are in. Points and swing land once the round is scored.
