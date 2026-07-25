@@ -20,7 +20,7 @@ That's the whole web deploy. The API redeploys on its own — see [API](#api) be
 | Piece | How it ships | Trigger |
 | --- | --- | --- |
 | **Web SPA** | `apps/web/scripts/deploy.sh` → S3 + CloudFront | manual, when you run it |
-| **API** | Railway builds the `apps/api` Dockerfile | **auto on push** to the deploy branch |
+| **API** | Railway builds the `apps/api` Dockerfile | **auto on push to `main`** |
 | **DB migrations** | `db.Database.Migrate()` at API boot | rides the API deploy |
 | **Images** | admin console upload (presigned PUT) | per-asset, not part of a deploy |
 
@@ -164,7 +164,7 @@ The `AccessDenied` on the image bucket is the proof the user can only do web dep
 
 ## API
 
-The API redeploys **automatically** when you push to the branch Railway watches — Railway rebuilds
+The API redeploys **automatically on every push to `main`** — Railway watches that branch, rebuilds
 the `apps/api` Dockerfile and restarts the service. Migrations apply on boot (`db.Database.Migrate()`).
 
 - Confirm health after a deploy: `curl https://fantasyapi.arjunakankipati.com/health` → `{status:"ok"}`.
