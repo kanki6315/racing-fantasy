@@ -5,11 +5,24 @@ export function FilterTab({
   active,
   onClick,
   title,
+  label,
   children,
 }: {
   active: boolean
   onClick: () => void
   title?: string
+  /**
+   * Overrides the accessible name when the visible label alone isn't the whole story (a round chip
+   * that is also locked, say).
+   *
+   * It lives here rather than as an `sr-only` span inside `children` for a layout reason worth
+   * remembering: `sr-only` is `position: absolute`, and inside a filter row its containing block is
+   * the scroller's *outer* wrapper — the `relative` one, which doesn't clip; only the inner child
+   * has `overflow-x: auto`. So the span escapes the clip at its static position, hundreds of pixels
+   * into the scroll content, and stretches the document. One of those spans on four round chips
+   * took a 375px phone layout to 1504px of horizontal page scroll.
+   */
+  label?: string
   children: ReactNode
 }) {
   return (
@@ -25,6 +38,7 @@ export function FilterTab({
       type="button"
       onClick={onClick}
       aria-pressed={active}
+      aria-label={label}
       title={title}
       className={`h-9 shrink-0 whitespace-nowrap rounded-[3px] px-[14px] font-display text-[13px] font-semibold uppercase tracking-[0.04em] transition-colors cursor-pointer pointer-coarse:h-11 ${
         active
