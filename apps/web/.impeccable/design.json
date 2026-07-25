@@ -1,6 +1,6 @@
 {
   "schemaVersion": 2,
-  "generatedAt": "2026-07-25T01:45:00Z",
+  "generatedAt": "2026-07-25T19:24:01Z",
   "title": "Design System: Endurance Fantasy",
   "extensions": {
     "colorMeta": {
@@ -261,7 +261,7 @@
       {
         "name": "popover",
         "value": "0 8px 24px rgba(0,0,0,0.5)",
-        "purpose": "Dropdowns and tooltips."
+        "purpose": "Dropdowns and tooltips — and the one in-page exception to the Flat-Void Rule: the standings position bug takes it only while pinned to the viewport, and drops it the moment it returns to normal flow."
       }
     ],
     "motion": [
@@ -284,20 +284,31 @@
         "name": "focus-ring",
         "value": "outline: 2px solid #ff5d5d; outline-offset: 2px",
         "purpose": "Unlayered :focus-visible ring so it beats Tailwind's utility-layer outline-none on inputs and buttons. Keyboard only."
+      },
+      {
+        "name": "row-flash",
+        "value": "@keyframes row-flash { 0% { background-color: color-mix(in oklab, var(--color-brand) 42%, transparent) } 100% { background-color: color-mix(in oklab, var(--color-brand) 14%, transparent) } } applied as `row-flash 900ms cubic-bezier(0.165,0.84,0.44,1)`",
+        "purpose": "Arrival marker when the position bug jumps to your row. Ends on the row's resting colour so there is nothing to clean up. Under reduced motion it collapses to ~0ms and the row's persistent focus outline marks the arrival instead."
+      },
+      {
+        "name": "bug-retire",
+        "value": "transition: opacity 200ms ease-out, translate 200ms ease-out",
+        "purpose": "The position bug fading out once your real row is visible. Transitions `translate`, not `transform` — Tailwind v4 emits `-translate-y-1` as the standalone `translate` property, so a `transform` transition leaves the movement snapping."
       }
     ],
     "breakpoints": [
       {
         "name": "sm",
-        "value": "640px"
+        "value": "40rem",
+        "note": "Tailwind v4 defines breakpoints in rem. JS that branches on a breakpoint must query rem too — a hard-coded 640px agrees only while the root font size is 16px."
       },
       {
         "name": "lg",
-        "value": "1024px"
+        "value": "64rem"
       },
       {
         "name": "xl",
-        "value": "1280px"
+        "value": "80rem"
       }
     ]
   },
@@ -346,9 +357,9 @@
       "name": "Filter / Selection Chip",
       "kind": "chip",
       "refersTo": null,
-      "description": "Standings, board, and view-toggle filters. Selection shifts border + fill + ink and adds the nav's 2px brand underline as an inset rule — never a solid red fill.",
-      "html": "<div class=\"ds-filter-row\"><span class=\"ds-filter-label\">Series</span><button class=\"ds-chip ds-chip-on\" aria-pressed=\"true\">WeatherTech SportsCar Championship</button><button class=\"ds-chip\" aria-pressed=\"false\">Michelin Pilot Challenge</button><button class=\"ds-chip\" aria-pressed=\"false\">Whelen Mazda MX-5 Cup</button></div>",
-      "css": ".ds-filter-row { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; } .ds-filter-label { margin-right: 4px; font-family: var(--font-display, 'Saira Semi Condensed', sans-serif); font-size: 10px; letter-spacing: 0.14em; text-transform: uppercase; color: var(--color-muted, #8a8f98); } .ds-chip { height: 36px; padding: 0 14px; border: 1px solid var(--color-line-2, #2a2d33); border-radius: 3px; background: transparent; font-family: var(--font-display, 'Saira Semi Condensed', sans-serif); font-size: 13px; font-weight: 600; letter-spacing: 0.04em; text-transform: uppercase; color: var(--color-muted, #8a8f98); cursor: pointer; transition: color 150ms ease, border-color 150ms ease, background-color 150ms ease; } .ds-chip:hover { color: var(--color-ink-2, #c8ccd2); } .ds-chip:focus-visible { outline: 2px solid var(--color-brand-3, #ff5d5d); outline-offset: 2px; } .ds-chip-on { border-color: var(--color-line-3, #3a3f47); background: var(--color-surface-2, #16181c); color: var(--color-ink, #fff); box-shadow: inset 0 -2px 0 0 var(--color-brand, #e10600); }"
+      "description": "One line of pills that scrolls sideways rather than wrapping; the legend sits outside the scroller so it doesn't scroll away. Height keys off the pointer (36px fine, 44px coarse), never the viewport. Selection shifts border + fill + ink and adds the nav's 2px brand underline as an inset rule — never a solid red fill. A mask fades whichever edge still has content; the nudge chevron is mouse-only.",
+      "html": "<div class=\"ds-filter-row\" role=\"group\" aria-label=\"Series\"><span class=\"ds-filter-label\" id=\"ds-lbl-series\">Series</span><div class=\"ds-scroller\"><button class=\"ds-chip ds-chip-on\" aria-pressed=\"true\">WeatherTech SportsCar Championship</button><button class=\"ds-chip\" aria-pressed=\"false\">Michelin Pilot Challenge</button><button class=\"ds-chip\" aria-pressed=\"false\">Whelen Mazda MX-5 Cup</button></div><button class=\"ds-nudge\" aria-hidden=\"true\" tabindex=\"-1\"><svg width=\"7\" height=\"12\" viewBox=\"0 0 7 12\" fill=\"none\"><path d=\"M1 1l5 5-5 5\" stroke=\"currentColor\" stroke-width=\"1.6\" stroke-linecap=\"square\"/></svg></button></div>",
+      "css": ".ds-filter-row { position: relative; display: flex; align-items: center; gap: 10px; } .ds-filter-label { flex: none; font-family: var(--font-display, 'Saira Semi Condensed', sans-serif); font-size: 10px; letter-spacing: 0.14em; text-transform: uppercase; color: var(--color-muted, #8a8f98); } .ds-scroller { display: flex; flex: 1; min-width: 0; gap: 6px; overflow-x: auto; scrollbar-width: none; -webkit-mask-image: linear-gradient(to right, #000 0, #000 calc(100% - 28px), transparent 100%); mask-image: linear-gradient(to right, #000 0, #000 calc(100% - 28px), transparent 100%); } .ds-scroller::-webkit-scrollbar { display: none; } .ds-chip { flex: none; white-space: nowrap; height: 36px; padding: 0 14px; border: 1px solid var(--color-line-2, #2a2d33); border-radius: 3px; background: transparent; font-family: var(--font-display, 'Saira Semi Condensed', sans-serif); font-size: 13px; font-weight: 600; letter-spacing: 0.04em; text-transform: uppercase; color: var(--color-muted, #8a8f98); cursor: pointer; transition: color 150ms ease, border-color 150ms ease, background-color 150ms ease; } .ds-chip:hover { color: var(--color-ink-2, #c8ccd2); } .ds-chip:focus-visible { outline: 2px solid var(--color-brand-3, #ff5d5d); outline-offset: 2px; } .ds-chip-on { border-color: var(--color-line-3, #3a3f47); background: var(--color-surface-2, #16181c); color: var(--color-ink, #fff); box-shadow: inset 0 -2px 0 0 var(--color-brand, #e10600); } @media (pointer: coarse) { .ds-chip { height: 44px; } } .ds-nudge { position: absolute; inset-block: 0; right: 0; display: none; width: 28px; align-items: center; justify-content: flex-end; background: none; border: 0; color: var(--color-muted, #8a8f98); cursor: pointer; transition: color 150ms ease; } .ds-nudge:hover { color: var(--color-ink, #fff); } @media (pointer: fine) { .ds-nudge { display: flex; } }"
     },
     {
       "name": "Top Navigation",
@@ -362,9 +373,9 @@
       "name": "Leaderboard Row",
       "kind": "custom",
       "refersTo": null,
-      "description": "The system's workhorse. Fixed-column grid, hairline separators, tabular mono numerals, and the Broadcast Slash as the leading mark — red on the signed-in player's own row.",
-      "html": "<div class=\"ds-board\"><div class=\"ds-board-head\"><span>Pos</span><span>Team</span><span class=\"ds-num\">Points</span></div><a href=\"#\" class=\"ds-row\"><span class=\"ds-rank\">1</span><span class=\"ds-team\"><i class=\"ds-slash\"></i>No Lift Crew</span><span class=\"ds-num ds-pts\">418.5</span></a><a href=\"#\" class=\"ds-row ds-row-mine\"><span class=\"ds-rank\">2</span><span class=\"ds-team\"><i class=\"ds-slash ds-slash-red\"></i>Brake Late Racing<em class=\"ds-you\">YOU</em></span><span class=\"ds-num ds-pts\">402.0</span></a></div>",
-      "css": ".ds-board { overflow: hidden; background: var(--color-surface, #101317); border: 1px solid var(--color-line, #1f242a); border-radius: 4px; } .ds-board-head { display: grid; grid-template-columns: 54px 1fr 90px; align-items: center; padding: 10px 18px; background: var(--color-surface-3, #0e0f12); border-bottom: 1px solid var(--color-line, #1f242a); font-family: var(--font-display, 'Saira Semi Condensed', sans-serif); font-size: 11px; letter-spacing: 0.1em; text-transform: uppercase; color: var(--color-muted, #8a8f98); } .ds-row { display: grid; grid-template-columns: 54px 1fr 90px; align-items: center; padding: 13px 18px; border-bottom: 1px solid var(--color-surface-2, #16181c); text-decoration: none; transition: background-color 150ms ease; } .ds-row:hover { background: var(--color-surface-2, #16181c); } .ds-row-mine { background: rgba(225,6,0,0.07); } .ds-row-mine:hover { background: rgba(225,6,0,0.12); } .ds-rank { font-family: var(--font-mono, 'Spline Sans Mono', monospace); font-size: 16px; font-weight: 700; color: var(--color-ink, #fff); } .ds-team { display: flex; align-items: center; gap: 8px; font-family: var(--font-display, 'Saira Semi Condensed', sans-serif); font-size: 15px; font-weight: 700; letter-spacing: 0.02em; text-transform: uppercase; color: var(--color-ink, #fff); } .ds-slash { flex: none; width: 4px; height: 15px; background: var(--color-line-3, #3a3f47); transform: skewX(-14deg); } .ds-slash-red { background: var(--color-brand, #e10600); } .ds-you { flex: none; padding: 1px 6px; border-radius: 2px; background: var(--color-brand, #e10600); font-family: var(--font-mono, 'Spline Sans Mono', monospace); font-size: 10px; font-style: normal; letter-spacing: 0.08em; color: var(--color-ink, #fff); } .ds-num { text-align: right; font-family: var(--font-mono, 'Spline Sans Mono', monospace); font-variant-numeric: tabular-nums; } .ds-pts { font-size: 15px; font-weight: 600; color: var(--color-ink, #fff); }"
+      "description": "The system's workhorse. Fixed-column grid, `line` hairline separators, tabular mono numerals, the Broadcast Slash as the leading mark, and ties marked `T10`. The signed-in player's row takes a brand/14 wash plus a full brand/40 inset ring — the two tinted-wash forms the One Red Rule allows — never a solid fill.",
+      "html": "<div class=\"ds-board\"><div class=\"ds-board-head\" role=\"row\"><span>#</span><span>Team</span><span class=\"ds-num\">Points</span><span class=\"ds-num\">Rounds</span></div><div class=\"ds-row\"><span class=\"ds-rank ds-rank-1\">1</span><span class=\"ds-team\"><i class=\"ds-slash\"></i>4 Wheels Fast</span><span class=\"ds-num ds-pts\">2,862</span><span class=\"ds-num ds-rounds\">2</span></div><div class=\"ds-row\"><span class=\"ds-rank\">T10<span class=\"ds-move ds-up\">&#9650;4</span></span><span class=\"ds-team\"><i class=\"ds-slash\"></i>Team Cookie</span><span class=\"ds-num ds-pts\">2,731</span><span class=\"ds-num ds-rounds\">2</span></div><div class=\"ds-row ds-row-mine\"><span class=\"ds-rank\">25<span class=\"ds-move ds-down\">&#9660;13</span></span><span class=\"ds-team\"><i class=\"ds-slash ds-slash-mine\"></i>Nuttytrain<b class=\"ds-you\">YOU</b></span><span class=\"ds-num ds-pts\">1,449</span><span class=\"ds-num ds-rounds\">2</span></div></div>",
+      "css": ".ds-board { overflow: hidden; background: var(--color-surface, #101317); border: 1px solid var(--color-line, #1f242a); border-radius: 4px; } .ds-board-head, .ds-row { display: grid; grid-template-columns: 64px 1fr 110px 90px; align-items: center; padding: 13px 18px; border-bottom: 1px solid var(--color-line, #1f242a); } .ds-board-head { padding: 10px 18px; background: var(--color-surface-3, #0e0f12); font-family: var(--font-display, 'Saira Semi Condensed', sans-serif); font-size: 11px; letter-spacing: 0.1em; text-transform: uppercase; color: var(--color-muted, #8a8f98); } .ds-row { position: relative; transition: background-color 150ms ease; } .ds-row:hover { background: var(--color-surface-2, #16181c); } .ds-rank { display: flex; align-items: baseline; gap: 6px; font-family: var(--font-mono, 'Spline Sans Mono', monospace); font-size: 16px; font-weight: 700; color: var(--color-ink-2, #c8ccd2); } .ds-rank-1 { color: var(--color-brand-2, #ff2d2d); } .ds-move { font-size: 10px; font-weight: 500; line-height: 1; } .ds-up { color: var(--color-success, #2dd4bf); } .ds-down { color: var(--color-danger, #ff5d5d); } .ds-team { display: flex; align-items: center; gap: 8px; min-width: 0; font-family: var(--font-display, 'Saira Semi Condensed', sans-serif); font-size: 15px; font-weight: 700; letter-spacing: 0.02em; text-transform: uppercase; color: var(--color-ink, #fff); } .ds-slash { flex: none; width: 4px; height: 15px; background: var(--color-line-3, #3a3f47); transform: skewX(-14deg); } .ds-slash-mine { background: var(--color-brand, #e10600); } .ds-you { flex: none; padding: 1px 6px; border-radius: 2px; background: var(--color-brand, #e10600); font-family: var(--font-mono, 'Spline Sans Mono', monospace); font-size: 10px; font-weight: 400; letter-spacing: 0.08em; color: var(--color-ink, #fff); } .ds-num { text-align: right; font-family: var(--font-mono, 'Spline Sans Mono', monospace); } .ds-pts { font-size: 15px; font-weight: 600; color: var(--color-ink, #fff); } .ds-rounds { font-size: 12px; color: var(--color-muted, #8a8f98); } .ds-row-mine { background: color-mix(in oklab, var(--color-brand, #e10600) 14%, transparent); box-shadow: inset 0 0 0 1px color-mix(in oklab, var(--color-brand, #e10600) 40%, transparent); } .ds-row-mine:hover { background: color-mix(in oklab, var(--color-brand, #e10600) 20%, transparent); }"
     },
     {
       "name": "Calendar Row",
@@ -389,6 +400,14 @@
       "description": "The logotype (ENDURANCE in ink, FANTASY in brand red, set solid, no icon) and the skewed red bar used as leading punctuation on section heads and player rows.",
       "html": "<div class=\"ds-marks\"><span class=\"ds-wordmark\">ENDURANCE<span>FANTASY</span></span><div class=\"ds-slash-demo\"><i class=\"ds-slash-lg\"></i><span class=\"ds-slash-label\">Race Calendar</span></div></div>",
       "css": ".ds-marks { display: flex; flex-direction: column; gap: 20px; } .ds-wordmark { font-family: var(--font-display, 'Saira Semi Condensed', sans-serif); font-size: 21px; font-weight: 800; letter-spacing: -0.02em; color: var(--color-ink, #fff); } .ds-wordmark span { color: var(--color-brand, #e10600); } .ds-slash-demo { display: flex; align-items: center; gap: 10px; } .ds-slash-lg { flex: none; width: 5px; height: 20px; background: var(--color-brand, #e10600); transform: skewX(-14deg); } .ds-slash-label { font-family: var(--font-display, 'Saira Semi Condensed', sans-serif); font-size: 22px; font-weight: 800; text-transform: uppercase; color: var(--color-ink, #fff); }"
+    },
+    {
+      "name": "The Position Bug",
+      "kind": "custom",
+      "refersTo": null,
+      "description": "Standings' answer to \"where do I place?\". A 52px strip on the board's own column grid, sticky to the top of the viewport, that retires the moment your real row is on screen. Not red: it is neither the primary action nor the live state, so it takes surface-2 with a brand/40 hairline and borrows the row's slash and YOU chip.",
+      "html": "<div class=\"ds-bug\"><button class=\"ds-bug-btn\" aria-label=\"Jump to your row — 25th, 1,449 points, down 13 since last round\"><span class=\"ds-bug-rank\">25<span class=\"ds-move ds-down\">&#9660;13</span></span><span class=\"ds-bug-team\"><i class=\"ds-slash ds-slash-mine\"></i>Nuttytrain<b class=\"ds-you\">YOU</b></span><span class=\"ds-bug-pts\">1,449</span><span class=\"ds-bug-jump\">Jump &rarr;</span></button></div>",
+      "css": ".ds-bug { position: sticky; top: 0; z-index: 30; margin-bottom: 16px; transition: opacity 200ms ease-out, translate 200ms ease-out; } .ds-bug-btn { display: grid; grid-template-columns: 64px 1fr 110px 108px; align-items: center; width: 100%; height: 52px; padding: 0 18px; text-align: left; cursor: pointer; background: var(--color-surface-2, #16181c); border: 1px solid color-mix(in oklab, var(--color-brand, #e10600) 40%, transparent); border-radius: 4px; transition: box-shadow 200ms ease; } .ds-bug-btn:focus-visible { outline: 2px solid var(--color-brand-3, #ff5d5d); outline-offset: 2px; } .ds-bug-rank { display: flex; align-items: baseline; gap: 6px; font-family: var(--font-mono, 'Spline Sans Mono', monospace); font-size: 16px; font-weight: 700; color: var(--color-ink, #fff); } .ds-bug-team { display: flex; align-items: center; gap: 8px; min-width: 0; font-family: var(--font-display, 'Saira Semi Condensed', sans-serif); font-size: 15px; font-weight: 700; letter-spacing: 0.02em; text-transform: uppercase; color: var(--color-ink, #fff); } .ds-bug-pts { text-align: right; font-family: var(--font-mono, 'Spline Sans Mono', monospace); font-size: 15px; font-weight: 600; color: var(--color-ink, #fff); } .ds-bug-jump { text-align: right; white-space: nowrap; font-family: var(--font-mono, 'Spline Sans Mono', monospace); font-size: 10px; letter-spacing: 0.1em; text-transform: uppercase; color: var(--color-muted, #8a8f98); } @media (max-width: 39.99rem) { .ds-bug-btn { grid-template-columns: auto 1fr auto auto; gap: 12px; padding: 0 16px; } } .ds-slash { flex: none; width: 4px; height: 15px; background: var(--color-line-3, #3a3f47); transform: skewX(-14deg); } .ds-slash-mine { background: var(--color-brand, #e10600); } .ds-you { flex: none; padding: 1px 6px; border-radius: 2px; background: var(--color-brand, #e10600); font-family: var(--font-mono, 'Spline Sans Mono', monospace); font-size: 10px; font-weight: 400; letter-spacing: 0.08em; color: var(--color-ink, #fff); } .ds-move { font-family: var(--font-mono, 'Spline Sans Mono', monospace); font-size: 10px; font-weight: 500; line-height: 1; } .ds-down { color: var(--color-danger, #ff5d5d); } .ds-up { color: var(--color-success, #2dd4bf); }"
     }
   ],
   "narrative": {
