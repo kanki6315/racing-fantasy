@@ -8,7 +8,7 @@ import {
   useSeasonLeaderboard,
   useSeasons,
 } from '../api/queries'
-import { Leaderboard } from '../components/Leaderboard'
+import { BoardStatus, Leaderboard } from '../components/Leaderboard'
 import { FilterRow, FilterTab, RoundFilter } from '../components/StandingsFilters'
 import { YourPosition } from '../components/YourPosition'
 import { ErrorBox, SkeletonTable } from './LeagueStandings'
@@ -125,6 +125,19 @@ export function Standings() {
   const season$ = seasons.find((s) => s.id === seasonId)
   const sortedSeasons = [...seasons].sort((a, b) => b.year - a.year)
 
+  // One sentence naming the board, for the live region and the table's accessible name. Both need
+  // the same words; deriving it once keeps them from drifting.
+  const roundName = typeof view === 'number' ? rounds.data?.find((r) => r.id === view)?.name : undefined
+  const boardName = `${champ?.name ?? 'Standings'}${season$ ? ` ${season$.year}` : ''} — ${
+    roundName ?? 'season total'
+  }`
+  const entryCount = active$.data?.entries.length ?? 0
+  const boardStatus = boardLoading
+    ? 'Loading standings…'
+    : active$.isError
+      ? "Couldn't load these standings."
+      : `${boardName}. ${entryCount} ${entryCount === 1 ? 'team' : 'teams'}.`
+
   return (
     <div className="mx-auto max-w-[860px] px-4 py-7 sm:px-[26px]">
       <div className="flex items-center gap-[13px]">
@@ -165,7 +178,13 @@ export function Standings() {
         <RoundFilter rounds={rounds.data ?? []} value={view} onChange={pickRound} />
       </div>
 
+      <BoardStatus text={boardStatus} />
+
       <div className="mt-6">
+        {/* The page had exactly one heading, so heading navigation — a primary screen-reader way of
+            skipping to content — could not reach the board at all. Visually hidden: the board is
+            self-evident on screen and the page just spent a pass removing chrome. */}
+        <h2 className="sr-only">Leaderboard</h2>
         {!champ ? (
           <ErrorBox message="No championships found." />
         ) : seasonId == null ? (
@@ -192,6 +211,7 @@ export function Standings() {
             <Leaderboard
               entries={active$.data?.entries ?? []}
               myRegistrationId={myRegId}
+              caption={boardName}
               // Drill into a player's lineup only from a per-round board, where the round is unambiguous
               // (and, being scored, already locked). The season "Total" view has no single round to show.
               // Gated on auth: the detail page is RequireAuth, so don't offer the link (or its hover) to

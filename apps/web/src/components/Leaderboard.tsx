@@ -1,4 +1,3 @@
-import type { ElementType } from 'react'
 import { Link } from 'react-router-dom'
 import type { LeaderboardEntry } from '../api/queries'
 
@@ -56,6 +55,7 @@ export function Leaderboard({
   showName = false,
   emptyMessage = 'No standings yet — rows appear once a round is scored.',
   rowHref,
+  caption = 'Standings',
 }: {
   entries: LeaderboardEntry[]
   myRegistrationId?: number
@@ -63,6 +63,8 @@ export function Leaderboard({
   emptyMessage?: string
   /** When set, each row links to this URL — used to drill into a player's picks for a scored round. */
   rowHref?: (entry: LeaderboardEntry) => string
+  /** Names the table for assistive tech — "a table" is not a useful thing to land on. */
+  caption?: string
 }) {
   if (entries.length === 0) {
     return (
@@ -83,63 +85,76 @@ export function Leaderboard({
 
   return (
     <div className="overflow-hidden rounded-[4px] border border-line bg-surface">
-      {/* sm+ : the full grid table */}
-      <div className="hidden sm:block">
-        <div className={`grid ${cols} items-center border-b border-line bg-surface-3 px-[18px] py-[10px] font-display text-[11px] tracking-[0.1em] uppercase text-muted`}>
-          <span>#</span>
-          <span>Team</span>
-          {showName && <span>Player</span>}
-          <span className="text-right">Points</span>
-          <span className="text-right">Rounds</span>
+      {/*
+       * sm+ : the full grid table.
+       *
+       * ARIA table roles rather than bare divs. Without them the header band was four unassociated
+       * spans and a row announced as one run-on string — "1TG-Racing1,7951" — with the last two
+       * numbers arriving with no idea which was points and which was rounds. The roles ride on top of
+       * the CSS grid without changing a pixel of it.
+       */}
+      <div className="hidden sm:block" role="table" aria-label={caption}>
+        <div role="rowgroup">
+          <div
+            role="row"
+            className={`grid ${cols} items-center border-b border-line bg-surface-3 px-[18px] py-[10px] font-display text-[11px] tracking-[0.1em] uppercase text-muted`}
+          >
+            <span role="columnheader">#</span>
+            <span role="columnheader">Team</span>
+            {showName && <span role="columnheader">Player</span>}
+            <span role="columnheader" className="text-right">Points</span>
+            <span role="columnheader" className="text-right">Rounds</span>
+          </div>
         </div>
-        {entries.map((e) => {
-          const mine = myRegistrationId != null && e.registrationId === myRegistrationId
-          const href = rowHref?.(e)
-          const Row: ElementType = href ? Link : 'div'
-          return (
-            <Row
-              key={e.registrationId}
-              {...(href ? { to: href } : {})}
-              {...(mine ? MINE_PROPS : {})}
-              className={`grid ${cols} items-center border-b border-surface-2 px-[18px] py-[13px] ${
-                mine ? MINE_ROW : ''
-              } ${href ? `transition-colors ${mine ? 'hover:bg-brand/[0.2]' : 'hover:bg-surface-2'}` : ''}`}
-            >
-              <span className="flex items-baseline gap-1.5">
-                <span className={`font-mono text-[16px] font-bold ${rankColor(e.rank)}`}>{e.rank}</span>
-                <Movement value={e.movement} />
-              </span>
-              <span className="flex items-center gap-2 truncate font-display text-[15px] font-bold uppercase tracking-[0.02em] text-ink">
-                <span className={`h-[15px] w-[4px] flex-none [transform:skewX(-14deg)] ${mine ? 'bg-brand' : 'bg-line-3'}`} />
-                <span className="truncate" title={e.teamName}>
-                  {e.teamName}
+        <div role="rowgroup">
+          {entries.map((e) => {
+            const mine = myRegistrationId != null && e.registrationId === myRegistrationId
+            const href = rowHref?.(e)
+            return (
+              <div
+                key={e.registrationId}
+                role="row"
+                {...(mine ? MINE_PROPS : {})}
+                className={`relative grid ${cols} items-center border-b border-surface-2 px-[18px] py-[13px] ${
+                  mine ? MINE_ROW : ''
+                } ${href ? `transition-colors ${mine ? 'hover:bg-brand/[0.2]' : 'hover:bg-surface-2'}` : ''}`}
+              >
+                <span role="cell" className="flex items-baseline gap-1.5">
+                  <span className={`font-mono text-[16px] font-bold ${rankColor(e.rank)}`}>{e.rank}</span>
+                  <Movement value={e.movement} />
                 </span>
-                {mine && <span className="flex-none rounded-[2px] bg-brand px-[6px] py-[1px] font-mono text-[10px] tracking-[0.08em] text-ink">YOU</span>}
-              </span>
-              {showName && (
-                <span className="truncate font-sans text-[12px] text-muted" title={e.name ?? undefined}>
-                  {e.name ?? '—'}
+                <span role="cell" className="flex items-center gap-2 truncate font-display text-[15px] font-bold uppercase tracking-[0.02em] text-ink">
+                  <span className={`h-[15px] w-[4px] flex-none [transform:skewX(-14deg)] ${mine ? 'bg-brand' : 'bg-line-3'}`} />
+                  <TeamName entry={e} href={href} />
+                  {mine && <span className="flex-none rounded-[2px] bg-brand px-[6px] py-[1px] font-mono text-[10px] tracking-[0.08em] text-ink">YOU</span>}
                 </span>
-              )}
-              <span className="text-right font-mono text-[15px] font-semibold text-ink">{fmtPoints(e.points)}</span>
-              <span className="text-right font-mono text-[12px] text-muted">{e.roundsScored}</span>
-            </Row>
-          )
-        })}
+                {showName && (
+                  <span role="cell" className="truncate font-sans text-[12px] text-muted" title={e.name ?? undefined}>
+                    {e.name ?? '—'}
+                  </span>
+                )}
+                <span role="cell" className="text-right font-mono text-[15px] font-semibold text-ink">{fmtPoints(e.points)}</span>
+                <span role="cell" className="text-right font-mono text-[12px] text-muted">{e.roundsScored}</span>
+              </div>
+            )
+          })}
+        </div>
       </div>
 
-      {/* < sm : each entry reflows into a card (rank · team + meta · points) */}
-      <div className="sm:hidden">
+      {/*
+       * < sm : each entry reflows into a card. A list, not a table — there are no aligned columns to
+       * describe here, and every figure already carries its own inline label ("2 rounds", "pts"), so
+       * claiming table structure would be describing a layout that isn't on screen.
+       */}
+      <ul role="list" className="sm:hidden">
         {entries.map((e) => {
           const mine = myRegistrationId != null && e.registrationId === myRegistrationId
           const href = rowHref?.(e)
-          const Row: ElementType = href ? Link : 'div'
           return (
-            <Row
+            <li
               key={e.registrationId}
-              {...(href ? { to: href } : {})}
               {...(mine ? MINE_PROPS : {})}
-              className={`flex items-center gap-3 border-b border-surface-2 px-4 py-3 ${
+              className={`relative flex items-center gap-3 border-b border-surface-2 px-4 py-3 ${
                 mine ? MINE_ROW : ''
               } ${href ? `transition-colors ${mine ? 'active:bg-brand/[0.2]' : 'active:bg-surface-2'}` : ''}`}
             >
@@ -148,14 +163,11 @@ export function Leaderboard({
                 <Movement value={e.movement} />
               </span>
               <div className="min-w-0 flex-1">
-                <div className="flex items-center gap-2">
+                {/* Type lives on the wrapper, matching the desktop cell, so the shared TeamName can
+                    inherit it in both layouts instead of carrying two copies of the same styling. */}
+                <div className="flex items-center gap-2 font-display text-[15px] font-bold uppercase tracking-[0.02em] text-ink">
                   <span className={`h-[14px] w-[4px] flex-none [transform:skewX(-14deg)] ${mine ? 'bg-brand' : 'bg-line-3'}`} />
-                  <span
-                    className="truncate font-display text-[15px] font-bold uppercase tracking-[0.02em] text-ink"
-                    title={e.teamName}
-                  >
-                    {e.teamName}
-                  </span>
+                  <TeamName entry={e} href={href} />
                   {mine && <span className="flex-none rounded-[2px] bg-brand px-[6px] py-[1px] font-mono text-[10px] tracking-[0.08em] text-ink">YOU</span>}
                 </div>
                 <div className="mt-[3px] flex items-center gap-1.5 truncate font-mono text-[11px] text-muted">
@@ -167,10 +179,56 @@ export function Leaderboard({
                 <div className="font-mono text-[17px] font-bold leading-none text-ink">{fmtPoints(e.points)}</div>
                 <div className="mt-[3px] font-mono text-[10px] uppercase tracking-[0.1em] text-muted">pts</div>
               </div>
-            </Row>
+            </li>
           )
         })}
-      </div>
+      </ul>
     </div>
+  )
+}
+
+/**
+ * A polite live region describing whatever board is currently on screen.
+ *
+ * Activating a filter silently replaced up to 65 rows: a screen-reader user pressed a pill and got
+ * no confirmation anything had happened. It stays mounted across loading, error and loaded states —
+ * a live region inserted at the same moment its text appears is unreliably announced — and
+ * `aria-atomic` makes the whole sentence read rather than just the words that changed.
+ */
+export function BoardStatus({ text }: { text: string }) {
+  return (
+    <p aria-live="polite" aria-atomic="true" className="sr-only">
+      {text}
+    </p>
+  )
+}
+
+/**
+ * The team name, and — on a board whose rows drill into a lineup — the row's link.
+ *
+ * The link lives *inside* the cell and stretches over the whole row with a pseudo-element, rather
+ * than the row itself being an anchor. Making the row the link forced a choice between two broken
+ * options: `role="row"` on an `<a>` destroys the link semantics, and leaving it a bare anchor gives
+ * it the whole row's text as its name. This keeps the big pointer target, a clean accessible name,
+ * and real table structure at the same time. The name states the destination, which is what the
+ * rows have always owed a screen-reader user; the visible label is still pending.
+ */
+function TeamName({ entry, href }: { entry: LeaderboardEntry; href?: string }) {
+  if (!href) {
+    return (
+      <span className="truncate" title={entry.teamName}>
+        {entry.teamName}
+      </span>
+    )
+  }
+  return (
+    <Link
+      to={href}
+      title={entry.teamName}
+      aria-label={`${entry.teamName} — view picks`}
+      className="truncate after:absolute after:inset-0 after:content-['']"
+    >
+      {entry.teamName}
+    </Link>
   )
 }

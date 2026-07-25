@@ -363,6 +363,22 @@ The row is this product's real workhorse — more screens are rows than are card
   with the row. Mystery-meat rows — clickable with no stated destination — are forbidden.
 - **Receding a row:** archived/finalized rows step the title to `ink-2` and drop the pill *fill*
   (border-only). Never `opacity` (The Contrast Floor Rule).
+- **The board carries table semantics, the cards carry list semantics.** At `sm`+ the grid takes ARIA
+  table roles (`table` → `rowgroup` → `row` → `columnheader`/`cell`); below it, the card list is a
+  `ul`/`li`. Two structures because there are genuinely two presentations — claiming aligned columns
+  for a card that has none would describe a layout nobody is looking at. Without the roles a row
+  announced as one run-on string (`"1TG-Racing1,7951"`) with the trailing numbers unlabelled. The
+  roles sit on top of the existing CSS grid and change nothing visually.
+- **A clickable row is a link *inside* a cell, stretched over the row.** Never an `<a>` wrapping the
+  row: `role="row"` on an anchor destroys the link semantics, and leaving it a bare anchor hands it
+  the whole row's text as its accessible name. The link wraps the team name and covers the row with
+  an `after:absolute after:inset-0` pseudo-element, which keeps the full-width pointer target, a
+  clean name ("Nuttytrain — view picks"), and real table structure at once. The `truncate` on the
+  cell does not clip it — the cell is unpositioned, so the row remains the containing block.
+- **Every board names itself out loud.** A polite, atomic `aria-live` region states the championship,
+  the round, and the team count, and stays mounted across loading/error/loaded — a live region
+  inserted at the same moment its text appears is unreliably announced. Filter changes used to
+  replace 65 rows in silence.
 - **The "you" row:** the Broadcast Slash goes red, a solid `YOU` chip follows the team name, and the
   row takes a `brand/14` fill plus a full `brand/40` hairline drawn as an *inset* ring (so it gains an
   edge without shifting a pixel). Position and mark, never color alone. The two washes are the forms

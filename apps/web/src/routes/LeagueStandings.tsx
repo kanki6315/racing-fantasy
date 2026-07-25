@@ -2,7 +2,7 @@ import { useEffect } from 'react'
 import { Link, useParams, useSearchParams } from 'react-router-dom'
 import { useAuth } from '../auth/AuthContext'
 import { useLeague, useLeagueLeaderboard, useRounds } from '../api/queries'
-import { Leaderboard } from '../components/Leaderboard'
+import { BoardStatus, Leaderboard } from '../components/Leaderboard'
 import { RoundFilter } from '../components/StandingsFilters'
 import { YourPosition } from '../components/YourPosition'
 
@@ -51,6 +51,17 @@ export function LeagueStandings() {
   const myRegId = myReg?.id
   const isPrivate = league.data?.visibility === 'Private'
 
+  // Same derivation as the season board, so both surfaces name themselves the same way.
+  const roundName = typeof view === 'number' ? rounds.data?.find((r) => r.id === view)?.name : undefined
+  const boardName = `${lb.data?.name ?? league.data?.name ?? 'League'} — ${roundName ?? 'season total'}`
+  const entryCount = lb.data?.entries.length ?? 0
+  const boardStatus =
+    lb.isLoading || roundPending
+      ? 'Loading standings…'
+      : lb.isError
+        ? "Couldn't load these standings."
+        : `${boardName}. ${entryCount} ${entryCount === 1 ? 'team' : 'teams'}.`
+
   return (
     <div className="mx-auto max-w-[860px] px-4 py-7 sm:px-[26px]">
       <Link to="/dashboard" className="font-mono text-[11px] tracking-[0.08em] uppercase text-muted hover:text-ink-2 transition-colors">
@@ -83,7 +94,10 @@ export function LeagueStandings() {
         <RoundFilter rounds={rounds.data ?? []} value={view} onChange={setTab} />
       </div>
 
+      <BoardStatus text={boardStatus} />
+
       <div className="mt-6">
+        <h2 className="sr-only">Leaderboard</h2>
         {lb.isLoading || roundPending ? (
           <SkeletonTable />
         ) : lb.isError ? (
@@ -108,6 +122,7 @@ export function LeagueStandings() {
               entries={lb.data?.entries ?? []}
               myRegistrationId={myRegId}
               showName={isPrivate}
+              caption={boardName}
               // Same as the season standings board: drill into a team's lineup only from a per-round view
               // (the round is unambiguous and, being scored, locked). Season-total rows don't link.
               rowHref={
@@ -130,7 +145,7 @@ export function LeagueStandings() {
 
 export function SkeletonTable() {
   return (
-    <div className="overflow-hidden rounded-[4px] border border-line bg-surface">
+    <div aria-hidden className="overflow-hidden rounded-[4px] border border-line bg-surface">
       {Array.from({ length: 6 }).map((_, i) => (
         <div key={i} className="h-[46px] animate-pulse border-b border-surface-2 bg-surface-2/40" />
       ))}

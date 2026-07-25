@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef, useState, type ReactNode } from 'react'
+import { useCallback, useEffect, useId, useRef, useState, type ReactNode } from 'react'
 
 /** A single pill toggle — the shared building block for the standings filters. */
 export function FilterTab({
@@ -161,11 +161,19 @@ function FilterScroller({ children }: { children: ReactNode }) {
 /**
  * A labelled row of pills. The label sits outside the scroller so it stays put while the pills move
  * — a legend that scrolled away with its own content would be worse than no legend.
+ *
+ * `role="group"` + `aria-labelledby` binds that visible legend to the buttons it describes. Before,
+ * "Series" was a span that happened to sit nearby: sighted users got the grouping from proximity and
+ * screen-reader users got six unexplained buttons. Pointing at the existing label rather than
+ * duplicating it in an `aria-label` keeps one source of truth for the wording.
  */
 export function FilterRow({ label, children }: { label: string; children: ReactNode }) {
+  const labelId = useId()
   return (
-    <div className="flex items-center gap-[10px]">
-      <span className="shrink-0 font-display text-[10px] tracking-[0.14em] uppercase text-muted">{label}</span>
+    <div role="group" aria-labelledby={labelId} className="flex items-center gap-[10px]">
+      <span id={labelId} className="shrink-0 font-display text-[10px] tracking-[0.14em] uppercase text-muted">
+        {label}
+      </span>
       <FilterScroller>{children}</FilterScroller>
     </div>
   )
@@ -185,7 +193,10 @@ export function RoundFilter({
   onChange: (v: 'season' | number) => void
 }) {
   return (
-    <div className="border-b border-line pb-[14px]">
+    // The only filter row with no visible legend — the divider and position already group it on
+    // screen, and a fourth label would cost scroller width on a phone where it is tightest. It still
+    // needs a name: without one this was an unlabelled run of seven buttons.
+    <div role="group" aria-label="Round" className="border-b border-line pb-[14px]">
       <FilterScroller>
         <FilterTab active={value === 'season'} onClick={() => onChange('season')}>
           Total
