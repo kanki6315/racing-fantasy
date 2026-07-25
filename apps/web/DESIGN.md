@@ -296,6 +296,14 @@ the primary action always wins the eye.
 - **A filter offering one choice is not a filter.** The Year row renders only when a series has more
   than one season; otherwise it was a labelled row containing the word "2026" and nothing to do, and
   the subtitle already states the year.
+- **The URL is the filter state.** Every standings level lives in `?champ=&season=&round=` and writes
+  back to it, so a board is linkable and Back undoes a filter instead of leaving the page. Two rules
+  keep the history stack honest: values the *app* resolved (defaults, healing) use `replace`, values
+  the *user* picked use `push` — so Back walks through the boards someone chose, not through every
+  default the page settled on. And picking a level clears the levels below it, because a round id
+  belongs to exactly one season. Invalid params are validated, never trusted: an unknown round falls
+  back to the season pool without ever issuing a doomed request, and is then dropped from the URL so
+  the address bar can't describe a view nobody is looking at.
 - **Lifecycle pills — two vocabularies, one state machine.** A race weekend has six derived stages
   (Waiting → Picks Open → In Progress → Awaiting Results → Scored → Final). The **calendar** speaks
   the loud broadcast dialect: solid fills, condensed caps, terse copy ("COMING SOON", "PICKS OPEN",

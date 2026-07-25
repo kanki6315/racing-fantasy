@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react'
+import { useCallback, useEffect, useMemo } from 'react'
 import { useSearchParams } from 'react-router-dom'
 import { useAuth } from '../auth/AuthContext'
 import {
@@ -20,59 +20,97 @@ function param(v: string | null): number | null {
 }
 
 /**
- * F3 season standings, now multi-championship. Three filter levels — Championship → Year → Total/round —
- * replace the old single "active season" anchor, so any series' board is reachable.
+ * F3 season standings, multi-championship. Three filter levels — Championship → Year → Total/round —
+ * so any series' board is reachable.
  *
- * The three levels also seed from `?champ=&season=&round=`, so other surfaces can deep-link a
- * specific board (the Landing calendar sends a finished weekend straight to its own round). The
- * params are read once as initial state; the filter pills own it from there.
+ * **`?champ=&season=&round=` is the state**, not a seed for it. Reading the params on mount and then
+ * letting local state own them meant the URL never changed: Back couldn't undo a filter, and a board
+ * you'd drilled four clicks into couldn't be linked to anyone — while the Landing calendar was
+ * already sending finished weekends here by round id, so the deep link worked inbound and silently
+ * died on arrival. Every level now reads from the URL and writes back to it.
  */
 export function Standings() {
   const { user } = useAuth()
   const { data: champs = [] } = useChampionships()
-  const [search] = useSearchParams()
+  const [search, setSearch] = useSearchParams()
 
-  // Championship — default/heal to the first (lowest sort order).
-  const [champId, setChampId] = useState<number | null>(() => param(search.get('champ')))
+  const champId = param(search.get('champ'))
+  const seasonId = param(search.get('season'))
+  const tab: 'season' | number = param(search.get('round')) ?? 'season'
+
+  /**
+   * `replace` for values the app resolved on the user's behalf, `push` for ones they picked — so the
+   * history stack holds the boards a person actually chose and Back walks back through exactly
+   * those, rather than through every default the page settled on along the way.
+   */
+  const setParams = useCallback(
+    (next: Record<string, number | null>, mode: 'push' | 'replace') => {
+      setSearch(
+        (prev) => {
+          const p = new URLSearchParams(prev)
+          for (const [k, v] of Object.entries(next)) {
+            if (v == null) p.delete(k)
+            else p.set(k, String(v))
+          }
+          return p
+        },
+        { replace: mode === 'replace' },
+      )
+    },
+    [setSearch],
+  )
+
+  // Championship — default/heal to the first (lowest sort order). It heals `champ` and nothing else:
+  // a hand-written `?round=13` with no champ is still a deep link, and clearing its siblings here to
+  // "tidy up" would destroy it before the levels below ever got to validate it.
   useEffect(() => {
     if (champs.length === 0) return
-    if (champId == null || !champs.some((c) => c.id === champId)) setChampId(champs[0].id)
-  }, [champs, champId])
+    if (champId == null || !champs.some((c) => c.id === champId)) {
+      setParams({ champ: champs[0].id }, 'replace')
+    }
+  }, [champs, champId, setParams])
 
   // Year — default/heal to the newest season of the selected championship.
   const seasonsQ = useSeasons(champId ?? undefined)
-  const seasons = seasonsQ.data ?? []
-  const [seasonId, setSeasonId] = useState<number | null>(() => param(search.get('season')))
+  // Memoised so the `?? []` fallback isn't a fresh array on every render, which would re-run the
+  // heal effect below each time.
+  const seasons = useMemo(() => seasonsQ.data ?? [], [seasonsQ.data])
   useEffect(() => {
     // Only heal once the list has actually arrived — an in-flight query looks identical to "this
     // series has no seasons", and clearing the selection mid-load throws away a `?season=` seed.
     if (!seasonsQ.isSuccess) return
     if (seasons.length === 0) {
-      setSeasonId(null)
+      if (seasonId != null) setParams({ season: null }, 'replace')
       return
     }
     if (seasonId == null || !seasons.some((s) => s.id === seasonId)) {
-      setSeasonId([...seasons].sort((a, b) => b.year - a.year)[0].id)
+      setParams({ season: [...seasons].sort((a, b) => b.year - a.year)[0].id }, 'replace')
     }
-  }, [seasonsQ.isSuccess, seasons, seasonId])
-
-  // Total | round — seeded from `?round=`, then reset to season-wide whenever the user *changes* the
-  // season (tracking the previous value, so the initial null → resolved-season settle doesn't count
-  // as a change and clobber a deep link).
-  const rounds = useRounds(seasonId ?? undefined)
-  const [tab, setTab] = useState<'season' | number>(() => param(search.get('round')) ?? 'season')
-  const prevSeason = useRef<number | null>(null)
-  useEffect(() => {
-    if (prevSeason.current != null && prevSeason.current !== seasonId) setTab('season')
-    prevSeason.current = seasonId
-  }, [seasonId])
+  }, [seasonsQ.isSuccess, seasons, seasonId, setParams])
 
   // A round tab is only trusted once this season's round list has arrived. A `?round=` from a stale
   // link or the wrong series falls back to the season pool — derived rather than healed into state,
   // so no doomed leaderboard request is ever made for it.
+  const rounds = useRounds(seasonId ?? undefined)
   const roundPending = typeof tab === 'number' && !rounds.data
   const roundOk = typeof tab === 'number' && !!rounds.data && rounds.data.some((r) => r.id === tab)
   const view: 'season' | number = roundOk || roundPending ? tab : 'season'
+
+  // ...and once the list *has* arrived and the round still isn't in it, drop it from the URL. The
+  // board already fell back to the season pool; leaving `?round=999` in the address bar would have
+  // the URL describing a view nobody is looking at, and copying it would pass the lie on.
+  useEffect(() => {
+    if (typeof tab !== 'number' || !rounds.isSuccess) return
+    if (!rounds.data.some((r) => r.id === tab)) setParams({ round: null }, 'replace')
+  }, [tab, rounds.isSuccess, rounds.data, setParams])
+
+  // Changing a level clears the levels below it: a round id belongs to exactly one season, and a
+  // season to one series. This replaces the previous-value ref that used to watch for season changes
+  // reactively — the reset belongs to the click that caused it, where it can't be confused with the
+  // initial null → resolved settle.
+  const pickChamp = (id: number) => setParams({ champ: id, season: null, round: null }, 'push')
+  const pickSeason = (id: number) => setParams({ season: id, round: null }, 'push')
+  const pickRound = (v: 'season' | number) => setParams({ round: v === 'season' ? null : v }, 'push')
 
   const season = useSeasonLeaderboard(view === 'season' ? (seasonId ?? undefined) : undefined)
   const round = useRoundLeaderboard(roundOk ? tab : undefined)
@@ -103,7 +141,7 @@ export function Standings() {
       <div className="mt-6 flex flex-col gap-3">
         <FilterRow label="Series">
           {champs.map((c) => (
-            <FilterTab key={c.id} active={c.id === champId} onClick={() => setChampId(c.id)}>
+            <FilterTab key={c.id} active={c.id === champId} onClick={() => pickChamp(c.id)}>
               {c.name}
             </FilterTab>
           ))}
@@ -114,7 +152,7 @@ export function Standings() {
         {sortedSeasons.length > 1 && (
           <FilterRow label="Year">
             {sortedSeasons.map((s) => (
-              <FilterTab key={s.id} active={s.id === seasonId} onClick={() => setSeasonId(s.id)}>
+              <FilterTab key={s.id} active={s.id === seasonId} onClick={() => pickSeason(s.id)}>
                 {s.year}
               </FilterTab>
             ))}
@@ -124,7 +162,7 @@ export function Standings() {
 
       {/* Total | round sub-filter */}
       <div className="mt-5">
-        <RoundFilter rounds={rounds.data ?? []} value={view} onChange={setTab} />
+        <RoundFilter rounds={rounds.data ?? []} value={view} onChange={pickRound} />
       </div>
 
       <div className="mt-6">
@@ -135,7 +173,11 @@ export function Standings() {
         ) : boardLoading ? (
           <SkeletonTable />
         ) : active$.isError ? (
-          <ErrorBox message="Couldn't load these standings." />
+          <ErrorBox
+            message="Couldn't load these standings."
+            onRetry={() => void active$.refetch()}
+            retrying={active$.isFetching}
+          />
         ) : (
           // The bug and the board share this parent so `position: sticky` has the board's full height
           // to travel through — scoped to its own block, it would pin for 52px and stop.

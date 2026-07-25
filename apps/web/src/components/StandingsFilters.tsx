@@ -191,13 +191,17 @@ export function RoundFilter({
           Total
         </FilterTab>
         {rounds.map((r) => (
-          // `R6 · <event>` rather than the bare event name. `sequence` is the round's real number in
+          // `R06 · <event>` rather than the bare event name. `sequence` is the round's real number in
           // the championship — these run 6–11, not 1–6, because the season's earlier rounds are
           // already behind us — so it restores the ordering the wrapped rows used to imply by
           // position, and gives a short scannable handle to aim for while scrolling. The full name
           // stays visible: these pills aren't truncated, the row just scrolls.
+          //
+          // Zero-padded to match the two places that already print a round number: the Landing
+          // calendar's `R06` cell and the admin console's `RD 06`. Three spellings of the same number
+          // across one product is the kind of drift nobody notices until they're comparing screens.
           <FilterTab key={r.id} active={value === r.id} onClick={() => onChange(r.id)} title={r.name}>
-            {r.sequence != null ? `R${r.sequence} · ${r.name}` : r.name}
+            {r.sequence != null ? `R${String(r.sequence).padStart(2, '0')} · ${r.name}` : r.name}
           </FilterTab>
         ))}
       </FilterScroller>

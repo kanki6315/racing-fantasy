@@ -1,5 +1,5 @@
-import { useState } from 'react'
-import { Link, useParams } from 'react-router-dom'
+import { useEffect } from 'react'
+import { Link, useParams, useSearchParams } from 'react-router-dom'
 import { useAuth } from '../auth/AuthContext'
 import { useLeague, useLeagueLeaderboard, useRounds } from '../api/queries'
 import { Leaderboard } from '../components/Leaderboard'
@@ -14,10 +14,37 @@ export function LeagueStandings() {
   const league = useLeague(leagueId)
 
   // Championship + year are fixed by the league's season; the Total | round sub-filter mirrors the
-  // season standings page.
+  // season standings page — including living in `?round=`, so "here's where you are in our league
+  // after Petit" is a link you can paste, which is most of the point of a private league.
   const rounds = useRounds(league.data?.seasonId)
-  const [tab, setTab] = useState<'season' | number>('season')
-  const lb = useLeagueLeaderboard(leagueId, typeof tab === 'number' ? tab : undefined)
+  const [search, setSearch] = useSearchParams()
+  const raw = Number(search.get('round'))
+  const tab: 'season' | number = search.get('round') && Number.isInteger(raw) ? raw : 'season'
+  const setTab = (v: 'season' | number) => {
+    const p = new URLSearchParams(search)
+    if (v === 'season') p.delete('round')
+    else p.set('round', String(v))
+    setSearch(p)
+  }
+  // Only ask for a round this league's season actually has; a stale link falls back to the pool.
+  // `view` is what's on screen — everything downstream keys off it rather than off `tab`, or a
+  // `?round=` pointing at another season's round would leave the board showing season totals while
+  // the rows still linked into a round that isn't in this league.
+  const roundOk = typeof tab === 'number' && !!rounds.data && rounds.data.some((r) => r.id === tab)
+  const roundPending = typeof tab === 'number' && !rounds.data
+  const view: 'season' | number = roundOk || roundPending ? tab : 'season'
+  const lb = useLeagueLeaderboard(leagueId, roundOk ? tab : undefined)
+
+  // Same as the season board: once the round list is in and the round isn't in it, stop claiming it.
+  useEffect(() => {
+    if (typeof tab !== 'number' || !rounds.isSuccess) return
+    if (!rounds.data.some((r) => r.id === tab)) {
+      const p = new URLSearchParams(search)
+      p.delete('round')
+      setSearch(p, { replace: true })
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [tab, rounds.isSuccess, rounds.data])
 
   // A user has at most one registration per season, so the league's season pins my row.
   const myReg = user?.registrations.find((r) => r.seasonId === league.data?.seasonId)
@@ -53,14 +80,18 @@ export function LeagueStandings() {
       </div>
 
       <div className="mt-6">
-        <RoundFilter rounds={rounds.data ?? []} value={tab} onChange={setTab} />
+        <RoundFilter rounds={rounds.data ?? []} value={view} onChange={setTab} />
       </div>
 
       <div className="mt-6">
-        {lb.isLoading ? (
+        {lb.isLoading || roundPending ? (
           <SkeletonTable />
         ) : lb.isError ? (
-          <ErrorBox message="Couldn't load these standings." />
+          <ErrorBox
+            message="Couldn't load these standings."
+            onRetry={() => void lb.refetch()}
+            retrying={lb.isFetching}
+          />
         ) : (
           // Shared parent so the bug's `position: sticky` has the board's height to travel through.
           // No `registerSeasonId` here on purpose: registering for the season doesn't join *this*
@@ -70,7 +101,7 @@ export function LeagueStandings() {
               entries={lb.data?.entries ?? []}
               myRegistrationId={myRegId}
               myTeamName={myReg?.teamName}
-              scope={tab === 'season' ? 'season' : 'round'}
+              scope={view === 'season' ? 'season' : 'round'}
               showName={isPrivate}
             />
             <Leaderboard
@@ -80,12 +111,12 @@ export function LeagueStandings() {
               // Same as the season standings board: drill into a team's lineup only from a per-round view
               // (the round is unambiguous and, being scored, locked). Season-total rows don't link.
               rowHref={
-                user && typeof tab === 'number'
-                  ? (e) => `/standings/team/${e.registrationId}/round/${tab}`
+                user && typeof view === 'number'
+                  ? (e) => `/standings/team/${e.registrationId}/round/${view}`
                   : undefined
               }
               emptyMessage={
-                tab === 'season'
+                view === 'season'
                   ? 'No standings yet — they fill in once a round is scored.'
                   : 'This round has no scores yet.'
               }
@@ -107,10 +138,37 @@ export function SkeletonTable() {
   )
 }
 
-export function ErrorBox({ message }: { message: string }) {
+/**
+ * A failed board with no way back. `onRetry` turns "Couldn't load these standings" from a dead end
+ * into something a player can act on without reloading the page — a transient blip on a phone at a
+ * circuit is the *typical* failure here, not the exotic one. The button is a ghost, not a second
+ * danger-toned element: the box already carries the alarm, and two red things would compete.
+ * It reports its own progress, because a retry that looks identical to not-retrying gets mashed.
+ */
+export function ErrorBox({
+  message,
+  onRetry,
+  retrying = false,
+}: {
+  message: string
+  onRetry?: () => void
+  retrying?: boolean
+}) {
   return (
     <div className="rounded-[4px] border border-danger/30 bg-danger/[0.06] px-5 py-8 text-center font-sans text-[13px] text-danger">
       {message}
+      {onRetry && (
+        <div className="mt-4">
+          <button
+            type="button"
+            onClick={onRetry}
+            disabled={retrying}
+            className="h-9 rounded-[3px] border border-line-2 px-4 font-display text-[12px] font-semibold uppercase tracking-[0.06em] text-ink-2 transition-colors cursor-pointer hover:border-line-3 hover:text-ink disabled:cursor-default disabled:border-line disabled:text-muted pointer-coarse:h-11"
+          >
+            {retrying ? 'Retrying…' : 'Try again'}
+          </button>
+        </div>
+      )}
     </div>
   )
 }

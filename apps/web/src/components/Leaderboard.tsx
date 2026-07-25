@@ -111,10 +111,16 @@ export function Leaderboard({
               </span>
               <span className="flex items-center gap-2 truncate font-display text-[15px] font-bold uppercase tracking-[0.02em] text-ink">
                 <span className={`h-[15px] w-[4px] flex-none [transform:skewX(-14deg)] ${mine ? 'bg-brand' : 'bg-line-3'}`} />
-                <span className="truncate">{e.teamName}</span>
+                <span className="truncate" title={e.teamName}>
+                  {e.teamName}
+                </span>
                 {mine && <span className="flex-none rounded-[2px] bg-brand px-[6px] py-[1px] font-mono text-[10px] tracking-[0.08em] text-ink">YOU</span>}
               </span>
-              {showName && <span className="truncate font-sans text-[12px] text-muted">{e.name ?? '—'}</span>}
+              {showName && (
+                <span className="truncate font-sans text-[12px] text-muted" title={e.name ?? undefined}>
+                  {e.name ?? '—'}
+                </span>
+              )}
               <span className="text-right font-mono text-[15px] font-semibold text-ink">{fmtPoints(e.points)}</span>
               <span className="text-right font-mono text-[12px] text-muted">{e.roundsScored}</span>
             </Row>
@@ -144,7 +150,12 @@ export function Leaderboard({
               <div className="min-w-0 flex-1">
                 <div className="flex items-center gap-2">
                   <span className={`h-[14px] w-[4px] flex-none [transform:skewX(-14deg)] ${mine ? 'bg-brand' : 'bg-line-3'}`} />
-                  <span className="truncate font-display text-[15px] font-bold uppercase tracking-[0.02em] text-ink">{e.teamName}</span>
+                  <span
+                    className="truncate font-display text-[15px] font-bold uppercase tracking-[0.02em] text-ink"
+                    title={e.teamName}
+                  >
+                    {e.teamName}
+                  </span>
                   {mine && <span className="flex-none rounded-[2px] bg-brand px-[6px] py-[1px] font-mono text-[10px] tracking-[0.08em] text-ink">YOU</span>}
                 </div>
                 <div className="mt-[3px] flex items-center gap-1.5 truncate font-mono text-[11px] text-muted">
