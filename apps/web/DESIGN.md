@@ -274,12 +274,28 @@ the primary action always wins the eye.
   wash of its own semantic hue (`warn/10` + `warn/35` border, `brand/15`, `surface-3` neutral).
 - **State:** a leading dot or icon plus text always accompanies color — pills read "NOT REGISTERED"
   with an amber dot, never amber alone. Selected vs. idle shifts border + fill, not just hue.
-- **Filter / selection chips.** 3px corners, `h-11` on phones tightening to `h-9` at `sm` (a filter
-  is a touch target before it is a label). Idle: `line-2` border, `muted` label. Selected: `line-3`
+- **Filter / selection chips.** 3px corners, sized off the **pointer, not the viewport**: `h-9` for a
+  fine pointer, `h-11` under `@media (pointer: coarse)` at any width. A filter is a touch target
+  before it is a label, and the `sm:h-9` this replaces called every touch tablet a desktop and handed
+  it 36px controls. Tailwind v4 ships no pointer variant — `pointer-coarse:` / `pointer-fine:` are
+  registered via `@custom-variant` in `index.css`, and silently generate *nothing* without it.
+  Idle: `line-2` border, `muted` label. Selected: `line-3`
   border + `surface-2` fill + `ink` label + a 2px brand underline as an *inset* shadow — the nav's
   active-link language, borrowed so selection reads the same everywhere. Always carries
   `aria-pressed`. **Never fill a filter with solid brand red:** selection is neither the primary
   action nor the live state, and three filter rows can be active at once.
+- **Filter rows scroll, they never wrap.** Six championship names and eleven event names wrapped to
+  four stacked rows — ~330px of chrome on desktop and about 1000px on a phone, two and a half screens
+  before a single standing. Each row is now one line that scrolls sideways, borrowing the nav's own
+  idiom (`overflow-x-auto`, scrollbar hidden, children `shrink-0`). The row label sits *outside* the
+  scroller so the legend doesn't scroll away from its own content. Three obligations come with it:
+  the overflow must be visible as overflow (a mask fades whichever edge still has content behind it);
+  the active pill must be scrolled into view, or a `?round=` deep link selects something off-screen
+  with no cue; and a mouse — which has no horizontal wheel — needs edge nudge buttons, rendered under
+  `pointer-fine` only, since touch swipes and Tab already reach the far end on their own.
+- **A filter offering one choice is not a filter.** The Year row renders only when a series has more
+  than one season; otherwise it was a labelled row containing the word "2026" and nothing to do, and
+  the subtitle already states the year.
 - **Lifecycle pills — two vocabularies, one state machine.** A race weekend has six derived stages
   (Waiting → Picks Open → In Progress → Awaiting Results → Scored → Final). The **calendar** speaks
   the loud broadcast dialect: solid fills, condensed caps, terse copy ("COMING SOON", "PICKS OPEN",

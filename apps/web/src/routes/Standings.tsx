@@ -108,7 +108,10 @@ export function Standings() {
             </FilterTab>
           ))}
         </FilterRow>
-        {sortedSeasons.length > 0 && (
+        {/* A filter offering one choice isn't a filter. Most series carry a single season today, so
+            this row was usually a labelled row containing the word "2026" and nothing to do — and the
+            year it states is already in the subtitle above. It appears when there's a year to pick. */}
+        {sortedSeasons.length > 1 && (
           <FilterRow label="Year">
             {sortedSeasons.map((s) => (
               <FilterTab key={s.id} active={s.id === seasonId} onClick={() => setSeasonId(s.id)}>

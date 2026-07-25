@@ -1,6 +1,14 @@
 @import 'tailwindcss';
 
 /*
+ * Input-method variants. Touch target sizing keys off the pointer, not the viewport: a 640px
+ * breakpoint calls every touch tablet "desktop" and hands it 36px controls. Tailwind v4 ships no
+ * built-in pointer variant, so `pointer-coarse:h-11` silently generates nothing without this.
+ */
+@custom-variant pointer-coarse (@media (pointer: coarse));
+@custom-variant pointer-fine (@media (pointer: fine));
+
+/*
  * Endurance Fantasy design tokens. The canonical spec is DESIGN.md at the app root — these values
  * and its frontmatter must agree.
  * Tailwind v4 turns each token into utilities, e.g. --color-surface → bg-surface / text-surface,
