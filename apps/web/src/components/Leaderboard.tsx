@@ -13,8 +13,9 @@ function rankColor(rank: number): string {
 /**
  * Round-over-round rank change on cumulative boards. `null` (single-round board, or a team's first
  * scored round) renders nothing; `0` holds; ±n climbs/drops. Positive = moved up the table.
+ * Exported so the position bug can speak the exact same delta vocabulary as the row it points at.
  */
-function Movement({ value }: { value?: number | null }) {
+export function Movement({ value }: { value?: number | null }) {
   if (value == null) return null
   const label = value > 0 ? `up ${value}` : value < 0 ? `down ${-value}` : 'no change'
   const tone = value > 0 ? 'text-success' : value < 0 ? 'text-danger' : 'text-muted'
@@ -24,6 +25,25 @@ function Movement({ value }: { value?: number | null }) {
     </span>
   )
 }
+
+/**
+ * The "you" row treatment, shared by the desktop grid and the mobile card list.
+ *
+ * The 7% wash this replaces measured 1.02:1 against the surface — invisible in practice, which left
+ * the row you'd just scrolled 40 rows to find looking like every other row. This pairs the two
+ * tinted-wash forms the One Red Rule explicitly sanctions (a `brand/14` fill and a full `brand/40`
+ * hairline, drawn as an inset ring so the row doesn't shift by a pixel) with the solid slash and YOU
+ * chip already on the row. Still no solid-red *fill*, so the page's red budget is untouched.
+ *
+ * `focus:` rather than `:focus-visible:` is deliberate — {@link YourPosition} moves focus here
+ * programmatically after a mouse click, which never matches `:focus-visible`, and the arrival has to
+ * be visible. It doubles as the reduced-motion alternative to the flash.
+ */
+const MINE_ROW =
+  'bg-brand/[0.14] shadow-[inset_0_0_0_1px_rgba(225,6,0,0.4)] focus:outline-2 focus:outline-offset-[-2px] focus:outline-brand-3'
+
+/** Marks the viewer's row for the position bug to find, scroll to, and focus. */
+const MINE_PROPS = { 'data-my-row': '', tabIndex: -1 } as const
 
 /**
  * Shared standings table for every leaderboard surface (season, round, league, global).
@@ -80,9 +100,10 @@ export function Leaderboard({
             <Row
               key={e.registrationId}
               {...(href ? { to: href } : {})}
+              {...(mine ? MINE_PROPS : {})}
               className={`grid ${cols} items-center border-b border-surface-2 px-[18px] py-[13px] ${
-                mine ? 'bg-brand/[0.07]' : ''
-              } ${href ? 'transition-colors hover:bg-surface-2' : ''}`}
+                mine ? MINE_ROW : ''
+              } ${href ? `transition-colors ${mine ? 'hover:bg-brand/[0.2]' : 'hover:bg-surface-2'}` : ''}`}
             >
               <span className="flex items-baseline gap-1.5">
                 <span className={`font-mono text-[16px] font-bold ${rankColor(e.rank)}`}>{e.rank}</span>
@@ -111,9 +132,10 @@ export function Leaderboard({
             <Row
               key={e.registrationId}
               {...(href ? { to: href } : {})}
+              {...(mine ? MINE_PROPS : {})}
               className={`flex items-center gap-3 border-b border-surface-2 px-4 py-3 ${
-                mine ? 'bg-brand/[0.07]' : ''
-              } ${href ? 'transition-colors active:bg-surface-2' : ''}`}
+                mine ? MINE_ROW : ''
+              } ${href ? `transition-colors ${mine ? 'active:bg-brand/[0.2]' : 'active:bg-surface-2'}` : ''}`}
             >
               <span className="flex w-7 shrink-0 flex-col items-center gap-0.5">
                 <span className={`font-mono text-[18px] font-bold leading-none ${rankColor(e.rank)}`}>{e.rank}</span>

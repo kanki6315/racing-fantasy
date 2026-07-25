@@ -71,6 +71,32 @@ body {
 }
 
 /*
+ * Stacking order. Two steps, both stock Tailwind utilities so there are no arbitrary z-values:
+ *   z-30  sticky page chrome (the standings position bug)
+ *   z-50  overlays — modal backdrops and content (see the modal components)
+ * Anything new goes between these, never above 50.
+ */
+
+/*
+ * Arrival flash for the "jump to my row" landing. Starts at a hotter wash of the same brand tint the
+ * row already carries and settles back to it, so the animation ends on the row's resting colour with
+ * nothing to clean up. Reduced-motion collapses this to ~0ms via the block below — the persistent
+ * focus outline on the row is what marks the arrival in that case.
+ */
+@keyframes row-flash {
+  0% {
+    background-color: color-mix(in oklab, var(--color-brand) 42%, transparent);
+  }
+  100% {
+    background-color: color-mix(in oklab, var(--color-brand) 14%, transparent);
+  }
+}
+
+.row-flash {
+  animation: row-flash 900ms cubic-bezier(0.165, 0.84, 0.44, 1);
+}
+
+/*
  * Keyboard focus ring for every interactive element (keyboard nav only, not mouse clicks).
  * Unlayered, so it wins over Tailwind's utility-layer `outline-none` on inputs/buttons.
  */

@@ -249,6 +249,10 @@ page — modals, dropdowns, tooltips.
 ### Named Rules
 **The Flat-Void Rule.** In-page surfaces never cast shadows. Depth at rest is tonal layering plus a
 lightening border. A shadow on a card is a 2014 tell; if a panel looks like it's floating, flatten it.
+The one in-page exception is *pinned* sticky chrome — the standings Position Bug takes the Popover
+shadow only while stuck to the viewport, and drops it the moment it returns to normal flow. It is
+genuinely floating over scrolling content at that point, which is exactly what the rule reserves
+shadow for.
 
 ## 5. Components
 
@@ -335,8 +339,40 @@ The row is this product's real workhorse — more screens are rows than are card
   with the row. Mystery-meat rows — clickable with no stated destination — are forbidden.
 - **Receding a row:** archived/finalized rows step the title to `ink-2` and drop the pill *fill*
   (border-only). Never `opacity` (The Contrast Floor Rule).
-- **The "you" row:** highlighted by the Broadcast Slash going red plus a solid `YOU` chip — position
-  and mark, not color alone.
+- **The "you" row:** the Broadcast Slash goes red, a solid `YOU` chip follows the team name, and the
+  row takes a `brand/14` fill plus a full `brand/40` hairline drawn as an *inset* ring (so it gains an
+  edge without shifting a pixel). Position and mark, never color alone. The two washes are the forms
+  the One Red Rule sanctions, so the row still spends no solid red. Hover on a linked "you" row goes
+  to `brand/20` — never to `surface-2`, which would erase the identity on the way to clicking it.
+  The earlier `brand/7` wash measured 1.02:1 against the surface and was invisible in practice; 14%
+  is the floor for a mark a player is meant to find in a 65-row board.
+
+### Signature — The Position Bug
+
+The standings answer to "where do I place?", named for the broadcast bug it behaves like. A 52px strip
+above the board carrying the viewer's rank · team · points · movement, `sticky top-0` (`z-30`; overlays
+stay at `z-50`) so it follows the player down a long table.
+
+- **It rides the board's own grid.** Same columns (`64px 1fr 110px 90px`, or the 5-column private-league
+  variant), same 18px gutters, same rank and points type as a row — so its figures align to the digit
+  with the table beneath it and it reads as *your row lifted out*, not a separate widget. The board's
+  Rounds column becomes the destination label ("JUMP →"), which is how it satisfies the every-row-says-
+  where-it-goes rule. If the table's columns ever change, the bug's change with them or it is broken.
+- **It retires when the real row is on screen.** An IntersectionObserver on the row fades it out (200ms,
+  `opacity` + `translate`, `inert` while hidden); a 1px sentinel supplies the pinned signal, because
+  retiring while still in normal flow would leave a 52px hole. A proxy for something already visible is
+  clutter. Default state is *visible* — the observer only ever hides it, so a headless or backgrounded
+  renderer fails safe rather than shipping a blank strip.
+- **It is not red.** The bug is neither the primary action nor the live state: `surface-2` fill,
+  `brand/40` hairline, ink numerals, red slash and `YOU` chip carried over from the row. It takes the
+  Popover shadow only while pinned — the one case where in-page chrome genuinely floats (see Elevation).
+- **Only the positional shape is sticky.** The two notice shapes — registered-but-unscored, and signed-in-
+  but-unregistered — are static: a strip earns the right to follow you by having a position to track, and
+  a permanently pinned notice is a nag. Signed-out visitors and empty boards get nothing at all.
+- **Jumping moves focus, not just the viewport.** `scrollIntoView({block:'center'})` plus `focus()` on the
+  row, so keyboard and screen-reader users land there too; the row flashes from `brand/42` back to its
+  resting `brand/14`. Under reduced motion the scroll is instant and the flash collapses — the row's
+  persistent focus outline is what marks the arrival instead.
 
 ### Signature — The Broadcast Slash
 A skewed red bar (`background: brand; transform: skewX(-14deg)`) used as a section/leading accent and

@@ -10,6 +10,7 @@ import {
 } from '../api/queries'
 import { Leaderboard } from '../components/Leaderboard'
 import { FilterRow, FilterTab, RoundFilter } from '../components/StandingsFilters'
+import { YourPosition } from '../components/YourPosition'
 import { ErrorBox, SkeletonTable } from './LeagueStandings'
 
 /** `?champ=&season=&round=` → a number, when it's actually a number. */
@@ -80,7 +81,8 @@ export function Standings() {
   // up rather than flashing an empty board.
   const boardLoading = active$.isLoading || roundPending
 
-  const myRegId = user?.registrations.find((r) => r.seasonId === seasonId)?.id
+  const myReg = user?.registrations.find((r) => r.seasonId === seasonId)
+  const myRegId = myReg?.id
   const champ = champs.find((c) => c.id === champId)
   const season$ = seasons.find((s) => s.id === seasonId)
   const sortedSeasons = [...seasons].sort((a, b) => b.year - a.year)
@@ -132,24 +134,35 @@ export function Standings() {
         ) : active$.isError ? (
           <ErrorBox message="Couldn't load these standings." />
         ) : (
-          <Leaderboard
-            entries={active$.data?.entries ?? []}
-            myRegistrationId={myRegId}
-            // Drill into a player's lineup only from a per-round board, where the round is unambiguous
-            // (and, being scored, already locked). The season "Total" view has no single round to show.
-            // Gated on auth: the detail page is RequireAuth, so don't offer the link (or its hover) to
-            // logged-out visitors — they'd only be bounced home.
-            rowHref={
-              user && typeof view === 'number'
-                ? (e) => `/standings/team/${e.registrationId}/round/${view}`
-                : undefined
-            }
-            emptyMessage={
-              view === 'season'
-                ? 'The season pool is empty — standings appear once the first round is scored.'
-                : 'This round has no scores yet.'
-            }
-          />
+          // The bug and the board share this parent so `position: sticky` has the board's full height
+          // to travel through — scoped to its own block, it would pin for 52px and stop.
+          <>
+            <YourPosition
+              entries={active$.data?.entries ?? []}
+              myRegistrationId={myRegId}
+              myTeamName={myReg?.teamName}
+              scope={view === 'season' ? 'season' : 'round'}
+              registerSeasonId={user && seasonId != null && myRegId == null ? seasonId : undefined}
+            />
+            <Leaderboard
+              entries={active$.data?.entries ?? []}
+              myRegistrationId={myRegId}
+              // Drill into a player's lineup only from a per-round board, where the round is unambiguous
+              // (and, being scored, already locked). The season "Total" view has no single round to show.
+              // Gated on auth: the detail page is RequireAuth, so don't offer the link (or its hover) to
+              // logged-out visitors — they'd only be bounced home.
+              rowHref={
+                user && typeof view === 'number'
+                  ? (e) => `/standings/team/${e.registrationId}/round/${view}`
+                  : undefined
+              }
+              emptyMessage={
+                view === 'season'
+                  ? 'The season pool is empty — standings appear once the first round is scored.'
+                  : 'This round has no scores yet.'
+              }
+            />
+          </>
         )}
       </div>
     </div>

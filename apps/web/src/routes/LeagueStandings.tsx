@@ -4,6 +4,7 @@ import { useAuth } from '../auth/AuthContext'
 import { useLeague, useLeagueLeaderboard, useRounds } from '../api/queries'
 import { Leaderboard } from '../components/Leaderboard'
 import { RoundFilter } from '../components/StandingsFilters'
+import { YourPosition } from '../components/YourPosition'
 
 /** F3 league standings — the real page behind the dashboard "Standings" links. */
 export function LeagueStandings() {
@@ -19,7 +20,8 @@ export function LeagueStandings() {
   const lb = useLeagueLeaderboard(leagueId, typeof tab === 'number' ? tab : undefined)
 
   // A user has at most one registration per season, so the league's season pins my row.
-  const myRegId = user?.registrations.find((r) => r.seasonId === league.data?.seasonId)?.id
+  const myReg = user?.registrations.find((r) => r.seasonId === league.data?.seasonId)
+  const myRegId = myReg?.id
   const isPrivate = league.data?.visibility === 'Private'
 
   return (
@@ -60,23 +62,35 @@ export function LeagueStandings() {
         ) : lb.isError ? (
           <ErrorBox message="Couldn't load these standings." />
         ) : (
-          <Leaderboard
-            entries={lb.data?.entries ?? []}
-            myRegistrationId={myRegId}
-            showName={isPrivate}
-            // Same as the season standings board: drill into a team's lineup only from a per-round view
-            // (the round is unambiguous and, being scored, locked). Season-total rows don't link.
-            rowHref={
-              user && typeof tab === 'number'
-                ? (e) => `/standings/team/${e.registrationId}/round/${tab}`
-                : undefined
-            }
-            emptyMessage={
-              tab === 'season'
-                ? 'No standings yet — they fill in once a round is scored.'
-                : 'This round has no scores yet.'
-            }
-          />
+          // Shared parent so the bug's `position: sticky` has the board's height to travel through.
+          // No `registerSeasonId` here on purpose: registering for the season doesn't join *this*
+          // league, so offering it from a league board would promise something it can't deliver.
+          <>
+            <YourPosition
+              entries={lb.data?.entries ?? []}
+              myRegistrationId={myRegId}
+              myTeamName={myReg?.teamName}
+              scope={tab === 'season' ? 'season' : 'round'}
+              showName={isPrivate}
+            />
+            <Leaderboard
+              entries={lb.data?.entries ?? []}
+              myRegistrationId={myRegId}
+              showName={isPrivate}
+              // Same as the season standings board: drill into a team's lineup only from a per-round view
+              // (the round is unambiguous and, being scored, locked). Season-total rows don't link.
+              rowHref={
+                user && typeof tab === 'number'
+                  ? (e) => `/standings/team/${e.registrationId}/round/${tab}`
+                  : undefined
+              }
+              emptyMessage={
+                tab === 'season'
+                  ? 'No standings yet — they fill in once a round is scored.'
+                  : 'This round has no scores yet.'
+              }
+            />
+          </>
         )}
       </div>
     </div>
