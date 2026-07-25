@@ -36,7 +36,7 @@ That's the whole web deploy. The API redeploys on its own — see [API](#api) be
    ```
    WEB_S3_BUCKET=<web SPA bucket>
    WEB_CF_DISTRIBUTION_ID=<distribution serving fantasy.arjunakankipati.com>
-   AWS_PROFILE=imsa-deploy
+   AWS_PROFILE=fantasy-deploy
    ```
 3. **`apps/web/.env.production`** present (committed-by-convention public URLs Vite inlines at build):
    ```
@@ -83,7 +83,7 @@ headers govern mainly the browser; the invalidation governs the edge.
 
 ## Deploy IAM user (Console)
 
-A dedicated **programmatic-only** IAM user (`imsa-web-deployer`) whose keys can *only* push the web
+A dedicated **programmatic-only** IAM user (`fantasy-web-deploy`) whose keys can *only* push the web
 bucket and invalidate the one distribution — nothing else. Mirrors the `my-app-writer` pattern in
 [s3-cloudfront-setup.md](s3-cloudfront-setup.md). Created via the AWS Console so root credentials
 never go into the CLI.
@@ -96,7 +96,7 @@ never go into the CLI.
 
 ### 1. Create the user
 
-**IAM → Users → Create user** → name `imsa-web-deployer` → **leave console access unchecked**
+**IAM → Users → Create user** → name `fantasy-web-deploy` → **leave console access unchecked**
 (programmatic only) → choose "Attach policies directly", attach nothing → **Create user**.
 
 ### 2. Attach the least-privilege inline policy
@@ -144,18 +144,18 @@ the .csv (secret shown once).
 Uses the **deploy user's** keys, not root:
 
 ```bash
-aws configure --profile imsa-deploy
+aws configure --profile fantasy-deploy
 # paste the Access key + Secret from the .csv; region us-east-1; output json
 ```
 
-Then set `AWS_PROFILE=imsa-deploy` in `apps/web/.env.deploy`.
+Then set `AWS_PROFILE=fantasy-deploy` in `apps/web/.env.deploy`.
 
 ### 5. Verify the scoping
 
 ```bash
-AWS_PROFILE=imsa-deploy aws sts get-caller-identity         # -> .../imsa-web-deployer
-AWS_PROFILE=imsa-deploy aws s3 ls s3://<web bucket>         # works
-AWS_PROFILE=imsa-deploy aws s3 ls s3://race-fantasy-images  # AccessDenied (proves it's boxed in)
+AWS_PROFILE=fantasy-deploy aws sts get-caller-identity         # -> .../fantasy-web-deploy
+AWS_PROFILE=fantasy-deploy aws s3 ls s3://<web bucket>         # works
+AWS_PROFILE=fantasy-deploy aws s3 ls s3://race-fantasy-images  # AccessDenied (proves it's boxed in)
 ```
 
 The `AccessDenied` on the image bucket is the proof the user can only do web deploys.
