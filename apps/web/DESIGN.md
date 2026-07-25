@@ -359,8 +359,23 @@ The row is this product's real workhorse — more screens are rows than are card
 - **Hover:** background lifts to `surface-2` (or `brand/[0.12]` on a live row); no transform, no
   scale — the row is a target, not a toy.
 - **Every row is a door, and says where it goes.** A row-level link carries a quiet destination
-  label ("Set lineup →", "View results →", "View standings →") in `muted`, brightening to `ink-2`
-  with the row. Mystery-meat rows — clickable with no stated destination — are forbidden.
+  label ("Set lineup →", "View results →", "View standings →", "View picks →") in `muted`,
+  brightening to `ink-2` with the row. Mystery-meat rows — clickable with no stated destination —
+  are forbidden. Visible at rest, never hover-only: a label that appears under a cursor tells a touch
+  user nothing, and "is this row clickable" is the question it exists to answer. On the leaderboard
+  it takes the Rounds column, which prints "1" on every row of exactly the per-round boards whose
+  rows link — the dead figure pays for the label, so no width is added to say it.
+- **A board that can't be drilled into says so.** Season totals have no single round to show a
+  lineup for, so their rows are inert; one quiet line under the table ("Pick a round above to see
+  each team's lineup") answers the question the difference raises. Only for signed-in viewers —
+  picking a round doesn't unlock the link for anyone else, and offering it would be a lie.
+- **Ties are marked, not implied.** Shared ranks render `T10`, never a bare repeated `10` — two
+  identical numbers followed by a jump to 12 reads as a rendering bug rather than a dead heat. The
+  position bug marks your row the same way.
+- **The board's column tracks live in one constant** (`lib/standings.ts`), because the table and the
+  position bug ride the same grid and a width changed in one and not the other silently breaks the
+  alignment the bug depends on. Spelled as whole literal class strings: Tailwind scans source text,
+  so a template-composed `grid-cols-[…]` generates no CSS and fails silently.
 - **Receding a row:** archived/finalized rows step the title to `ink-2` and drop the pill *fill*
   (border-only). Never `opacity` (The Contrast Floor Rule).
 - **The board carries table semantics, the cards carry list semantics.** At `sm`+ the grid takes ARIA

@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useState } from 'react'
 import type { LeaderboardEntry } from '../api/queries'
-import { Movement } from './Leaderboard'
+import { Movement, Rank } from './Leaderboard'
+import { BOARD_COLS_SM, boardColsKey, tiedRanks } from '../lib/standings'
 import { RegisterModal } from './RegisterModal'
 
 /**
@@ -54,6 +55,7 @@ export function YourPosition({
   scope,
   registerSeasonId,
   showName = false,
+  linked = false,
 }: {
   entries: LeaderboardEntry[]
   /** Set when the viewer is signed in *and* registered for this board's season. */
@@ -67,6 +69,8 @@ export function YourPosition({
   /** Mirrors the board's own prop — private-league tables add a Player column, and the bug rides the
    *  same grid, so it has to gain the column too or every figure to its right falls out of line. */
   showName?: boolean
+  /** Also mirrors the board: linked rows widen the last track to fit their destination label. */
+  linked?: boolean
 }) {
   const myEntry = myRegistrationId != null ? entries.find((e) => e.registrationId === myRegistrationId) : undefined
 
@@ -170,6 +174,8 @@ export function YourPosition({
   // is nothing to collapse.
   const retired = pinned && rowEl != null && rowVisible
   const points = Number.isInteger(myEntry.points) ? myEntry.points.toLocaleString() : myEntry.points.toFixed(1)
+  // If your row is marked T25, the bug pointing at it says T25 too.
+  const isTied = tiedRanks(entries).has(myEntry.rank)
   const move =
     myEntry.movement == null || myEntry.movement === 0
       ? ''
@@ -196,15 +202,13 @@ export function YourPosition({
           type="button"
           onClick={jump}
           inert={retired || undefined}
-          aria-label={`Jump to your row — ${ordinal(myEntry.rank)}, ${points} points${move}`}
-          className={`grid h-[52px] w-full cursor-pointer items-center gap-3 rounded-[4px] border border-brand/40 bg-surface-2 px-4 text-left transition-shadow duration-200 sm:gap-0 sm:px-[18px] ${
-            showName
-              ? 'grid-cols-[auto_1fr_auto_auto] sm:grid-cols-[64px_1fr_minmax(0,1fr)_110px_90px]'
-              : 'grid-cols-[auto_1fr_auto_auto] sm:grid-cols-[64px_1fr_110px_90px]'
+          aria-label={`Jump to your row — ${isTied ? 'tied ' : ''}${ordinal(myEntry.rank)}, ${points} points${move}`}
+          className={`grid h-[52px] w-full cursor-pointer grid-cols-[auto_1fr_auto_auto] items-center gap-3 rounded-[4px] border border-brand/40 bg-surface-2 px-4 text-left transition-shadow duration-200 sm:gap-0 sm:px-[18px] ${
+            BOARD_COLS_SM[boardColsKey(showName, linked)]
           } ${pinned ? 'shadow-[0_8px_24px_rgba(0,0,0,0.5)]' : ''}`}
         >
           <span className="flex items-baseline gap-1.5">
-            <span className="font-mono text-[16px] font-bold text-ink">{myEntry.rank}</span>
+            <Rank rank={myEntry.rank} tied={isTied} className="font-mono text-[16px] font-bold text-ink" />
             <Movement value={myEntry.movement} />
           </span>
           <span className="flex min-w-0 items-center gap-2 font-display text-[15px] font-bold uppercase tracking-[0.02em] text-ink">

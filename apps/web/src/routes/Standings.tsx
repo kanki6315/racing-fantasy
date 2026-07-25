@@ -131,6 +131,9 @@ export function Standings() {
   const boardName = `${champ?.name ?? 'Standings'}${season$ ? ` ${season$.year}` : ''} — ${
     roundName ?? 'season total'
   }`
+  // Rows drill into a lineup only from a per-round board, and only for signed-in viewers. Computed
+  // once so the board and the bug agree about which column layout they are on.
+  const linked = !!user && typeof view === 'number'
   const entryCount = active$.data?.entries.length ?? 0
   const boardStatus = boardLoading
     ? 'Loading standings…'
@@ -207,6 +210,7 @@ export function Standings() {
               myTeamName={myReg?.teamName}
               scope={view === 'season' ? 'season' : 'round'}
               registerSeasonId={user && seasonId != null && myRegId == null ? seasonId : undefined}
+              linked={linked}
             />
             <Leaderboard
               entries={active$.data?.entries ?? []}
@@ -216,17 +220,21 @@ export function Standings() {
               // (and, being scored, already locked). The season "Total" view has no single round to show.
               // Gated on auth: the detail page is RequireAuth, so don't offer the link (or its hover) to
               // logged-out visitors — they'd only be bounced home.
-              rowHref={
-                user && typeof view === 'number'
-                  ? (e) => `/standings/team/${e.registrationId}/round/${view}`
-                  : undefined
-              }
+              rowHref={linked ? (e) => `/standings/team/${e.registrationId}/round/${view}` : undefined}
               emptyMessage={
                 view === 'season'
                   ? 'The season pool is empty — standings appear once the first round is scored.'
                   : 'This round has no scores yet.'
               }
             />
+            {/* Answers the question the board itself raises: rows drill into a lineup on a per-round
+                board and sit inert here, with nothing on screen saying why. Only for signed-in
+                viewers — picking a round doesn't unlock the link for anyone else. */}
+            {view === 'season' && user && (rounds.data?.length ?? 0) > 0 && (active$.data?.entries.length ?? 0) > 0 && (
+              <p className="mt-3 font-sans text-[12px] text-muted">
+                Pick a round above to see each team's lineup.
+              </p>
+            )}
           </>
         )}
       </div>

@@ -54,6 +54,7 @@ export function LeagueStandings() {
   // Same derivation as the season board, so both surfaces name themselves the same way.
   const roundName = typeof view === 'number' ? rounds.data?.find((r) => r.id === view)?.name : undefined
   const boardName = `${lb.data?.name ?? league.data?.name ?? 'League'} — ${roundName ?? 'season total'}`
+  const linked = !!user && typeof view === 'number'
   const entryCount = lb.data?.entries.length ?? 0
   const boardStatus =
     lb.isLoading || roundPending
@@ -117,6 +118,7 @@ export function LeagueStandings() {
               myTeamName={myReg?.teamName}
               scope={view === 'season' ? 'season' : 'round'}
               showName={isPrivate}
+              linked={linked}
             />
             <Leaderboard
               entries={lb.data?.entries ?? []}
@@ -125,17 +127,21 @@ export function LeagueStandings() {
               caption={boardName}
               // Same as the season standings board: drill into a team's lineup only from a per-round view
               // (the round is unambiguous and, being scored, locked). Season-total rows don't link.
-              rowHref={
-                user && typeof view === 'number'
-                  ? (e) => `/standings/team/${e.registrationId}/round/${view}`
-                  : undefined
-              }
+              rowHref={linked ? (e) => `/standings/team/${e.registrationId}/round/${view}` : undefined}
               emptyMessage={
                 view === 'season'
                   ? 'No standings yet — they fill in once a round is scored.'
                   : 'This round has no scores yet.'
               }
             />
+            {/* Answers the question the board itself raises: rows drill into a lineup on a per-round
+                board and sit inert here, with nothing on screen saying why. Only for signed-in
+                viewers — picking a round doesn't unlock the link for anyone else. */}
+            {view === 'season' && user && (rounds.data?.length ?? 0) > 0 && (lb.data?.entries.length ?? 0) > 0 && (
+              <p className="mt-3 font-sans text-[12px] text-muted">
+                Pick a round above to see each team's lineup.
+              </p>
+            )}
           </>
         )}
       </div>
