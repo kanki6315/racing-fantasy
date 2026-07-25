@@ -274,6 +274,11 @@ export function Stats() {
       <BoardStatus text={boardStatus} />
 
       <div className="mt-7">
+        {/* Names the results region so a screen-reader user can jump to it. The page had exactly one
+            heading — the h1 — which made the filters and thirty rows a single undifferentiated run.
+            Outside the state branches, so it labels the board, the empty panels and the error alike,
+            and worded to match the standings boards' own `sr-only` heading. */}
+        <h2 className="sr-only">Round board</h2>
         {/*
          * Order matters here, and it is the fix for the page's worst state bug: loading is checked
          * before emptiness, so an in-flight request can no longer render as "nothing found".

@@ -1,7 +1,7 @@
 import type { ReactNode } from 'react'
 import { FilterTab } from './StandingsFilters'
 import { fmtSwing, type BoardRow, type Sort, type SortKey } from '../lib/roundStats'
-import { SM, useMediaQuery } from '../lib/useMediaQuery'
+import { useMediaQuery } from '../lib/useMediaQuery'
 
 /**
  * The column tracks, spelled out as a whole literal string.
@@ -14,6 +14,21 @@ import { SM, useMediaQuery } from '../lib/useMediaQuery'
  * ("#3 Corvette Racing by Pratt Miller Motorsports") measures well inside it.
  */
 const COLS = 'grid-cols-[40px_92px_1fr_78px_78px_96px]'
+
+/**
+ * Where the table earns its place — a content-driven breakpoint, not a device one.
+ *
+ * This used to switch on at Tailwind's `sm` (640px), which is 200px before the table fits. The five
+ * fixed tracks plus gaps and padding cost 476px, so at 640px the entity column got 110px and **26 of
+ * 30 rows truncated** — "#43 Inter Europol Competition" needs 214px and had 70. The table appeared
+ * long before it could show the one column that names the car.
+ *
+ * Solving for the widest name in the field (341px) against the page's 52px gutters:
+ *   viewport − 52 (page padding) − 32 (board padding) − 384 (fixed tracks) − 60 (gaps) ≥ 341
+ * puts the floor at ~869px, so 55rem (880px) is the first width where no name is clipped. Below it
+ * the card list is the better answer anyway: it gives each name a full row and two lines to wrap.
+ */
+const BOARD_WIDE = '(min-width: 55rem)'
 
 /** Teal, not brand red — see the YOU chip note below. Positive is the good direction. */
 function swingTone(v: number | null): string {
@@ -86,7 +101,12 @@ function SortableHeader({
         // `uppercase` is repeated here rather than inherited from the header row: Tailwind's
         // Preflight resets `text-transform: none` on `button`, so the three sortable headers rendered
         // sentence-case beside the three static ones.
-        className={`inline-flex w-full cursor-pointer items-center justify-end gap-1 uppercase transition-colors ${
+        // `py-[10px] -my-[10px]` claims the header cell's own vertical padding as hit area. The
+        // button wrapped only its text line, giving a 78×17 target — under the 24×24 CSS px floor in
+        // WCAG 2.2 §2.5.8 (AA), and a genuinely fiddly one on a touch tablet where these headers are
+        // the only sort control. The negative margin cancels the padding for layout, so the row is
+        // the same height it always was; only the clickable area grew, to 37px.
+        className={`-my-[10px] inline-flex w-full cursor-pointer items-center justify-end gap-1 py-[10px] uppercase transition-colors ${
           active ? 'text-ink' : 'hover:text-ink-2'
         }`}
       >
@@ -153,7 +173,7 @@ export function StatsBoard({
 }) {
   // One layout in the DOM, not both — the standings board measured 56% of its nodes sitting behind
   // `display:none` before it made the same change.
-  const wide = useMediaQuery(SM)
+  const wide = useMediaQuery(BOARD_WIDE)
 
   // If any figure in a column is fractional, every row in it keeps a decimal, so the column still
   // aligns to the digit (The Tabular-Numeral Rule).
@@ -259,7 +279,9 @@ export function StatsBoard({
                     <div className={`font-mono text-[16px] font-bold leading-none ${swingTone(r.swing)}`}>
                       {fmtSwing(r.swing)}
                     </div>
-                    <div className="mt-[3px] font-mono text-[9px] uppercase tracking-[0.1em] text-muted">swing</div>
+                    {/* 10px, not 9: DESIGN.md puts the label role at 0.625rem, and this was the one
+                        place in the board sitting under its own type scale. */}
+                    <div className="mt-[3px] font-mono text-[10px] uppercase tracking-[0.1em] text-muted">swing</div>
                   </div>
                 )}
               </li>
