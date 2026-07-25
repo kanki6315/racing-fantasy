@@ -226,6 +226,7 @@ export function Stats() {
           <FilterRow label="Round">
             {roundList.map((r) => {
               const locked = new Date(r.qualiStart).getTime() > now
+              const chipLabel = `R${String(r.sequence).padStart(2, '0')} · ${r.name}`
               return (
                 // `R06 · <event>` — the same spelling the standings round filter and the Landing
                 // calendar use. Three renderings of one round number across a product is the kind of
@@ -233,23 +234,19 @@ export function Stats() {
                 //
                 // Rounds whose stats don't exist yet say so *before* the click. Four of this series'
                 // six rounds are in the future today, and every one of them was an identical-looking
-                // chip that led to a locked panel. The padlock is decorative — the visible "LOCKED"
-                // is for sighted users and the `sr-only` copy carries it into the accessible name,
-                // so it isn't colour or iconography alone.
+                // chip that led to a locked panel. The padlock is decorative; the locked state
+                // reaches assistive tech through the button's own `aria-label`, so it is never
+                // carried by iconography alone.
                 <FilterTab
                   key={r.id}
                   active={r.id === roundId}
                   onClick={() => setRoundPick(r.id)}
                   title={locked ? `${r.name} — locked until qualifying` : r.name}
+                  label={locked ? `${chipLabel}, locked until qualifying` : undefined}
                 >
                   <span className="flex items-center gap-[6px]">
-                    {`R${String(r.sequence).padStart(2, '0')} · ${r.name}`}
-                    {locked && (
-                      <>
-                        <LockGlyph />
-                        <span className="sr-only">, locked until qualifying</span>
-                      </>
-                    )}
+                    {chipLabel}
+                    {locked && <LockGlyph />}
                   </span>
                 </FilterTab>
               )
