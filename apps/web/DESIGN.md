@@ -369,6 +369,14 @@ The row is this product's real workhorse — more screens are rows than are card
   lineup for, so their rows are inert; one quiet line under the table ("Pick a round above to see
   each team's lineup") answers the question the difference raises. Only for signed-in viewers —
   picking a round doesn't unlock the link for anyone else, and offering it would be a lie.
+- **A prompt on a board being *read* is an annotation, not a call to action.** The unregistered
+  notice sits above the table as one muted line with a `brand-3` text link — not a filled button. A
+  board is something a player reads; registering is not its primary action, so it does not get the
+  page's one solid red. A viewer browsing five series met five identical red CTAs at 74px desktop and
+  ~250px mobile, and the nav already carries a NOT REGISTERED pill for the app-level version of the
+  same message. **But quiet never costs the tap target:** demoted to a plain inline link it measured
+  17px tall, so it keeps its own box — 24px beside the sentence on a pointer, wrapping to a 44px row
+  under `pointer: coarse`.
 - **Ties are marked, not implied.** Shared ranks render `T10`, never a bare repeated `10` — two
   identical numbers followed by a jump to 12 reads as a rendering bug rather than a dead heat. The
   position bug marks your row the same way.

@@ -117,26 +117,39 @@ export function YourPosition({
     el.addEventListener('animationend', () => el.classList.remove('row-flash'), { once: true })
   }, [])
 
-  if (entries.length === 0) return null
-
   // ---- Shape 3: signed in, not registered ----
+  //
+  // Deliberately *before* the empty-board guard. This is the only shape that doesn't describe a row,
+  // so it's the only one that still has something to say when the board is empty — and an empty board
+  // is exactly where it's the sole useful thing on screen. It used to be suppressed there, which had
+  // the value backwards.
+  //
+  // Demoted from a bordered panel with a 44px solid-red button to one quiet line. A signed-in viewer
+  // browsing five series met five identical red CTAs; at 74px on desktop and ~250px on a phone it was
+  // the loudest thing above a board they were trying to read, and the nav already carries a NOT
+  // REGISTERED pill for the app-level version of the same message. Registering is not the primary
+  // action of a board being read, so it doesn't get the page's one solid red — `brand-3` is the
+  // tinted-red label the One Red Rule allows instead, and at 6.54:1 it still clears AA.
+  //
+  // No dismissal state: the demotion removes the reason for it, and hiding a line behind
+  // remembered-elsewhere state trades a small repetition for a "where did that go?" problem.
   if (registerSeasonId != null) {
     return (
       <>
-        <div className="mb-4 flex flex-col gap-3 rounded-[4px] border border-line-2 bg-surface px-4 py-[14px] sm:flex-row sm:items-center sm:justify-between sm:gap-4">
-          <div className="flex items-center gap-[10px]">
-            {/* Neutral slash: the red one means "you, on this board", which isn't true yet. */}
-            <span className="h-[18px] w-[4px] flex-none bg-line-3 [transform:skewX(-14deg)]" />
-            <p className="font-sans text-[13px] text-ink-2">
-              You're not registered for this season, so you won't appear on this board.
-            </p>
-          </div>
+        {/*
+         * Flex-wrap rather than an inline link inside the sentence: quiet must not cost the tap
+         * target. Inline, the link measured 17px tall — well under the 44px minimum, which would have
+         * traded a too-loud button for an unhittable one. Here it keeps its own box, sitting on the
+         * sentence's line on a pointer and wrapping to its own 44px row on touch.
+         */}
+        <div className="mb-3 flex flex-wrap items-center gap-x-2 gap-y-[2px] font-sans text-[12px] text-muted">
+          <span>You're not registered for this season, so you won't appear on this board.</span>
           <button
             type="button"
             onClick={() => setRegisterOpen(true)}
-            className="h-11 shrink-0 cursor-pointer rounded-[3px] bg-brand px-5 font-display text-[13px] font-semibold uppercase tracking-[0.06em] text-ink transition-colors hover:bg-brand-2"
+            className="inline-flex h-6 cursor-pointer items-center whitespace-nowrap font-mono text-[11px] uppercase tracking-[0.1em] text-brand-3 transition-colors hover:text-brand-2 pointer-coarse:h-11"
           >
-            Register
+            Register →
           </button>
         </div>
         <RegisterModal seasonId={registerSeasonId} open={registerOpen} onOpenChange={setRegisterOpen} />
@@ -144,6 +157,7 @@ export function YourPosition({
     )
   }
 
+  if (entries.length === 0) return null
   if (myRegistrationId == null) return null
 
   // ---- Shape 2: registered, but nothing scored on this board ----
