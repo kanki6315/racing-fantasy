@@ -18,13 +18,12 @@ Standings run as a season-wide pool plus user-created public/private **leagues**
   (admin toggle → calendar status → roster GET/PUT enforcement). All reflected in the API surface +
   known-gaps below. **Local dev DB is now PostgreSQL 18** (`docker-compose.yml`; volume mounts at
   `/var/lib/postgresql`) to match Railway.
-- **Multi-race rounds (ADR-0013, merged 2026-07-14 — prod migration + API/web deploys pending):**
-  a round can score N races (MX-5 two-race weekends) with one pick set and one lock —
-  `session.race_number` + per-race `score.session_id` rows; race imports take `?raceNumber=`;
-  the same Active RacePosition table prices each race; UI shows Q/R1/R2 chips. The scoring
-  recompute also now **deletes stale scores** whose backing result disappeared (audited
-  "removed"). ⚠️ Deploy the `AddMultiRaceRounds` migration and the new API **together** (the
-  cleanup pass covers backfill leftovers).
+- **Multi-race rounds (ADR-0013, merged 2026-07-14 — live in prod):** a round can score N races
+  (MX-5 two-race weekends) with one pick set and one lock — `session.race_number` + per-race
+  `score.session_id` rows; race imports take `?raceNumber=`; the same Active RacePosition table
+  prices each race; UI shows Q/R1/R2 chips. The scoring recompute also now **deletes stale scores**
+  whose backing result disappeared (audited "removed"). The `AddMultiRaceRounds` migration went out
+  with the API on the same merge — see **How deploys happen** below for why that is automatic.
 - **Backend: MVP-complete and tested on real IMSA data** — Phases 0–5 of [docs/roadmap.md](docs/roadmap.md):
   schema, catalog CRUD + bulk import, economy/picks/lock, results ingestion, scoring engine,
   leaderboards. Plus **auth + data minimization** (ADR-0004), **authorization** (ownership + admin),
@@ -38,6 +37,30 @@ Standings run as a season-wide pool plus user-created public/private **leagues**
   deploy**. (Image *upload* + display both done — see Images below.)
 - **Auth is live:** Google OAuth is configured and working; admin allowlist resolves real Google
   subjects. Dev-login remains the local shortcut.
+
+## How deploys happen
+
+⚠️ **Pushing to `main` deploys the API to production. There is no separate release step.**
+
+Railway watches `main` and rebuilds `apps/api/Dockerfile` on every push. Because `Program.cs` calls
+`Database.Migrate()` at startup, **the deploy also applies any pending EF migrations to the prod
+database** — merging a migration to `main` runs it against real data, unprompted. Treat a merge to
+`main` as a production release, and land migrations deliberately rather than as a side effect of an
+unrelated merge.
+
+The web app is the opposite: **S3 + CloudFront is a manual push.** Nothing deploys it on merge; it
+goes out only when someone runs `pnpm deploy:web` (build → S3 sync → CloudFront invalidation). So
+`main` routinely contains frontend changes that are not yet live, and "merged" never implies
+"deployed" for anything under `apps/web`.
+
+Practical consequences:
+- Never merge a schema change you would not want applied to prod within minutes.
+- A broken migration fails startup and takes the API down — see the NOTE above the
+  `Database.Migrate()` call in `src/Api/Program.cs`.
+- When a change spans both apps, the API half ships on merge and the web half waits for you.
+- Config (env vars, admin allowlist) is changed in the **Railway dashboard**, not by deploying.
+
+Full runbook: [docs/infra/deploy.md](docs/infra/deploy.md).
 
 ## Images (S3 + CloudFront)
 
@@ -285,13 +308,12 @@ pnpm build          # tsc typecheck + production build
 
 ## Known gaps / next steps
 
-- **Multi-race rounds (merged, NOT deployed — ADR-0013):** prod needs the `AddMultiRaceRounds`
-  migration (`dotnet ef database update`) **in the same Railway deploy as the new API** — the
-  scoring recompute's stale-score cleanup covers any backfill leftovers — then `pnpm deploy:web`.
-  Player note worth sending: Double Points Team / Captain now double the full Q+R1+R2 total on
-  multi-race weekends. Deferred: per-race quali (R2 grids are set by R1 results, not a second
-  quali — fine for MX-5); per-race columns in admin Score Review (it keeps one summed Race column;
-  the response already carries `raceNumber` when a drill-down is wanted).
+- **Multi-race rounds (deployed — ADR-0013):** `AddMultiRaceRounds` is applied in prod and in use
+  (sessions with `race_number > 1`, scores bound to `session_id`). Player note worth sending if it
+  hasn't been: Double Points Team / Captain now double the full Q+R1+R2 total on multi-race
+  weekends. Deferred: per-race quali (R2 grids are set by R1 results, not a second quali — fine for
+  MX-5); per-race columns in admin Score Review (it keeps one summed Race column; the response
+  already carries `raceNumber` when a drill-down is wanted).
 - **Email reminders + bounce handling (done, deployed — ADR-0009/0010):** see the Email (SES) section.
   Follow-ups: the **opt-in UI** (RegisterModal/Dashboard) ships via `pnpm deploy:web` (S3/CloudFront),
   **separate** from the API's Railway deploy — deploy web for it to be live. Domain is **warming** (first
@@ -351,8 +373,8 @@ pnpm build          # tsc typecheck + production build
   mirrors `championship.sort_order`) sets class display order. `GET /classes` and the roster-rules
   resolver order by it then name, so the pick board, the standings **picks view**, and admin all show
   the racing order (GTP, LMP2, GTD PRO, GTD) instead of alphabetical. Editable via the admin Catalog
-  class form (Order field). ⚠️ Existing rows default to 0 (alphabetical) until an admin sets values;
-  prod needs `dotnet ef database update` (migration `AddClassSortOrder`).
+  class form (Order field). The `AddClassSortOrder` migration is applied in prod and populated
+  (classes carry non-zero orders); new rows still default to 0 until an admin sets a value.
 - **Phase 6** (observability/hardening) is intentionally **deferred** — see roadmap.
 
 ## Design docs to read for depth
