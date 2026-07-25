@@ -1,18 +1,20 @@
-import { useEffect, useMemo, useState } from 'react'
+import { useMemo, useState, type ReactNode } from 'react'
 import {
   useChampionships,
+  usePlayerPicks,
   useRosterRules,
   useRoundStats,
   useRounds,
   useSeasons,
 } from '../api/queries'
-import type { RoundStats } from '../api/queries'
+import { useAuth } from '../auth/AuthContext'
+import { BoardStatus } from '../components/Leaderboard'
 import { FilterRow, FilterTab } from '../components/StandingsFilters'
+import { StatsBoard, StatsBoardSkeleton } from '../components/StatsBoard'
 import { classMeta } from '../lib/classMeta'
-import { ErrorBox, SkeletonTable } from './LeagueStandings'
-
-type EntityStat = RoundStats['entities'][number]
-type Row = { e: EntityStat; primary: string; secondary?: string; bar?: number }
+import { buildRows, entityKey, sortRows, type Sort, type SortKey } from '../lib/roundStats'
+import { useNow } from '../lib/useCountdown'
+import { ErrorBox } from './LeagueStandings'
 
 /** "DOUBLE_POINTS_TEAM" / "DoublePointsTeam" → "Double Points Team". */
 function prettyKind(kind: string): string {
@@ -30,48 +32,54 @@ function prettyKind(kind: string): string {
  * (returns null until qualifying), so the page shows a neutral "locked" state before then.
  */
 export function Stats() {
-  const { data: champs = [] } = useChampionships()
+  const { user } = useAuth()
+  const champs$ = useChampionships()
+  const champs = useMemo(() => champs$.data ?? [], [champs$.data])
 
-  const [champId, setChampId] = useState<number | null>(null)
-  useEffect(() => {
-    if (champs.length === 0) return
-    if (champId == null || !champs.some((c) => c.id === champId)) setChampId(champs[0].id)
-  }, [champs, champId])
+  // Each selector holds only what the *user* picked, and the effective value is derived: the pick
+  // when it still exists in the loaded list, otherwise the default. The four heal-in-an-effect
+  // versions this replaces each cost a second render pass, and the champion one had a real symptom —
+  // `champs` is `[]` while the request is in flight, so "no championships found" rendered as a red
+  // error box for the length of the fetch, then vanished.
+  const [champPick, setChampPick] = useState<number | null>(null)
+  const champId = champs.some((c) => c.id === champPick) ? champPick : (champs[0]?.id ?? null)
 
-  const { data: seasons = [] } = useSeasons(champId ?? undefined)
+  const seasons$ = useSeasons(champId ?? undefined)
+  const seasons = useMemo(() => seasons$.data ?? [], [seasons$.data])
   const sortedSeasons = useMemo(() => [...seasons].sort((a, b) => b.year - a.year), [seasons])
-  const [seasonId, setSeasonId] = useState<number | null>(null)
-  useEffect(() => {
-    if (seasons.length === 0) {
-      setSeasonId(null)
-      return
-    }
-    if (seasonId == null || !seasons.some((s) => s.id === seasonId)) setSeasonId(sortedSeasons[0].id)
-  }, [seasons, sortedSeasons, seasonId])
+  const [seasonPick, setSeasonPick] = useState<number | null>(null)
+  const seasonId = seasons.some((s) => s.id === seasonPick) ? seasonPick : (sortedSeasons[0]?.id ?? null)
 
-  const rounds = useRounds(seasonId ?? undefined)
+  const rounds$ = useRounds(seasonId ?? undefined)
   const roundList = useMemo(
-    () => [...(rounds.data ?? [])].sort((a, b) => a.sequence - b.sequence),
-    [rounds.data],
+    () => [...(rounds$.data ?? [])].sort((a, b) => a.sequence - b.sequence),
+    [rounds$.data],
   )
-  const [roundId, setRoundId] = useState<number | null>(null)
-  useEffect(() => {
-    if (roundList.length === 0) {
-      setRoundId(null)
-      return
-    }
-    if (roundId != null && roundList.some((r) => r.id === roundId)) return
-    // Default to the latest *locked* round (its stats are populated); else the latest round.
-    const now = Date.now()
+  // One clock for the page, stepped once a minute: it decides the default round and which chips wear
+  // a padlock, and holding it in state means a lock that lifts while the page is open flips both on
+  // its own instead of going stale until a reload.
+  const now = useNow(60_000)
+
+  // Default to the latest *locked* round — the newest one whose stats actually exist.
+  const defaultRoundId = useMemo(() => {
+    if (roundList.length === 0) return null
     const locked = roundList.filter((r) => new Date(r.qualiStart).getTime() <= now)
-    setRoundId((locked.length ? locked : roundList).at(-1)!.id)
-  }, [roundList, roundId])
+    return (locked.length ? locked : roundList).at(-1)!.id
+  }, [roundList, now])
+  const [roundPick, setRoundPick] = useState<number | null>(null)
+  const roundId = roundList.some((r) => r.id === roundPick) ? roundPick : defaultRoundId
 
   const stats$ = useRoundStats(roundId ?? undefined)
   const rules = useRosterRules(roundId ?? 0)
 
-  const [classId, setClassId] = useState<number | 'all'>('all')
-  useEffect(() => setClassId('all'), [roundId])
+  // The class filter is scoped to the round it was chosen on, so changing rounds resets it to "All"
+  // without an effect — a class present in one round often isn't in the next.
+  const [classSel, setClassSel] = useState<{ round: number | null; value: number | 'all' }>({
+    round: null,
+    value: 'all',
+  })
+  const classId = classSel.round === roundId ? classSel.value : 'all'
+  const setClassId = (value: number | 'all') => setClassSel({ round: roundId, value })
 
   const colorFor = (cid: number) => {
     const c = rules.data?.classes.find((x) => x.classId === cid)
@@ -83,7 +91,9 @@ export function Stats() {
   }
 
   const stats = stats$.data
-  const entities = stats?.entities ?? []
+  // Memoised because `?? []` is a fresh array every render, which would re-run the board's
+  // build-and-sort over the whole field on renders that changed nothing.
+  const entities = useMemo(() => stats?.entities ?? [], [stats])
 
   // Class chips: only classes that actually have picked entities this round.
   const classIds = useMemo(() => {
@@ -93,45 +103,94 @@ export function Stats() {
     return [...ordered, ...[...present].filter((id) => !ordered.includes(id))]
   }, [entities, rules.data])
 
-  const inClass = (e: EntityStat) => classId === 'all' || e.classId === classId
-
-  const mostPicked: Row[] = useMemo(
-    () =>
-      entities
-        .filter(inClass)
-        .sort((a, b) => b.pickCount - a.pickCount)
-        .slice(0, 10)
-        .map((e) => ({ e, primary: `${e.pickPct.toFixed(0)}%`, secondary: `${e.pickCount} picks`, bar: e.pickPct })),
-    [entities, classId],
+  // The signed-in player's own picks for this round, so their rows can be marked and their score put
+  // next to the field's. `usePlayerPicks` is the same endpoint the standings drill-in already uses;
+  // it needs no API change, and it only resolves once the round is locked — which is exactly when
+  // this page has anything to show. A player with no roster this round simply gets no marks.
+  const myRegId = user?.registrations.find((r) => r.seasonId === seasonId)?.id
+  const picks$ = usePlayerPicks(myRegId, roundId ?? undefined)
+  const mine = useMemo(
+    () => new Set((picks$.data?.main ?? []).map(entityKey)),
+    [picks$.data],
   )
+  // A registered player who skipped this round still gets a 200 back — an empty roster with a total
+  // of 0 — so the presence of `data` is not the test. Without the length check their summary read
+  // "0 pts · -1124 vs avg", which is a scoreline for a round they never entered.
+  const myRound = picks$.data && picks$.data.main.length > 0 ? picks$.data : null
 
-  const topScorers: Row[] = useMemo(
-    () =>
-      entities
-        .filter((e) => inClass(e) && e.points != null)
-        .sort((a, b) => (b.points ?? 0) - (a.points ?? 0))
-        .slice(0, 10)
-        .map((e) => ({ e, primary: `${e.points!.toFixed(1)}`, secondary: 'pts' })),
-    [entities, classId],
-  )
+  // Scoring is all-or-nothing for a round, so one entity carrying points means the round is scored.
+  const scored = entities.some((e) => e.points != null)
 
-  const bestValue: Row[] = useMemo(
-    () =>
-      entities
-        .filter((e) => inClass(e) && e.points != null && e.price != null && e.price > 0)
-        .sort((a, b) => b.points! / b.price! - a.points! / a.price!)
-        .slice(0, 10)
-        .map((e) => ({
-          e,
-          primary: `${(e.points! / e.price!).toFixed(2)}`,
-          secondary: `${e.points!.toFixed(0)}pt · $${e.price!.toFixed(1)}`,
-        })),
-    [entities, classId],
+  const [sort, setSort] = useState<Sort>({ key: 'swing', dir: 'desc' })
+  // Before scoring there is no swing to sort by; fall back to the one column that has values. Not
+  // held in state — a round change would otherwise leave the previous round's sort key stranded on a
+  // column of em-dashes.
+  const activeSort: Sort = useMemo(
+    () => (scored ? sort : { key: 'own', dir: sort.dir }),
+    [scored, sort],
   )
+  const onSort = (key: SortKey) =>
+    setSort((s) => (s.key === key ? { key, dir: s.dir === 'desc' ? 'asc' : 'desc' } : { key, dir: 'desc' }))
+
+  const rows = useMemo(() => {
+    const inClass = entities.filter((e) => classId === 'all' || e.classId === classId)
+    // Swing is computed over the *unfiltered* field so a class filter narrows what you see without
+    // moving the baseline underneath it — a car's swing must not change when you click its own class.
+    const all = buildRows(entities, mine)
+    const keep = new Set(inClass.map(entityKey))
+    return sortRows(all.filter((r) => keep.has(entityKey(r.e))), activeSort)
+  }, [entities, classId, mine, activeSort])
 
   const champ = champs.find((c) => c.id === champId)
   const season$ = seasons.find((s) => s.id === seasonId)
   const round$ = roundList.find((r) => r.id === roundId)
+
+  /*
+   * The champs → seasons → rounds → stats chain is one wait from the player's point of view, so the
+   * page reasons about it as one. Only the links actually enabled count — a disabled query sits at
+   * `pending` forever and would otherwise pin the page to a skeleton.
+   *
+   * Three distinct conditions, and conflating any two of them produces a lie:
+   *   - `pending` — no data and no error yet. That includes the gaps *between* retries, where
+   *     `isLoading` drops to false while the query is still very much unresolved. Reading
+   *     `isLoading` alone let the page fall through to "no series yet" in those gaps.
+   *   - `paused` — React Query parks a fetch rather than running it when the browser reports itself
+   *     offline. A paused query never errors and never resolves, so an offline player was shown
+   *     "NO SERIES YET": the app stating that the championship does not exist because it couldn't
+   *     reach the network. That is the worst thing an empty state can be — confidently wrong.
+   *   - `failed` — a real error, and the only one of the three that earns red.
+   */
+  const chain: { status: string; fetchStatus: string; isError: boolean }[] = [champs$]
+  if (champId != null) chain.push(seasons$)
+  if (seasonId != null) chain.push(rounds$)
+  if (roundId != null) chain.push(stats$)
+
+  const failed = chain.some((q) => q.isError)
+  const paused = chain.some((q) => q.fetchStatus === 'paused')
+  const pending = chain.some((q) => q.status === 'pending')
+  const retrying = chain.some((q) => q.fetchStatus === 'fetching')
+
+  // Retries anything unresolved, not just the errored links — when the cause was a paused fetch
+  // there is no error to find, and re-running only the errors would do nothing at all.
+  const retry = () => {
+    const stale = (q: { status: string; isError: boolean }) => q.isError || q.status === 'pending'
+    if (stale(champs$)) void champs$.refetch()
+    if (champId != null && stale(seasons$)) void seasons$.refetch()
+    if (seasonId != null && stale(rounds$)) void rounds$.refetch()
+    if (roundId != null && stale(stats$)) void stats$.refetch()
+  }
+
+  const boardStatus = failed
+    ? "Couldn't load these stats"
+    : paused
+      ? "Offline — can't load these stats"
+      : pending
+        ? 'Loading stats'
+        : stats == null
+        ? `${round$?.name ?? 'This round'} — stats locked until qualifying`
+        : `${round$?.name ?? 'Round'}: ${rows.length} ${rows.length === 1 ? 'entity' : 'entities'}` +
+          `${classId === 'all' ? '' : ` in ${labelFor(classId)}`}` +
+          `${scored ? `, sorted by ${activeSort.key === 'own' ? 'ownership' : activeSort.key === 'pts' ? 'points' : 'swing'}` : ', not yet scored'}`
 
   return (
     <div className="mx-auto max-w-[1080px] px-4 py-7 sm:px-[26px]">
@@ -149,7 +208,7 @@ export function Stats() {
       <div className="mt-6 flex flex-col gap-3">
         <FilterRow label="Series">
           {champs.map((c) => (
-            <FilterTab key={c.id} active={c.id === champId} onClick={() => setChampId(c.id)}>
+            <FilterTab key={c.id} active={c.id === champId} onClick={() => setChampPick(c.id)}>
               {c.name}
             </FilterTab>
           ))}
@@ -157,7 +216,7 @@ export function Stats() {
         {sortedSeasons.length > 0 && (
           <FilterRow label="Year">
             {sortedSeasons.map((s) => (
-              <FilterTab key={s.id} active={s.id === seasonId} onClick={() => setSeasonId(s.id)}>
+              <FilterTab key={s.id} active={s.id === seasonId} onClick={() => setSeasonPick(s.id)}>
                 {s.year}
               </FilterTab>
             ))}
@@ -165,41 +224,113 @@ export function Stats() {
         )}
         {roundList.length > 0 && (
           <FilterRow label="Round">
-            {roundList.map((r) => (
-              <FilterTab key={r.id} active={r.id === roundId} onClick={() => setRoundId(r.id)}>
-                {r.name}
-              </FilterTab>
-            ))}
+            {roundList.map((r) => {
+              const locked = new Date(r.qualiStart).getTime() > now
+              return (
+                // `R06 · <event>` — the same spelling the standings round filter and the Landing
+                // calendar use. Three renderings of one round number across a product is the kind of
+                // drift nobody notices until they compare two screens.
+                //
+                // Rounds whose stats don't exist yet say so *before* the click. Four of this series'
+                // six rounds are in the future today, and every one of them was an identical-looking
+                // chip that led to a locked panel. The padlock is decorative — the visible "LOCKED"
+                // is for sighted users and the `sr-only` copy carries it into the accessible name,
+                // so it isn't colour or iconography alone.
+                <FilterTab
+                  key={r.id}
+                  active={r.id === roundId}
+                  onClick={() => setRoundPick(r.id)}
+                  title={locked ? `${r.name} — locked until qualifying` : r.name}
+                >
+                  <span className="flex items-center gap-[6px]">
+                    {`R${String(r.sequence).padStart(2, '0')} · ${r.name}`}
+                    {locked && (
+                      <>
+                        <LockGlyph />
+                        <span className="sr-only">, locked until qualifying</span>
+                      </>
+                    )}
+                  </span>
+                </FilterTab>
+              )
+            })}
           </FilterRow>
         )}
       </div>
 
+      {/* Pressing a filter silently swaps up to 49 rows; without this a screen-reader user gets no
+          confirmation anything happened. Mounted across every state, because a live region inserted
+          at the same moment its text appears is unreliably announced. */}
+      <BoardStatus text={boardStatus} />
+
       <div className="mt-6">
-        {!champ ? (
-          <ErrorBox message="No championships found." />
+        {/*
+         * Order matters here, and it is the fix for the page's worst state bug: loading is checked
+         * before emptiness, so an in-flight request can no longer render as "nothing found".
+         *
+         * Red is now reserved for things that actually broke. A round nobody entered, a series with
+         * no rounds yet, and a lock that hasn't lifted are all ordinary, expected conditions — they
+         * get the neutral panel. Before, all three wore `danger` red on a red-tinted border, which
+         * meant a genuine API failure and a quiet weekend were indistinguishable.
+         */}
+        {failed ? (
+          <ErrorBox message="Couldn't load these stats." onRetry={retry} retrying={retrying} />
+        ) : paused ? (
+          // Not red: being offline isn't a fault in the app, and it's the player's to fix. Neutral
+          // panel, plain cause, and the same retry so there's a way forward without a reload.
+          <EmptyPanel
+            title="You're offline"
+            body="These stats need a connection. Reconnect and try again — nothing is lost."
+            action={
+              <RetryButton onClick={retry} retrying={retrying} />
+            }
+          />
+        ) : pending ? (
+          <StatsBoardSkeleton />
+        ) : !champ ? (
+          <EmptyPanel title="No series yet" body="Championships appear here once one is set up." />
         ) : roundId == null ? (
-          <ErrorBox message="This series has no rounds yet." />
-        ) : stats$.isLoading ? (
-          <SkeletonTable />
-        ) : stats$.isError ? (
-          <ErrorBox message="Couldn't load these stats." />
+          <EmptyPanel title="No rounds yet" body={`${champ.name} has no rounds on the calendar for this season.`} />
         ) : stats == null ? (
-          <LockedState />
+          <LockedState qualiStart={round$?.qualiStart} />
         ) : stats.rosters === 0 || entities.length === 0 ? (
-          <ErrorBox message="No picks for this round yet." />
+          <EmptyPanel
+            title="No picks this round"
+            body="Nobody entered a roster for this round, so there's nothing to break down."
+          />
         ) : (
           <>
-            {/* Field context + bonus usage */}
+            {/* Your round (when signed in and you entered), then the field's context + bonus usage */}
+            {myRound && (
+              <div className="mb-3 flex flex-wrap items-center gap-x-5 gap-y-2 rounded-[4px] border border-success/30 bg-success/[0.07] px-[18px] py-[11px] font-mono text-[12px] text-muted">
+                <span className="font-display text-[11px] tracking-[0.12em] uppercase text-ink-2">Your round</span>
+                <Metric label="pts" value={fmtScore(myRound.total)} />
+                {stats.avgScore != null && (
+                  <span className={myRound.total >= stats.avgScore ? 'text-success' : 'text-muted'}>
+                    {myRound.total >= stats.avgScore ? '+' : '−'}
+                    {fmtScore(Math.abs(myRound.total - stats.avgScore))} vs avg
+                  </span>
+                )}
+              </div>
+            )}
             <div className="flex flex-wrap items-center gap-x-6 gap-y-2 rounded-[4px] border border-line bg-surface-3 px-[18px] py-[11px] font-mono text-[12px] text-muted">
               <Metric label="entered" value={`${stats.rosters}`} />
-              {stats.highScore != null && <Metric label="high" value={stats.highScore.toFixed(1)} />}
-              {stats.avgScore != null && <Metric label="avg" value={stats.avgScore.toFixed(1)} />}
+              {stats.highScore != null && <Metric label="high" value={fmtScore(stats.highScore)} />}
+              {stats.avgScore != null && <Metric label="avg" value={fmtScore(stats.avgScore)} />}
+              {/* Both figures get a word. This read "+324.2 Double Points Team · 68%" — a value and a
+                  percentage with nothing saying what either one measured. */}
               {stats.modifiers.map((m) => (
-                <Metric
-                  key={m.kind}
-                  label={`${prettyKind(m.kind)} · ${m.usagePct.toFixed(0)}%`}
-                  value={m.avgBonus != null ? `+${m.avgBonus.toFixed(1)}` : '—'}
-                />
+                <span key={m.kind}>
+                  <span className="uppercase tracking-[0.04em]">{prettyKind(m.kind)}</span>
+                  {' · used by '}
+                  <span className="text-ink-2">{m.usagePct.toFixed(0)}%</span>
+                  {m.avgBonus != null && (
+                    <>
+                      {' · '}
+                      <span className="text-ink-2">+{m.avgBonus.toFixed(0)}</span> avg
+                    </>
+                  )}
+                </span>
               ))}
             </div>
 
@@ -220,20 +351,20 @@ export function Stats() {
               </FilterRow>
             </div>
 
-            {/* Top-10 tables */}
-            <div className="mt-5 grid gap-4 lg:grid-cols-3">
-              <StatTable title="Most Picked" rows={mostPicked} colorFor={colorFor} />
-              <StatTable
-                title="Top Scorers"
-                rows={topScorers}
+            {/* The board */}
+            <div className="mt-5">
+              {!scored && (
+                <p className="mb-3 font-sans text-[13px] text-muted">
+                  Picks are in. Points and swing land once the round is scored.
+                </p>
+              )}
+              <StatsBoard
+                rows={rows}
+                sort={activeSort}
+                onSort={onSort}
                 colorFor={colorFor}
-                empty="Scores land once the round is scored."
-              />
-              <StatTable
-                title="Best Value"
-                rows={bestValue}
-                colorFor={colorFor}
-                empty="Value lands once the round is scored."
+                labelFor={labelFor}
+                scored={scored}
               />
             </div>
           </>
@@ -251,66 +382,84 @@ function Metric({ label, value }: { label: string; value: string }) {
   )
 }
 
-function LockedState() {
+/**
+ * Round scores run into the thousands, so they carry a thousands separator and drop the ".0" that
+ * `toFixed(1)` printed on every whole number. Locale-aware via `toLocaleString`, because 1,523 and
+ * 1.523 are the same figure to different readers.
+ */
+function fmtScore(v: number): string {
+  return v.toLocaleString(undefined, { maximumFractionDigits: Number.isInteger(v) ? 0 : 1 })
+}
+
+/**
+ * The neutral panel for every ordinary "there's nothing here" — no series, no rounds, no entries,
+ * and the pre-qualifying lock. Deliberately *not* {@link ErrorBox}: red is for things that broke.
+ */
+function EmptyPanel({ title, body, action }: { title: string; body: string; action?: ReactNode }) {
   return (
     <div className="rounded-[4px] border border-dashed border-line-2 px-5 py-12 text-center">
-      <div className="font-display text-[13px] uppercase tracking-[0.1em] text-muted">Stats Locked</div>
-      <p className="mt-2 font-sans text-[13px] text-muted">
-        Pick breakdowns unlock when qualifying begins — held back so lineups can't be copied early.
-      </p>
+      <div className="font-display text-[13px] uppercase tracking-[0.1em] text-muted">{title}</div>
+      <p className="mx-auto mt-2 max-w-[52ch] font-sans text-[13px] text-muted">{body}</p>
+      {action && <div className="mt-4">{action}</div>}
     </div>
   )
 }
 
-/** A single top-10 card: ranked rows with a class accent, name, and a primary/secondary metric. */
-function StatTable({
-  title,
-  rows,
-  colorFor,
-  empty = 'No data.',
-}: {
-  title: string
-  rows: Row[]
-  colorFor: (classId: number) => string
-  empty?: string
-}) {
+/** Same control as {@link ErrorBox}'s, for the panels that aren't errors but still need a way out. */
+function RetryButton({ onClick, retrying }: { onClick: () => void; retrying: boolean }) {
   return (
-    <div className="overflow-hidden rounded-[4px] border border-line bg-surface">
-      <div className="border-b border-line bg-surface-3 px-[16px] py-[10px] font-display text-[11px] uppercase tracking-[0.12em] text-muted">
-        {title}
-      </div>
-      {rows.length === 0 ? (
-        <div className="px-[16px] py-8 text-center font-sans text-[12px] text-muted">{empty}</div>
-      ) : (
-        <ol>
-          {rows.map(({ e, primary, secondary, bar }, i) => (
-            <li
-              key={`${e.entityType}-${e.entityId}`}
-              className="flex items-center gap-2.5 border-b border-surface-2 px-[16px] py-[9px] last:border-b-0"
-            >
-              <span className="w-[18px] flex-none text-right font-mono text-[12px] font-bold text-ink-2">{i + 1}</span>
-              <span className="h-[14px] w-[4px] flex-none [transform:skewX(-14deg)]" style={{ backgroundColor: colorFor(e.classId) }} />
-              <span className="min-w-0 flex-1">
-                <span className="block truncate font-display text-[13px] font-bold uppercase tracking-[0.02em] text-ink">
-                  {e.displayName ?? `#${e.entityId}`}
-                </span>
-                {bar != null && (
-                  <span className="mt-1 block h-[4px] w-full overflow-hidden rounded-[2px] bg-surface-2">
-                    <span
-                      className="block h-full"
-                      style={{ width: `${Math.min(100, bar)}%`, backgroundColor: colorFor(e.classId) }}
-                    />
-                  </span>
-                )}
-              </span>
-              <span className="flex-none text-right">
-                <span className="block font-mono text-[14px] font-bold leading-none text-ink">{primary}</span>
-                {secondary && <span className="mt-[3px] block font-mono text-[9px] uppercase tracking-[0.08em] text-muted">{secondary}</span>}
-              </span>
-            </li>
-          ))}
-        </ol>
+    <button
+      type="button"
+      onClick={onClick}
+      disabled={retrying}
+      className="h-9 rounded-[3px] border border-line-2 px-4 font-display text-[12px] font-semibold uppercase tracking-[0.06em] text-ink-2 transition-colors cursor-pointer hover:border-line-3 hover:text-ink disabled:cursor-default disabled:border-line disabled:text-muted pointer-coarse:h-11"
+    >
+      {retrying ? 'Retrying…' : 'Try again'}
+    </button>
+  )
+}
+
+/** Small padlock for the round chips. Decorative — the chips carry the word too. */
+function LockGlyph() {
+  return (
+    <svg width="9" height="11" viewBox="0 0 9 11" fill="none" aria-hidden className="flex-none opacity-80">
+      <path d="M2 4.5V3a2.5 2.5 0 0 1 5 0v1.5" stroke="currentColor" strokeWidth="1.2" />
+      <rect x="0.6" y="4.5" width="7.8" height="6" fill="currentColor" />
+    </svg>
+  )
+}
+
+/**
+ * Pre-qualifying. The old copy explained *why* the breakdown is held back but never *when* it lifts
+ * — on a product whose whole premise is a hard deadline, that was the one question it owed an
+ * answer to. `qualiStart` was already in the component; it just wasn't being shown.
+ */
+function LockedState({ qualiStart }: { qualiStart?: string }) {
+  const when = qualiStart ? new Date(qualiStart) : null
+  const valid = when && !Number.isNaN(when.getTime())
+  return (
+    <div className="rounded-[4px] border border-dashed border-line-2 px-5 py-12 text-center">
+      <div className="font-display text-[13px] uppercase tracking-[0.1em] text-muted">Stats Locked</div>
+      <p className="mx-auto mt-2 max-w-[52ch] font-sans text-[13px] text-muted">
+        Pick breakdowns unlock when qualifying begins — held back so lineups can't be copied early.
+      </p>
+      {valid && (
+        // Rendered in the reader's own zone and locale: a race weekend has a global audience, and a
+        // UTC timestamp is a puzzle, not an answer.
+        <p className="mt-3 font-mono text-[12px] text-ink-2">
+          Unlocks{' '}
+          <time dateTime={qualiStart}>
+            {when.toLocaleString(undefined, {
+              weekday: 'short',
+              day: 'numeric',
+              month: 'short',
+              hour: 'numeric',
+              minute: '2-digit',
+            })}
+          </time>
+        </p>
       )}
     </div>
   )
 }
+
