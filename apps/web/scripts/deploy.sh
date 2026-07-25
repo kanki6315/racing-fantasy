@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 #
-# Deploy the IMSA Fantasy web SPA to S3 + CloudFront.
+# Deploy the web SPA to S3 + CloudFront.
 #
 # Mirrors Phase 4, step 3 of docs/infra/deploy.md:
 #   pnpm build  ->  aws s3 sync  ->  cloudfront invalidation

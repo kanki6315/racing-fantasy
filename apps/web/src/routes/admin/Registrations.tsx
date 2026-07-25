@@ -63,7 +63,7 @@ export function Registrations() {
 
       <div className="rounded-[6px] border border-line bg-surface">
         <div className="flex items-center justify-between border-b border-line px-4 py-3">
-          <span className="font-mono text-[10px] tracking-[0.14em] uppercase text-muted-2">
+          <span className="font-mono text-[10px] tracking-[0.14em] uppercase text-muted">
             {filtered.length} of {regs.length}
           </span>
           <TextInput
@@ -80,7 +80,7 @@ export function Registrations() {
           </div>
         ) : (
           <div className="grid grid-cols-[1fr_8rem_6rem]">
-            <div className="contents font-mono text-[9px] uppercase tracking-[0.12em] text-muted-2">
+            <div className="contents font-mono text-[9px] uppercase tracking-[0.12em] text-muted">
               <div className="border-b border-line px-4 py-2">Team (public)</div>
               <div className="border-b border-line px-4 py-2">User</div>
               <div className="border-b border-line px-4 py-2 text-right">Reg ID</div>
@@ -93,7 +93,7 @@ export function Registrations() {
                 <div className="flex items-center border-b border-line px-4 py-3 font-mono text-[12px] text-muted">
                   {r.userId != null ? `U-${String(r.userId).padStart(5, '0')}` : '— erased —'}
                 </div>
-                <div className="flex items-center justify-end border-b border-line px-4 py-3 font-mono text-[12px] text-muted-2">
+                <div className="flex items-center justify-end border-b border-line px-4 py-3 font-mono text-[12px] text-muted">
                   {r.id}
                 </div>
               </div>
@@ -108,7 +108,7 @@ export function Registrations() {
 function Tile({ label, value, note }: { label: string; value: React.ReactNode; note: string }) {
   return (
     <div className="rounded-[6px] border border-line bg-surface px-4 py-3">
-      <div className="font-mono text-[9px] uppercase tracking-[0.12em] text-muted-2">{label}</div>
+      <div className="font-mono text-[9px] uppercase tracking-[0.12em] text-muted">{label}</div>
       <div className="mt-1 font-mono text-[22px] text-ink">{value}</div>
       <div className="font-sans text-[11px] text-muted">{note}</div>
     </div>

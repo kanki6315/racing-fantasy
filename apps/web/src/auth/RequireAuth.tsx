@@ -9,7 +9,7 @@ export function RequireAuth({ children }: { children: ReactNode }) {
 
   if (isLoading) {
     return (
-      <div className="flex items-center justify-center py-32 font-mono text-[12px] tracking-[0.12em] uppercase text-muted-2">
+      <div className="flex items-center justify-center py-32 font-mono text-[12px] tracking-[0.12em] uppercase text-muted">
         Checking session…
       </div>
     )

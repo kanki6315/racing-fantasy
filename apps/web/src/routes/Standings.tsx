@@ -90,7 +90,7 @@ export function Standings() {
       <div className="flex items-center gap-[13px]">
         <span className="h-[28px] w-[6px] flex-none bg-brand [transform:skewX(-14deg)]" />
         <div>
-          <h1 className="font-display text-[30px] font-extrabold italic uppercase leading-none text-ink">Standings</h1>
+          <h1 className="font-display text-[30px] font-extrabold uppercase leading-none text-ink">Standings</h1>
           <div className="mt-[6px] font-sans text-[12px] text-muted">
             {champ ? `${champ.name}${season$ ? ` · ${season$.year}` : ''}` : 'Season pool & per-round boards'}
           </div>

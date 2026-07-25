@@ -384,7 +384,7 @@ function HowItWorks() {
           <div key={b.key} className="flex min-w-0 items-baseline gap-[10px] lg:flex-1">
             {i > 0 && (
               <svg
-                className="hidden shrink-0 -translate-y-[1px] self-center text-muted-2 lg:block"
+                className="hidden shrink-0 -translate-y-[1px] self-center text-muted lg:block"
                 width="13"
                 height="13"
                 viewBox="0 0 24 24"

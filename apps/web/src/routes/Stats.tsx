@@ -138,7 +138,7 @@ export function Stats() {
       <div className="flex items-center gap-[13px]">
         <span className="h-[28px] w-[6px] flex-none bg-brand [transform:skewX(-14deg)]" />
         <div>
-          <h1 className="font-display text-[30px] font-extrabold italic uppercase leading-none text-ink">Stats</h1>
+          <h1 className="font-display text-[30px] font-extrabold uppercase leading-none text-ink">Stats</h1>
           <div className="mt-[6px] font-sans text-[12px] text-muted">
             {champ ? `${champ.name}${season$ ? ` · ${season$.year}` : ''}${round$ ? ` · ${round$.name}` : ''}` : 'Per-round picks & scoring breakdowns'}
           </div>
@@ -190,7 +190,7 @@ export function Stats() {
         ) : (
           <>
             {/* Field context + bonus usage */}
-            <div className="flex flex-wrap items-center gap-x-6 gap-y-2 rounded-[4px] border border-line bg-surface-3 px-[18px] py-[11px] font-mono text-[12px] text-muted-2">
+            <div className="flex flex-wrap items-center gap-x-6 gap-y-2 rounded-[4px] border border-line bg-surface-3 px-[18px] py-[11px] font-mono text-[12px] text-muted">
               <Metric label="entered" value={`${stats.rosters}`} />
               {stats.highScore != null && <Metric label="high" value={stats.highScore.toFixed(1)} />}
               {stats.avgScore != null && <Metric label="avg" value={stats.avgScore.toFixed(1)} />}
@@ -255,7 +255,7 @@ function LockedState() {
   return (
     <div className="rounded-[4px] border border-dashed border-line-2 px-5 py-12 text-center">
       <div className="font-display text-[13px] uppercase tracking-[0.1em] text-muted">Stats Locked</div>
-      <p className="mt-2 font-sans text-[13px] text-muted-2">
+      <p className="mt-2 font-sans text-[13px] text-muted">
         Pick breakdowns unlock when qualifying begins — held back so lineups can't be copied early.
       </p>
     </div>
@@ -276,11 +276,11 @@ function StatTable({
 }) {
   return (
     <div className="overflow-hidden rounded-[4px] border border-line bg-surface">
-      <div className="border-b border-line bg-surface-3 px-[16px] py-[10px] font-display text-[11px] uppercase tracking-[0.12em] text-muted-2">
+      <div className="border-b border-line bg-surface-3 px-[16px] py-[10px] font-display text-[11px] uppercase tracking-[0.12em] text-muted">
         {title}
       </div>
       {rows.length === 0 ? (
-        <div className="px-[16px] py-8 text-center font-sans text-[12px] text-muted-2">{empty}</div>
+        <div className="px-[16px] py-8 text-center font-sans text-[12px] text-muted">{empty}</div>
       ) : (
         <ol>
           {rows.map(({ e, primary, secondary, bar }, i) => (
@@ -305,7 +305,7 @@ function StatTable({
               </span>
               <span className="flex-none text-right">
                 <span className="block font-mono text-[14px] font-bold leading-none text-ink">{primary}</span>
-                {secondary && <span className="mt-[3px] block font-mono text-[9px] uppercase tracking-[0.08em] text-muted-2">{secondary}</span>}
+                {secondary && <span className="mt-[3px] block font-mono text-[9px] uppercase tracking-[0.08em] text-muted">{secondary}</span>}
               </span>
             </li>
           ))}

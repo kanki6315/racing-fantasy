@@ -8,7 +8,7 @@ export function Panel({ title, children, actions }: { title?: string; children: 
       {(title || actions) && (
         <div className="flex items-center justify-between border-b border-line px-4 py-3">
           {title && (
-            <h2 className="font-mono text-[10px] tracking-[0.14em] uppercase text-muted-2">{title}</h2>
+            <h2 className="font-mono text-[10px] tracking-[0.14em] uppercase text-muted">{title}</h2>
           )}
           {actions}
         </div>
@@ -21,7 +21,7 @@ export function Panel({ title, children, actions }: { title?: string; children: 
 export function Field({ label, children, hint }: { label: string; children: ReactNode; hint?: string }) {
   return (
     <label className="block">
-      <span className="mb-[6px] block font-mono text-[9px] tracking-[0.12em] uppercase text-muted-2">{label}</span>
+      <span className="mb-[6px] block font-mono text-[9px] tracking-[0.12em] uppercase text-muted">{label}</span>
       {children}
       {hint && <span className="mt-1 block font-sans text-[11px] text-muted">{hint}</span>}
     </label>
@@ -29,7 +29,7 @@ export function Field({ label, children, hint }: { label: string; children: Reac
 }
 
 const inputClass =
-  'h-9 w-full rounded-[4px] border border-line-2 bg-surface-3 px-3 font-sans text-[13px] text-ink placeholder:text-muted-2 focus:border-brand focus:outline-none'
+  'h-9 w-full rounded-[4px] border border-line-2 bg-surface-3 px-3 font-sans text-[13px] text-ink placeholder:text-muted focus:border-brand focus:outline-none'
 
 export function TextInput(props: React.InputHTMLAttributes<HTMLInputElement>) {
   return <input {...props} className={`${inputClass} ${props.className ?? ''}`} />
@@ -127,7 +127,7 @@ export function ClassSwatch({ hex }: { hex: string }) {
 
 export function EmptyState({ children }: { children: ReactNode }) {
   return (
-    <div className="rounded-[6px] border border-dashed border-line-2 bg-surface/40 px-6 py-10 text-center font-mono text-[11px] tracking-[0.08em] uppercase text-muted-2">
+    <div className="rounded-[6px] border border-dashed border-line-2 bg-surface/40 px-6 py-10 text-center font-mono text-[11px] tracking-[0.08em] uppercase text-muted">
       {children}
     </div>
   )

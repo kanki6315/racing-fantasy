@@ -52,7 +52,7 @@ export function TeamPicks() {
 
   if (round.isLoading || rules.isLoading || prices.isLoading || picks.isLoading) {
     return (
-      <div className="py-32 text-center font-mono text-[12px] uppercase tracking-[0.12em] text-muted-2">
+      <div className="py-32 text-center font-mono text-[12px] uppercase tracking-[0.12em] text-muted">
         Loading picks…
       </div>
     )
@@ -92,15 +92,15 @@ export function TeamPicks() {
       {/* header band — team + round + total, mirroring the pick page header */}
       <div className="mt-4 flex flex-wrap items-center gap-x-6 gap-y-3 rounded-[4px] border border-line bg-surface px-4 py-4 sm:px-5">
         <div className="min-w-0 basis-full sm:flex-1 sm:basis-auto">
-          <div className="font-display text-[11px] uppercase tracking-[0.12em] text-muted-2">
+          <div className="font-display text-[11px] uppercase tracking-[0.12em] text-muted">
             {round.data?.name ?? 'Round'}
           </div>
-          <h1 className="font-display text-[26px] font-extrabold italic uppercase leading-none text-ink [overflow-wrap:anywhere]">
+          <h1 className="font-display text-[26px] font-extrabold uppercase leading-none text-ink [overflow-wrap:anywhere]">
             {data.teamName}
           </h1>
         </div>
         <div className="text-right">
-          <div className="font-mono text-[10px] uppercase tracking-[0.12em] text-muted-2">Round points</div>
+          <div className="font-mono text-[10px] uppercase tracking-[0.12em] text-muted">Round points</div>
           <div className="font-mono text-[28px] font-bold leading-none text-ink">
             {scored ? data.total.toFixed(1) : '—'}
           </div>
@@ -111,7 +111,7 @@ export function TeamPicks() {
           }`}
         >
           <span className={`h-[6px] w-[6px] rounded-full ${scored ? 'bg-success' : 'bg-muted-2'}`} />
-          <span className={`font-mono text-[12px] font-semibold ${scored ? 'text-success' : 'text-muted-2'}`}>
+          <span className={`font-mono text-[12px] font-semibold ${scored ? 'text-success' : 'text-muted'}`}>
             {scored ? 'FINAL' : 'AWAITING SCORING'}
           </span>
         </div>
@@ -141,8 +141,14 @@ export function TeamPicks() {
                       <div
                         key={key(pick)}
                         className="flex min-w-0 items-center gap-3 rounded-[4px] border border-line bg-surface-2 px-3 py-3 sm:gap-4 sm:px-4"
-                        style={{ borderLeft: `3px solid ${m.hex}` }}
                       >
+                        {/* Class identity leads the row as a broadcast slash, matching the pick
+                            page. It was a 3px colored left border — a banned side-stripe. */}
+                        <span
+                          className="h-[42px] w-[4px] flex-none [transform:skewX(-14deg)]"
+                          style={{ background: m.hex }}
+                          aria-hidden="true"
+                        />
                         <EntityThumb
                           entityType={pick.entityType}
                           entityId={pick.entityId}
@@ -152,13 +158,13 @@ export function TeamPicks() {
                           className="w-20 sm:w-24"
                         />
                         <div className="min-w-0 flex-1">
-                          <div className="truncate font-display text-[16px] font-bold uppercase text-ink sm:text-[18px]">
+                          <div className="font-display text-[16px] font-bold uppercase leading-[1.15] text-ink [overflow-wrap:anywhere] sm:text-[18px] line-clamp-2">
                             {info?.displayName ?? `#${pick.entityId}`}
                           </div>
                           <DriverLineup drivers={info?.drivers ?? []} className="mt-[7px]" />
                           {/* per-source breakdown — Q / R1 / R2 contributions (API pre-orders them) */}
                           {pick.scores.length > 0 && (
-                            <div className="mt-[7px] flex flex-wrap gap-x-3 gap-y-1 font-mono text-[11px] text-muted-2">
+                            <div className="mt-[7px] flex flex-wrap gap-x-3 gap-y-1 font-mono text-[11px] text-muted">
                               {pick.scores.map((s) => (
                                 <span key={`${s.source}:${s.raceNumber ?? 0}`}>
                                   {srcLabel(s, data.raceCount)} {fmtPts(s.points)}
@@ -171,7 +177,7 @@ export function TeamPicks() {
                           <div className="font-mono text-[18px] font-bold leading-none text-ink">
                             {pick.scores.length > 0 ? pick.points.toFixed(1) : '—'}
                           </div>
-                          <div className="mt-[3px] font-mono text-[9px] uppercase tracking-[0.1em] text-muted-2">pts</div>
+                          <div className="mt-[3px] font-mono text-[9px] uppercase tracking-[0.1em] text-muted">pts</div>
                         </div>
                       </div>
                     )

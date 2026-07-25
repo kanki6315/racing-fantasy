@@ -94,7 +94,7 @@ function ChampionshipsTab() {
     <div className="grid grid-cols-1 gap-5 lg:grid-cols-[1.4fr_1fr]">
       <div className="rounded-[6px] border border-line bg-surface">
         <div className="flex items-center justify-between border-b border-line px-4 py-3">
-          <span className="font-mono text-[10px] tracking-[0.14em] uppercase text-muted-2">
+          <span className="font-mono text-[10px] tracking-[0.14em] uppercase text-muted">
             {champs.length} series
           </span>
           <GhostButton onClick={() => setSel(null)}>+ New</GhostButton>
@@ -112,7 +112,7 @@ function ChampionshipsTab() {
                 </div>
                 <div className="font-mono text-[10px] text-muted">/{c.slug}</div>
               </div>
-              <span className="shrink-0 rounded-[3px] border border-line-2 bg-surface-3 px-2 py-[2px] font-mono text-[10px] text-muted-2">
+              <span className="shrink-0 rounded-[3px] border border-line-2 bg-surface-3 px-2 py-[2px] font-mono text-[10px] text-muted">
                 #{c.order}
               </span>
             </ListRow>
@@ -151,7 +151,7 @@ function ChampionshipForm({
 
   return (
     <div className="rounded-[6px] border border-line bg-surface p-4">
-      <h2 className="mb-4 font-mono text-[10px] tracking-[0.14em] uppercase text-muted-2">
+      <h2 className="mb-4 font-mono text-[10px] tracking-[0.14em] uppercase text-muted">
         {championship ? 'Edit Championship' : 'New Championship'}
       </h2>
       <div className="grid gap-4">
@@ -180,7 +180,7 @@ function ChampionshipForm({
 
       {championship && (
         <div className="mt-5 border-t border-line pt-4">
-          <div className="mb-2 font-mono text-[9px] tracking-[0.12em] uppercase text-muted-2">Seasons</div>
+          <div className="mb-2 font-mono text-[9px] tracking-[0.12em] uppercase text-muted">Seasons</div>
           <div className="mb-3 flex flex-wrap gap-2">
             {seasons.length === 0 && <span className="font-sans text-[12px] text-muted">No seasons yet</span>}
             {[...seasons]
@@ -232,7 +232,7 @@ function ClassesTab() {
     <div className="grid grid-cols-1 gap-5 lg:grid-cols-[1.4fr_1fr]">
       <div className="rounded-[6px] border border-line bg-surface">
         <div className="flex items-center justify-between border-b border-line px-4 py-3">
-          <span className="font-mono text-[10px] tracking-[0.14em] uppercase text-muted-2">
+          <span className="font-mono text-[10px] tracking-[0.14em] uppercase text-muted">
             {championship?.name} · {classes.length} classes
           </span>
           <GhostButton onClick={() => setSel(null)}>+ New</GhostButton>
@@ -250,7 +250,7 @@ function ClassesTab() {
                 <span className="font-display text-[14px] font-semibold uppercase tracking-[0.02em] text-ink">
                   {c.name}
                 </span>
-                <span className="ml-auto font-mono text-[10px] text-muted-2">#{c.sortOrder}</span>
+                <span className="ml-auto font-mono text-[10px] text-muted">#{c.sortOrder}</span>
               </ListRow>
             )
           })
@@ -293,7 +293,7 @@ function ClassForm({
 
   return (
     <div className="rounded-[6px] border border-line bg-surface p-4">
-      <h2 className="mb-4 font-mono text-[10px] tracking-[0.14em] uppercase text-muted-2">
+      <h2 className="mb-4 font-mono text-[10px] tracking-[0.14em] uppercase text-muted">
         {cls ? 'Edit Class' : 'New Class'}
       </h2>
       <div className="grid gap-4">
@@ -376,7 +376,7 @@ function RoundsTab() {
     <div className="grid grid-cols-1 gap-5 lg:grid-cols-[1.4fr_1fr]">
       <div className="rounded-[6px] border border-line bg-surface">
         <div className="flex items-center justify-between border-b border-line px-4 py-3">
-          <span className="font-mono text-[10px] tracking-[0.14em] uppercase text-muted-2">
+          <span className="font-mono text-[10px] tracking-[0.14em] uppercase text-muted">
             {season?.year} · {rounds.length} rounds
           </span>
           <GhostButton onClick={() => setSel(null)}>+ New</GhostButton>
@@ -462,7 +462,7 @@ function RoundForm({
 
   return (
     <div className="rounded-[6px] border border-line bg-surface p-4">
-      <h2 className="mb-4 font-mono text-[10px] tracking-[0.14em] uppercase text-muted-2">
+      <h2 className="mb-4 font-mono text-[10px] tracking-[0.14em] uppercase text-muted">
         {round ? 'Edit Round' : 'New Round'}
       </h2>
       <div className="grid gap-4">
@@ -592,7 +592,7 @@ function SessionsTab() {
       </div>
 
       <div className="rounded-[6px] border border-line bg-surface">
-        <div className="border-b border-line px-4 py-3 font-mono text-[10px] tracking-[0.14em] uppercase text-muted-2">
+        <div className="border-b border-line px-4 py-3 font-mono text-[10px] tracking-[0.14em] uppercase text-muted">
           {round?.name} · {sessions.length} sessions
         </div>
         {sessions.length === 0 ? (
@@ -601,7 +601,7 @@ function SessionsTab() {
           </div>
         ) : (
           <div className="grid grid-cols-[1fr_1fr_1.2fr_auto] items-center gap-x-4">
-            <div className="contents font-mono text-[9px] tracking-[0.12em] uppercase text-muted-2">
+            <div className="contents font-mono text-[9px] tracking-[0.12em] uppercase text-muted">
               <div className="border-b border-line px-4 py-2">Class</div>
               <div className="border-b border-line px-4 py-2">Type</div>
               <div className="border-b border-line px-4 py-2">Status</div>
@@ -620,7 +620,7 @@ function SessionsTab() {
                 <div className="border-b border-line px-4 py-3 font-mono text-[12px] text-ink-2">
                   {s.type}
                   {s.type === 'Race' && (
-                    <span className="ml-2 text-muted-2">R{s.raceNumber}</span>
+                    <span className="ml-2 text-muted">R{s.raceNumber}</span>
                   )}
                 </div>
                 <div className="border-b border-line px-4 py-3">
@@ -651,7 +651,7 @@ function SessionsTab() {
                   <button
                     type="button"
                     onClick={() => deleteSession.mutate(s.id)}
-                    className="font-mono text-[11px] uppercase text-muted-2 hover:text-danger"
+                    className="font-mono text-[11px] uppercase text-muted hover:text-danger"
                   >
                     Delete
                   </button>
@@ -707,7 +707,7 @@ function CompositionEditor({
     <div className="rounded-[6px] border border-line bg-surface">
       <div className="flex flex-wrap items-center justify-between gap-3 border-b border-line px-4 py-3">
         <div>
-          <div className="font-mono text-[10px] tracking-[0.14em] uppercase text-muted-2">Composition</div>
+          <div className="font-mono text-[10px] tracking-[0.14em] uppercase text-muted">Composition</div>
           <div className="mt-1 font-sans text-[12px] text-muted">
             Picks required per class.{' '}
             {effScope === 'round'
@@ -739,7 +739,7 @@ function CompositionEditor({
         </div>
       ) : (
         <>
-          <div className="grid grid-cols-[2fr_5rem_5rem_1fr] border-b border-line px-4 py-2 font-mono text-[9px] tracking-[0.12em] uppercase text-muted-2">
+          <div className="grid grid-cols-[2fr_5rem_5rem_1fr] border-b border-line px-4 py-2 font-mono text-[9px] tracking-[0.12em] uppercase text-muted">
             <div>Class</div>
             <div className="text-center">Min</div>
             <div className="text-center">Max</div>
@@ -825,7 +825,7 @@ function CompositionRow({
         <ClassSwatch hex={classMeta(cls.name, cls.color).hex} />
         <span className="font-display text-[13px] font-semibold uppercase text-ink">{cls.name}</span>
         {showRunning && !running && (
-          <span className="font-mono text-[9px] uppercase tracking-[0.08em] text-muted-2">not running</span>
+          <span className="font-mono text-[9px] uppercase tracking-[0.08em] text-muted">not running</span>
         )}
       </div>
       <div className="px-1">
@@ -843,7 +843,7 @@ function CompositionRow({
               override
             </span>
           ) : (
-            <span className="font-mono text-[9px] uppercase tracking-[0.08em] text-muted-2">
+            <span className="font-mono text-[9px] uppercase tracking-[0.08em] text-muted">
               default {defaultRule ? `${defaultRule.minPicks}/${defaultRule.maxPicks}` : '—'}
             </span>
           ))}
@@ -884,7 +884,7 @@ function BonusFormatsEditor({ seasonId }: { seasonId: number }) {
   return (
     <div className="rounded-[6px] border border-line bg-surface">
       <div className="border-b border-line px-4 py-3">
-        <div className="font-mono text-[10px] tracking-[0.14em] uppercase text-muted-2">Bonus Formats</div>
+        <div className="font-mono text-[10px] tracking-[0.14em] uppercase text-muted">Bonus Formats</div>
         <div className="mt-1 font-sans text-[12px] text-muted">
           Free per-round bonuses players may add to a roster (ADR-0006). Configured per season.
         </div>
@@ -945,10 +945,10 @@ function BonusRow({
     <div className="flex flex-wrap items-center gap-3 border-b border-line px-4 py-3 last:border-b-0">
       <div className="min-w-[180px] flex-1">
         <div className="font-display text-[13px] font-semibold uppercase text-ink">{meta.label}</div>
-        <div className="font-mono text-[10px] text-muted-2">{rule.appliesTo}</div>
+        <div className="font-mono text-[10px] text-muted">{rule.appliesTo}</div>
       </div>
       <div className="flex items-center gap-2">
-        <span className="font-mono text-[9px] uppercase tracking-[0.08em] text-muted-2">Max</span>
+        <span className="font-mono text-[9px] uppercase tracking-[0.08em] text-muted">Max</span>
         <TextInput value={maxCount} onChange={(e) => setMaxCount(e.target.value)} inputMode="numeric" className="w-16 text-center" />
         <PrimaryButton onClick={() => valid && dirty && onSave(n)} disabled={!valid || !dirty || busy} className="!px-3">
           Save

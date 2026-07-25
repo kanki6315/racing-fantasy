@@ -13,7 +13,7 @@ export function RateLimitModal({ open, onOpenChange }: { open: boolean; onOpenCh
           <div className="h-1 bg-gradient-to-r from-brand to-brand-3" />
           <div className="px-7 pb-6 pt-[26px]">
             <div className="font-mono text-[11px] tracking-[0.14em] text-brand mb-[9px]">// EASY_THERE</div>
-            <Dialog.Title className="font-display text-[24px] font-extrabold italic uppercase leading-[0.96] text-ink">
+            <Dialog.Title className="font-display text-[24px] font-extrabold uppercase leading-[0.96] text-ink">
               Slow down a sec
             </Dialog.Title>
             <Dialog.Description className="mt-3 font-sans text-[13px] leading-[19px] text-muted">

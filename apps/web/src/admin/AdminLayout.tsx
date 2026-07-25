@@ -33,7 +33,7 @@ function ContextSelect({
 }) {
   return (
     <label className="flex items-center gap-2">
-      <span className="font-mono text-[9px] tracking-[0.12em] uppercase text-muted-2">{label}</span>
+      <span className="font-mono text-[9px] tracking-[0.12em] uppercase text-muted">{label}</span>
       <select
         value={value ?? ''}
         onChange={(e) => onChange(Number(e.target.value))}
@@ -97,7 +97,7 @@ function AdminTopbar() {
 
       <div className="flex items-center gap-5">
         <span className="flex items-center gap-[6px]">
-          <span className="font-mono text-[10px] tracking-[0.1em] uppercase text-muted-2">Player Lock</span>
+          <span className="font-mono text-[10px] tracking-[0.1em] uppercase text-muted">Player Lock</span>
           <span className={`font-mono text-[12px] font-medium ${lock.locked ? 'text-danger' : 'text-warn'}`}>
             {lock.text}
           </span>
@@ -105,7 +105,7 @@ function AdminTopbar() {
         <div className="flex items-center gap-[10px]">
           <div className="text-right leading-tight">
             <div className="font-sans text-[12px] font-semibold text-ink">{user?.name ?? 'Admin'}</div>
-            <div className="font-mono text-[9px] tracking-[0.08em] uppercase text-muted-2">League Operator</div>
+            <div className="font-mono text-[9px] tracking-[0.08em] uppercase text-muted">League Operator</div>
           </div>
           <div className="flex h-8 w-8 items-center justify-center rounded-full bg-surface-2 font-display text-[12px] font-bold text-ink-2">
             {initials}
@@ -120,7 +120,7 @@ function navClass({ isActive }: { isActive: boolean }) {
   return [
     'relative flex h-9 items-center rounded-[4px] pl-4 pr-3 font-display text-[13px] font-semibold uppercase tracking-[0.04em] transition-colors',
     isActive
-      ? 'bg-surface-2 text-ink before:absolute before:left-0 before:top-1/2 before:h-4 before:w-[3px] before:-translate-y-1/2 before:rounded-full before:bg-brand'
+      ? 'bg-surface-2 text-ink before:absolute before:left-0 before:top-1/2 before:h-4 before:w-[3px] before:-translate-y-1/2 before:[transform:translateY(-50%)_skewX(-14deg)] before:bg-brand'
       : 'text-muted hover:text-ink-2',
   ].join(' ')
 }
@@ -129,13 +129,13 @@ function AdminSidebar() {
   return (
     <aside className="flex w-[212px] shrink-0 flex-col border-r border-line bg-surface-3">
       <nav className="flex flex-1 flex-col gap-[2px] px-3 py-5">
-        <div className="px-1 pb-2 font-mono text-[9px] tracking-[0.16em] uppercase text-muted-2">Console</div>
+        <div className="px-1 pb-2 font-mono text-[9px] tracking-[0.16em] uppercase text-muted">Console</div>
         {consoleNav.map((l) => (
           <NavLink key={l.to} to={l.to} end={l.end} className={navClass}>
             {l.label}
           </NavLink>
         ))}
-        <div className="px-1 pb-2 pt-5 font-mono text-[9px] tracking-[0.16em] uppercase text-muted-2">Governance</div>
+        <div className="px-1 pb-2 pt-5 font-mono text-[9px] tracking-[0.16em] uppercase text-muted">Governance</div>
         {governanceNav.map((l) => (
           <NavLink key={l.to} to={l.to} className={navClass}>
             {l.label}
@@ -144,7 +144,7 @@ function AdminSidebar() {
       </nav>
       <div className="flex items-center gap-2 border-t border-line px-4 py-3">
         <span className="h-[6px] w-[6px] rounded-full bg-success" />
-        <span className="font-mono text-[9px] tracking-[0.08em] uppercase text-muted-2">API · all systems go</span>
+        <span className="font-mono text-[9px] tracking-[0.08em] uppercase text-muted">API · all systems go</span>
       </div>
     </aside>
   )

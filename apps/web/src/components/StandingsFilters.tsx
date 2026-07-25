@@ -11,11 +11,18 @@ export function FilterTab({
   children: ReactNode
 }) {
   return (
+    // Selection shifts border + fill + ink weight (the chip spec) and carries the nav's 2px brand
+    // underline as an inset rule — three filter rows can be active at once, and three solid-red
+    // pills would blow the whole screen's red budget on a state that is neither the primary action
+    // nor the live one. Touch target is 44px on phones, tightening to 36px on pointer-sized screens.
     <button
       type="button"
       onClick={onClick}
-      className={`h-8 rounded-[3px] px-[14px] font-display text-[13px] font-semibold uppercase tracking-[0.04em] transition-colors cursor-pointer ${
-        active ? 'bg-brand text-ink' : 'border border-line-2 text-muted hover:text-ink-2'
+      aria-pressed={active}
+      className={`h-11 rounded-[3px] px-[14px] font-display text-[13px] font-semibold uppercase tracking-[0.04em] transition-colors cursor-pointer sm:h-9 ${
+        active
+          ? 'border border-line-3 bg-surface-2 text-ink shadow-[inset_0_-2px_0_0_var(--color-brand)]'
+          : 'border border-line-2 text-muted hover:text-ink-2'
       }`}
     >
       {children}
@@ -27,7 +34,7 @@ export function FilterTab({
 export function FilterRow({ label, children }: { label: string; children: ReactNode }) {
   return (
     <div className="flex flex-wrap items-center gap-[6px]">
-      <span className="mr-1 font-display text-[10px] tracking-[0.14em] uppercase text-muted-2">{label}</span>
+      <span className="mr-1 font-display text-[10px] tracking-[0.14em] uppercase text-muted">{label}</span>
       {children}
     </div>
   )

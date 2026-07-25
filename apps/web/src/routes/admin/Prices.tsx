@@ -569,7 +569,7 @@ export function Prices() {
         />
         {invalidCount > 0 && <Stat label="Errors" value={<span className="text-danger">{invalidCount}</span>} />}
         {prevRound && (
-          <span className="font-mono text-[10px] uppercase tracking-[0.06em] text-muted-2">
+          <span className="font-mono text-[10px] uppercase tracking-[0.06em] text-muted">
             Δ vs RD {String(prevRound.sequence).padStart(2, '0')}
           </span>
         )}
@@ -588,7 +588,7 @@ export function Prices() {
         <div className="mb-5 rounded-[6px] border border-brand/30 bg-surface px-5 py-4">
           <div className="flex flex-wrap items-end gap-x-8 gap-y-4">
             <label className="flex flex-col gap-1">
-              <span className="font-mono text-[9px] uppercase tracking-[0.12em] text-muted-2">
+              <span className="font-mono text-[9px] uppercase tracking-[0.12em] text-muted">
                 Steepness γ · {suggest.gamma.toFixed(2)}
               </span>
               <input
@@ -603,7 +603,7 @@ export function Prices() {
             </label>
 
             <div className="flex flex-col gap-1">
-              <span className="font-mono text-[9px] uppercase tracking-[0.12em] text-muted-2">Budget target</span>
+              <span className="font-mono text-[9px] uppercase tracking-[0.12em] text-muted">Budget target</span>
               <div className="flex items-center gap-2">
                 <div className="flex overflow-hidden rounded-[4px] border border-line-2">
                   {(['alpha', 'total'] as const).map((bm) => (
@@ -645,7 +645,7 @@ export function Prices() {
             </div>
 
             <label className="flex flex-col gap-1">
-              <span className="font-mono text-[9px] uppercase tracking-[0.12em] text-muted-2">
+              <span className="font-mono text-[9px] uppercase tracking-[0.12em] text-muted">
                 Star roster · {Math.round(suggest.star * 100)}% cap
               </span>
               <input
@@ -661,7 +661,7 @@ export function Prices() {
             </label>
 
             <label className="flex flex-col gap-1">
-              <span className="font-mono text-[9px] uppercase tracking-[0.12em] text-muted-2">Rounding</span>
+              <span className="font-mono text-[9px] uppercase tracking-[0.12em] text-muted">Rounding</span>
               <select
                 value={suggest.step}
                 onChange={(e) => setSuggest((s) => ({ ...s, step: Number(e.target.value) }))}
@@ -692,18 +692,18 @@ export function Prices() {
             </div>
 
             <div className="ml-auto flex flex-col items-end gap-1">
-              <span className="font-mono text-[9px] uppercase tracking-[0.12em] text-muted-2">Avg roster</span>
+              <span className="font-mono text-[9px] uppercase tracking-[0.12em] text-muted">Avg roster</span>
               {totalSlots === 0 ? (
                 <span className="font-mono text-[11px] text-warn">no pickable classes this round</span>
               ) : (
                 <>
                   <span className={`font-mono text-[13px] ${driftOk ? 'text-success' : 'text-warn'}`}>
                     ${expectedCost.toFixed(1)}M
-                    <span className="text-muted-2"> / target ${budgetTarget.toFixed(1)}M</span>
+                    <span className="text-muted"> / target ${budgetTarget.toFixed(1)}M</span>
                   </span>
                   <span className="font-mono text-[10px] text-muted">
                     all class tops ${starRosterCost(curveInputs()).toFixed(1)}M
-                    <span className="text-muted-2"> / ${(suggest.star * cap).toFixed(1)}M</span>
+                    <span className="text-muted"> / ${(suggest.star * cap).toFixed(1)}M</span>
                   </span>
                 </>
               )}
@@ -723,7 +723,7 @@ export function Prices() {
             }}
             className="mt-4 flex flex-wrap items-center gap-x-4 gap-y-2 rounded-[4px] border border-dashed border-line-2 px-3 py-2"
           >
-            <span className="font-mono text-[9px] uppercase tracking-[0.12em] text-muted-2">Championship points</span>
+            <span className="font-mono text-[9px] uppercase tracking-[0.12em] text-muted">Championship points</span>
             <label className="cursor-pointer font-mono text-[10px] uppercase tracking-[0.06em] text-ink-2 hover:text-brand">
               Drop Al Kamel points JSON — or browse
               <input
@@ -739,7 +739,7 @@ export function Prices() {
             </label>
             {Object.keys(suggest.points).length > 0 && (
               <div className="flex items-center gap-2">
-                <span className="font-mono text-[9px] uppercase tracking-[0.12em] text-muted-2">Spacing</span>
+                <span className="font-mono text-[9px] uppercase tracking-[0.12em] text-muted">Spacing</span>
                 <div className="flex overflow-hidden rounded-[4px] border border-line-2">
                   {(['curve', 'points'] as const).map((sp) => (
                     <button
@@ -765,7 +765,7 @@ export function Prices() {
               ))}
             </ul>
           )}
-          <p className="mt-3 font-mono text-[9px] uppercase tracking-[0.06em] text-muted-2">
+          <p className="mt-3 font-mono text-[9px] uppercase tracking-[0.06em] text-muted">
             Rank with ▲▼ · click ◇ to pin an exact price (the ladder bends through pins) · suggestions fill
             the inputs, Save All persists
           </p>
@@ -800,7 +800,7 @@ export function Prices() {
                 <div className="flex items-center gap-2 border-b border-line px-4 py-2">
                   <ClassSwatch hex={classMeta(cl.name, cl.color).hex} />
                   <span className="font-display text-[13px] font-semibold uppercase text-ink">{cl.name}</span>
-                  <span className="font-mono text-[10px] text-muted-2">
+                  <span className="font-mono text-[10px] text-muted">
                     {classRows.length} {mode === 'Car' ? 'cars' : 'drivers'}
                   </span>
                   {suggest.on && anchors && (
@@ -829,7 +829,7 @@ export function Prices() {
 
                 {/* header */}
                 <div
-                  className={`grid ${gridCols} gap-x-3 border-b border-line px-4 py-2 font-mono text-[9px] uppercase tracking-[0.1em] text-muted-2`}
+                  className={`grid ${gridCols} gap-x-3 border-b border-line px-4 py-2 font-mono text-[9px] uppercase tracking-[0.1em] text-muted`}
                 >
                   {suggest.on && <div>Rank</div>}
                   <div>No.</div>
@@ -890,7 +890,7 @@ export function Prices() {
                                 onClick={() => toggleScratch(k)}
                                 aria-label={`Scratch ${r.label} — not competing this round`}
                                 title="Scratch — not competing this round"
-                                className="rounded-[3px] px-[3px] text-[10px] text-muted-2 hover:text-danger"
+                                className="rounded-[3px] px-[3px] text-[10px] text-muted hover:text-danger"
                               >
                                 ✕
                               </button>
@@ -898,16 +898,18 @@ export function Prices() {
                           )}
                         </div>
                       )}
-                      <div
-                        className="border-l-[3px] pl-2 font-mono text-[13px] font-semibold text-ink"
-                        style={{ borderColor: classMeta(r.className, classColor(r.classId)).hex }}
-                      >
+                      {/* Class identity rides on a leading broadcast slash, not a side-stripe border. */}
+                      <div className="flex items-center gap-2 font-mono text-[13px] font-semibold text-ink">
+                        <span
+                          className="h-[13px] w-[3px] flex-none [transform:skewX(-14deg)]"
+                          style={{ background: classMeta(r.className, classColor(r.classId)).hex }}
+                        />
                         {r.number ?? '—'}
                       </div>
                       <div className="truncate font-sans text-[13px] text-ink-2">
                         {r.label}
                         {suggest.on && suggest.points[k] && (
-                          <span className="ml-2 font-mono text-[10px] text-muted-2">
+                          <span className="ml-2 font-mono text-[10px] text-muted">
                             P{suggest.points[k].position} · {suggest.points[k].netPoints}
                             {suggest.points[k].form === 'hot' && (
                               <span title="On form — recent rounds beat season average" className="ml-1 text-success">
@@ -925,13 +927,13 @@ export function Prices() {
                           </span>
                         )}
                       </div>
-                      <div className="text-right font-mono text-[12px] text-muted-2">
+                      <div className="text-right font-mono text-[12px] text-muted">
                         {r.lastRound != null ? `$${r.lastRound.toFixed(1)}` : '—'}
                       </div>
                       {suggest.on &&
                         (scratched ? (
                           <div className="flex items-center gap-2">
-                            <span className="font-mono text-[9px] uppercase tracking-[0.08em] text-muted-2">
+                            <span className="font-mono text-[9px] uppercase tracking-[0.08em] text-muted">
                               Scratched
                             </span>
                             {r.original != null && (
@@ -959,7 +961,7 @@ export function Prices() {
                               onClick={() => togglePin(k)}
                               aria-label={pinned ? `Unpin ${r.label}` : `Pin ${r.label} at suggested price`}
                               title={pinned ? 'Unpin — return to curve' : 'Pin exact price'}
-                              className={`font-mono text-[13px] ${pinned ? 'text-brand' : 'text-muted-2 hover:text-ink-2'}`}
+                              className={`font-mono text-[13px] ${pinned ? 'text-brand' : 'text-muted hover:text-ink-2'}`}
                             >
                               {pinned ? '◆' : '◇'}
                             </button>
@@ -992,7 +994,7 @@ export function Prices() {
                         ))}
                       <div>
                         <div className="relative">
-                          <span className="pointer-events-none absolute left-2 top-1/2 -translate-y-1/2 font-mono text-[12px] text-muted-2">
+                          <span className="pointer-events-none absolute left-2 top-1/2 -translate-y-1/2 font-mono text-[12px] text-muted">
                             $
                           </span>
                           <input
@@ -1016,7 +1018,7 @@ export function Prices() {
                       </div>
                       <div className="text-right font-mono text-[12px]">
                         {delta == null || delta === 0 ? (
-                          <span className="text-muted-2">—</span>
+                          <span className="text-muted">—</span>
                         ) : (
                           <span className={delta > 0 ? 'text-success' : 'text-danger'}>
                             {delta > 0 ? '+' : ''}
@@ -1039,7 +1041,7 @@ export function Prices() {
 function Stat({ label, value }: { label: string; value: React.ReactNode }) {
   return (
     <div className="flex flex-col">
-      <span className="font-mono text-[9px] uppercase tracking-[0.12em] text-muted-2">{label}</span>
+      <span className="font-mono text-[9px] uppercase tracking-[0.12em] text-muted">{label}</span>
       <span className="font-mono text-[15px] text-ink">{value}</span>
     </div>
   )
@@ -1075,7 +1077,7 @@ function Ladder({ values }: { values: number[] }) {
     y: h - 3 - ((v - min) / span) * (h - 6),
   }))
   return (
-    <svg width={w} height={h} aria-label="Suggested price ladder" className="text-muted-2">
+    <svg width={w} height={h} aria-label="Suggested price ladder" className="text-muted">
       <polyline
         points={pts.map((p) => `${p.x},${p.y}`).join(' ')}
         fill="none"

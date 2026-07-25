@@ -1,6 +1,6 @@
 # ImsaFantasy API
 
-Modular-monolith backend for the IMSA Fantasy League. See [../docs](../docs/README.md)
+Modular-monolith backend for the Endurance Fantasy League. See [../docs](../docs/README.md)
 for the design (ADRs, ERD, roadmap). This is **Phase 0** — schema + project structure.
 
 ## Layout

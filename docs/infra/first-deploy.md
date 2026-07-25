@@ -2,7 +2,7 @@
 
 **Created:** 2026-06-18 · **Status:** ready to execute (first deploy)
 
-How IMSA Fantasy goes to production. The image bucket (S3 + CloudFront) is already live — see
+How Endurance Fantasy goes to production. The image bucket (S3 + CloudFront) is already live — see
 [s3-cloudfront-setup.md](s3-cloudfront-setup.md). This covers the **API**, the **database**, and the
 **web SPA**.
 

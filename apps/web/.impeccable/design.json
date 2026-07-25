@@ -1,36 +1,304 @@
 {
   "schemaVersion": 2,
-  "generatedAt": "2026-06-19T00:00:00Z",
-  "title": "Design System: IMSA Fantasy",
+  "generatedAt": "2026-07-25T01:45:00Z",
+  "title": "Design System: Endurance Fantasy",
   "extensions": {
     "colorMeta": {
-      "brand": { "role": "primary", "displayName": "IMSA Red", "canonical": "#e10600", "tonalRamp": ["#2a0100", "#560200", "#820300", "#ad0400", "#e10600", "#ff2d2d", "#ff5d5d", "#ffb3b3"] },
-      "bg": { "role": "neutral", "displayName": "Void", "canonical": "#0a0b0d", "tonalRamp": ["#0a0b0d", "#101317", "#16181c", "#1f242a", "#2a2d33", "#3a3f47", "#5c626b", "#8a8f98"] },
-      "ink": { "role": "neutral", "displayName": "Ink", "canonical": "#ffffff", "tonalRamp": ["#5c626b", "#8a8f98", "#c8ccd2", "#e6e8eb", "#ffffff"] },
-      "class-gtp": { "role": "secondary", "displayName": "GTP Red", "canonical": "#ff2d2d", "tonalRamp": ["#330909", "#5c1010", "#8a1818", "#b82020", "#e62828", "#ff2d2d", "#ff6b6b", "#ffb3b3"] },
-      "class-lmp2": { "role": "secondary", "displayName": "LMP2 Blue", "canonical": "#2e7dff", "tonalRamp": ["#0a1933", "#11295c", "#183a8a", "#1f4ab8", "#2663e6", "#2e7dff", "#6ba4ff", "#b3cdff"] },
-      "class-gtdpro": { "role": "secondary", "displayName": "GTD PRO Amber", "canonical": "#ffb400", "tonalRamp": ["#332400", "#5c4100", "#8a6100", "#b88000", "#e6a000", "#ffb400", "#ffc23d", "#ffe0a0"] },
-      "class-gtd": { "role": "secondary", "displayName": "GTD Green", "canonical": "#4ade80", "tonalRamp": ["#0c2818", "#13402a", "#1b5c3c", "#23784f", "#2e9461", "#4ade80", "#86efac", "#bbf7d0"] },
-      "warn": { "role": "tertiary", "displayName": "Warn Amber", "canonical": "#ffc23d", "tonalRamp": ["#332600", "#5c4400", "#8a6600", "#b88800", "#e6aa00", "#ffc23d", "#ffd573", "#ffe9b3"] },
-      "danger": { "role": "tertiary", "displayName": "Danger Red", "canonical": "#ff5d5d", "tonalRamp": ["#330d0d", "#5c1818", "#8a2424", "#b83030", "#e63c3c", "#ff5d5d", "#ff8c8c", "#ffc2c2"] }
+      "brand": {
+        "role": "primary",
+        "displayName": "Endurance Red",
+        "canonical": "#e10600",
+        "tonalRamp": [
+          "#2b0300",
+          "#4d0500",
+          "#750800",
+          "#9e0a00",
+          "#c40b00",
+          "#e10600",
+          "#ff2d2d",
+          "#ff9d9d"
+        ]
+      },
+      "brand-3": {
+        "role": "primary",
+        "displayName": "Red Glow — hover, focus ring, red-on-dark text",
+        "canonical": "#ff5d5d",
+        "tonalRamp": [
+          "#330d0d",
+          "#5c1717",
+          "#8a2222",
+          "#b82d2d",
+          "#e63838",
+          "#ff5d5d",
+          "#ff9191",
+          "#ffc7c7"
+        ]
+      },
+      "bg": {
+        "role": "neutral",
+        "displayName": "Void",
+        "canonical": "#0a0b0d",
+        "tonalRamp": [
+          "#050506",
+          "#0a0b0d",
+          "#0e0f12",
+          "#101317",
+          "#16181c",
+          "#1f242a",
+          "#2a2d33",
+          "#3a3f47"
+        ]
+      },
+      "surface": {
+        "role": "neutral",
+        "displayName": "Panel",
+        "canonical": "#101317",
+        "tonalRamp": [
+          "#050506",
+          "#0a0b0d",
+          "#0e0f12",
+          "#101317",
+          "#16181c",
+          "#1f242a",
+          "#2a2d33",
+          "#3a3f47"
+        ]
+      },
+      "line": {
+        "role": "neutral",
+        "displayName": "Hairline",
+        "canonical": "#1f242a",
+        "tonalRamp": [
+          "#0a0b0d",
+          "#0e0f12",
+          "#16181c",
+          "#1f242a",
+          "#2a2d33",
+          "#3a3f47",
+          "#5c626b",
+          "#8a8f98"
+        ]
+      },
+      "ink": {
+        "role": "neutral",
+        "displayName": "Ink",
+        "canonical": "#ffffff",
+        "tonalRamp": [
+          "#3a3f47",
+          "#5c626b",
+          "#6f757e",
+          "#8a8f98",
+          "#a5aab2",
+          "#c8ccd2",
+          "#e6e9ed",
+          "#ffffff"
+        ]
+      },
+      "muted": {
+        "role": "neutral",
+        "displayName": "Muted Ink — the text contrast floor",
+        "canonical": "#8a8f98",
+        "tonalRamp": [
+          "#16181c",
+          "#1f242a",
+          "#2a2d33",
+          "#3a3f47",
+          "#5c626b",
+          "#8a8f98",
+          "#c8ccd2",
+          "#e6e9ed"
+        ]
+      },
+      "muted-2": {
+        "role": "neutral",
+        "displayName": "Inert Gray — fills and strokes only, never text",
+        "canonical": "#5c626b",
+        "tonalRamp": [
+          "#16181c",
+          "#1f242a",
+          "#2a2d33",
+          "#3a3f47",
+          "#5c626b",
+          "#8a8f98",
+          "#c8ccd2",
+          "#e6e9ed"
+        ]
+      },
+      "class-gtp": {
+        "role": "secondary",
+        "displayName": "GTP Red",
+        "canonical": "#ff2d2d",
+        "tonalRamp": [
+          "#330606",
+          "#5c0a0a",
+          "#8a0f0f",
+          "#b81414",
+          "#e61a1a",
+          "#ff2d2d",
+          "#ff6b6b",
+          "#ffb3b3"
+        ]
+      },
+      "class-lmp2": {
+        "role": "secondary",
+        "displayName": "LMP2 Blue",
+        "canonical": "#2e7dff",
+        "tonalRamp": [
+          "#04142e",
+          "#072a5c",
+          "#0b3f8a",
+          "#0f55b8",
+          "#1a6ae6",
+          "#2e7dff",
+          "#6ba4ff",
+          "#b3ccff"
+        ]
+      },
+      "class-gtdpro": {
+        "role": "secondary",
+        "displayName": "GTD PRO Amber",
+        "canonical": "#ffb400",
+        "tonalRamp": [
+          "#332400",
+          "#5c4100",
+          "#8a6100",
+          "#b88200",
+          "#e6a200",
+          "#ffb400",
+          "#ffc23d",
+          "#ffe0a3"
+        ]
+      },
+      "class-gtd": {
+        "role": "secondary",
+        "displayName": "GTD Green",
+        "canonical": "#4ade80",
+        "tonalRamp": [
+          "#052e16",
+          "#08461f",
+          "#0d6b2f",
+          "#12903f",
+          "#1eb857",
+          "#4ade80",
+          "#86efac",
+          "#c4f7d4"
+        ]
+      },
+      "success": {
+        "role": "tertiary",
+        "displayName": "Success Teal — deliberately offset from GTD green",
+        "canonical": "#2dd4bf",
+        "tonalRamp": [
+          "#04211f",
+          "#073b36",
+          "#0a574f",
+          "#0d7368",
+          "#128f82",
+          "#2dd4bf",
+          "#6ee7d7",
+          "#b3f2e9"
+        ]
+      },
+      "warn": {
+        "role": "tertiary",
+        "displayName": "Warn Orange — deliberately offset from GTD PRO amber",
+        "canonical": "#ff9e2c",
+        "tonalRamp": [
+          "#331d00",
+          "#5c3500",
+          "#8a4f00",
+          "#b86a00",
+          "#e68400",
+          "#ff9e2c",
+          "#ffbb6b",
+          "#ffdcb3"
+        ]
+      },
+      "danger": {
+        "role": "tertiary",
+        "displayName": "Danger Red",
+        "canonical": "#ff5d5d",
+        "tonalRamp": [
+          "#330d0d",
+          "#5c1717",
+          "#8a2222",
+          "#b82d2d",
+          "#e63838",
+          "#ff5d5d",
+          "#ff9191",
+          "#ffc7c7"
+        ]
+      }
     },
     "typographyMeta": {
-      "display": { "displayName": "Display", "purpose": "Page/hero titles and scoreboard headers. Saira Condensed, uppercase; italic reserved for the primary CTA only." },
-      "title": { "displayName": "Title", "purpose": "Nav links, button labels, table headers. Saira Condensed, uppercase, tracked." },
-      "body": { "displayName": "Body", "purpose": "Prose and helper text. Saira, regular. Cap measure at 65-75ch." },
-      "label": { "displayName": "Label / Numeral", "purpose": "Spline Sans Mono. Every micro-label and every comparable number; tabular by nature." }
+      "display": {
+        "displayName": "Display — Saira Semi Condensed 800",
+        "purpose": "Page and hero titles, scoreboard headers. Uppercase, balanced wrap, 34px stepping to 40px at sm. Italic reserved for the primary CTA."
+      },
+      "headline": {
+        "displayName": "Headline — Saira Semi Condensed 800",
+        "purpose": "Section and panel titles (22px); panel sub-headers step down to 15–17px at weight 700."
+      },
+      "title": {
+        "displayName": "Title — Saira Semi Condensed 600, tracked caps",
+        "purpose": "Nav links, button labels, table headers. The engineered all-caps voice."
+      },
+      "body": {
+        "displayName": "Body — Saira 400",
+        "purpose": "Prose, descriptions, helper text. Measure capped at 65–75ch."
+      },
+      "label": {
+        "displayName": "Label — Spline Sans Mono 500, tracked",
+        "purpose": "Micro-labels, status pills, and every number a player compares. Tabular by nature; this is where the timing-screen character lives."
+      }
     },
     "shadows": [
-      { "name": "overlay", "value": "0 30px 80px rgba(0,0,0,0.6)", "purpose": "Modals/dialogs lifting off the void." },
-      { "name": "popover", "value": "0 8px 24px rgba(0,0,0,0.5)", "purpose": "Dropdowns and tooltips." }
+      {
+        "name": "overlay",
+        "value": "0 30px 80px rgba(0,0,0,0.6)",
+        "purpose": "Modals/dialogs lifting off the void. The only shadow allowed on a panel-sized surface."
+      },
+      {
+        "name": "popover",
+        "value": "0 8px 24px rgba(0,0,0,0.5)",
+        "purpose": "Dropdowns and tooltips."
+      }
     ],
     "motion": [
-      { "name": "ease-color", "value": "ease", "purpose": "Fast (~150ms) color-only transitions for hover/active. No layout animation." }
+      {
+        "name": "ease-color",
+        "value": "color 150ms ease, background-color 150ms ease, border-color 150ms ease",
+        "purpose": "The default and near-only transition: color-only state feedback. No layout, transform, or size animation on in-page surfaces."
+      },
+      {
+        "name": "live-blink",
+        "value": "@keyframes blink { 0%, 100% { opacity: 1 } 50% { opacity: 0.35 } } applied as `blink 1.4s infinite`",
+        "purpose": "The one piece of continuous motion in the system: the live/open state dot on the pick board. Conveys state, not personality."
+      },
+      {
+        "name": "reduced-motion",
+        "value": "@media (prefers-reduced-motion: reduce) { animation-duration: 0.01ms !important; transition-duration: 0.01ms !important; scroll-behavior: auto !important }",
+        "purpose": "Global neutralizer in index.css. Reduced motion is a floor, not a feature flag — the blink and every transition collapse to instant."
+      },
+      {
+        "name": "focus-ring",
+        "value": "outline: 2px solid #ff5d5d; outline-offset: 2px",
+        "purpose": "Unlayered :focus-visible ring so it beats Tailwind's utility-layer outline-none on inputs and buttons. Keyboard only."
+      }
     ],
     "breakpoints": [
-      { "name": "sm", "value": "640px" },
-      { "name": "md", "value": "768px" },
-      { "name": "lg", "value": "1024px" }
+      {
+        "name": "sm",
+        "value": "640px"
+      },
+      {
+        "name": "lg",
+        "value": "1024px"
+      },
+      {
+        "name": "xl",
+        "value": "1280px"
+      }
     ]
   },
   "components": [
@@ -38,91 +306,165 @@
       "name": "Primary Button",
       "kind": "button",
       "refersTo": "button-primary",
-      "description": "The one true action per view (e.g. SAVE ROSTER). Solid IMSA red, condensed uppercase.",
-      "html": "<button class=\"ds-btn-primary\">SAVE ROSTER</button>",
-      "css": ".ds-btn-primary { display:inline-flex; align-items:center; justify-content:center; height:44px; padding:0 20px; background:#e10600; color:#fff; font-family:'Saira Condensed',sans-serif; font-size:15px; font-weight:700; font-style:italic; letter-spacing:0.05em; text-transform:uppercase; border:none; border-radius:3px; cursor:pointer; transition:background .15s ease; } .ds-btn-primary:hover { background:#ff2d2d; } .ds-btn-primary:focus-visible { outline:2px solid #ff5d5d; outline-offset:2px; }"
+      "description": "The one true action per view. Solid Endurance red, condensed italic caps, ~46px tall. Disabled goes desaturated red at 60%, never gray.",
+      "html": "<button class=\"ds-btn-primary\">Save Roster<svg width=\"16\" height=\"16\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2.4\"><path d=\"M5 12h14M13 6l6 6-6 6\"/></svg></button> <button class=\"ds-btn-primary\" disabled>Save Roster</button>",
+      "css": ".ds-btn-primary { display: inline-flex; align-items: center; justify-content: center; gap: 9px; height: 46px; padding: 0 22px; background: var(--color-brand, #e10600); color: var(--color-ink, #fff); border: none; border-radius: 3px; font-family: var(--font-display, 'Saira Semi Condensed', sans-serif); font-size: 16px; font-weight: 700; font-style: italic; letter-spacing: 0.05em; text-transform: uppercase; cursor: pointer; transition: background-color 150ms ease; } .ds-btn-primary:hover { background: var(--color-brand-2, #ff2d2d); } .ds-btn-primary:focus-visible { outline: 2px solid var(--color-brand-3, #ff5d5d); outline-offset: 2px; } .ds-btn-primary:disabled { background: #3a1614; opacity: 0.6; cursor: not-allowed; }"
     },
     {
-      "name": "Secondary Button",
+      "name": "Secondary / Ghost Button",
       "kind": "button",
       "refersTo": "button-secondary",
-      "description": "Ghost action; hairline border, condensed uppercase, aligned to primary height.",
-      "html": "<button class=\"ds-btn-secondary\">CANCEL</button>",
-      "css": ".ds-btn-secondary { display:inline-flex; align-items:center; justify-content:center; height:44px; padding:0 20px; background:transparent; color:#c8ccd2; font-family:'Saira Condensed',sans-serif; font-size:14px; font-weight:600; letter-spacing:0.04em; text-transform:uppercase; border:1px solid #2a2d33; border-radius:3px; cursor:pointer; transition:border-color .15s ease, color .15s ease; } .ds-btn-secondary:hover { border-color:#3a3f47; color:#fff; } .ds-btn-secondary:focus-visible { outline:2px solid #ff5d5d; outline-offset:2px; }"
-    },
-    {
-      "name": "Card / Panel",
-      "kind": "card",
-      "refersTo": "card",
-      "description": "Primary content panel on the void. Flat at rest; separation is the hairline border.",
-      "html": "<div class=\"ds-card\"><div class=\"ds-card-title\">YOUR PICKS</div><div class=\"ds-card-body\">Build a roster under the salary cap before qualifying.</div></div>",
-      "css": ".ds-card { background:#101317; border:1px solid #1f242a; border-radius:6px; padding:16px; transition:border-color .15s ease; } .ds-card:hover { border-color:#2a2d33; } .ds-card-title { font-family:'Saira Condensed',sans-serif; font-size:14px; font-weight:600; letter-spacing:0.08em; text-transform:uppercase; color:#fff; } .ds-card-body { margin-top:8px; font-family:'Saira',sans-serif; font-size:13px; line-height:1.5; color:#c8ccd2; }"
+      "description": "Cancel, back, and every non-primary action. Same height and type as primary so button rows stay aligned; the hairline border does the work.",
+      "html": "<button class=\"ds-btn-secondary\">Cancel</button>",
+      "css": ".ds-btn-secondary { display: inline-flex; align-items: center; justify-content: center; height: 46px; padding: 0 20px; background: transparent; color: var(--color-ink-2, #c8ccd2); border: 1px solid var(--color-line-2, #2a2d33); border-radius: 3px; font-family: var(--font-display, 'Saira Semi Condensed', sans-serif); font-size: 14px; font-weight: 600; letter-spacing: 0.05em; text-transform: uppercase; cursor: pointer; transition: color 150ms ease, border-color 150ms ease; } .ds-btn-secondary:hover { color: var(--color-ink, #fff); border-color: var(--color-line-3, #3a3f47); } .ds-btn-secondary:focus-visible { outline: 2px solid var(--color-brand-3, #ff5d5d); outline-offset: 2px; }"
     },
     {
       "name": "Data Input",
       "kind": "input",
       "refersTo": "input",
-      "description": "Recessed near-black well with mono value text; reads like a data field.",
-      "html": "<input class=\"ds-input\" value=\"TEAM RADIO\" />",
-      "css": ".ds-input { height:48px; width:240px; padding:0 15px; background:#070809; color:#fff; font-family:'Spline Sans Mono',monospace; font-size:18px; font-weight:700; letter-spacing:0.1em; border:1px solid #2a2d33; border-radius:4px; outline:none; transition:border-color .15s ease; } .ds-input::placeholder { color:#3a3f47; } .ds-input:focus-visible { border-color:#3a3f47; outline:2px solid #ff5d5d; outline-offset:2px; }"
+      "description": "A recessed near-black well that reads as a data field, not a form box. Value set in display type; placeholder floored at `muted` for AA.",
+      "html": "<label class=\"ds-field\"><span class=\"ds-field-label\">Team Name<span class=\"ds-field-count\">12/32</span></span><input class=\"ds-input\" placeholder=\"e.g. No Lift Crew\" value=\"No Lift Crew\"/></label>",
+      "css": ".ds-field { display: block; } .ds-field-label { display: flex; align-items: center; justify-content: space-between; margin-bottom: 9px; font-family: var(--font-display, 'Saira Semi Condensed', sans-serif); font-size: 12px; font-weight: 600; letter-spacing: 0.1em; text-transform: uppercase; color: var(--color-ink-2, #c8ccd2); } .ds-field-count { font-family: var(--font-mono, 'Spline Sans Mono', monospace); font-size: 11px; letter-spacing: 0; text-transform: none; color: var(--color-muted, #8a8f98); } .ds-input { box-sizing: border-box; width: 100%; height: 50px; padding: 0 15px; background: #070809; color: var(--color-ink, #fff); border: 1px solid var(--color-line-2, #2a2d33); border-radius: 4px; font-family: var(--font-display, 'Saira Semi Condensed', sans-serif); font-size: 20px; font-weight: 700; letter-spacing: 0.02em; outline: none; transition: border-color 150ms ease; } .ds-input::placeholder { color: var(--color-muted, #8a8f98); font-weight: 400; } .ds-input:hover { border-color: var(--color-line-3, #3a3f47); } .ds-input:focus-visible { outline: 2px solid var(--color-brand-3, #ff5d5d); outline-offset: 2px; } .ds-input[aria-invalid=\"true\"] { border-color: var(--color-danger, #ff5d5d); }"
     },
     {
-      "name": "Status Pill",
+      "name": "Card / Panel",
+      "kind": "card",
+      "refersTo": "card",
+      "description": "The standard content surface: a flat panel on the void, separated by a hairline. No shadow at rest (The Flat-Void Rule); the header sits in a recessed well.",
+      "html": "<section class=\"ds-panel\"><header class=\"ds-panel-head\"><h3 class=\"ds-panel-title\">Season Standings</h3><span class=\"ds-panel-meta\">ROUND 06 · 142 TEAMS</span></header><div class=\"ds-panel-body\">Flat by default. Depth comes from the surface ramp and a border that lightens on hover — never from a drop shadow.</div></section>",
+      "css": ".ds-panel { overflow: hidden; background: var(--color-surface, #101317); border: 1px solid var(--color-line, #1f242a); border-radius: 6px; transition: border-color 150ms ease; } .ds-panel:hover { border-color: var(--color-line-2, #2a2d33); } .ds-panel-head { display: flex; align-items: baseline; justify-content: space-between; gap: 16px; padding: 12px 18px; background: var(--color-surface-3, #0e0f12); border-bottom: 1px solid var(--color-line, #1f242a); } .ds-panel-title { margin: 0; font-family: var(--font-display, 'Saira Semi Condensed', sans-serif); font-size: 22px; font-weight: 800; line-height: 1.05; text-transform: uppercase; color: var(--color-ink, #fff); } .ds-panel-meta { font-family: var(--font-mono, 'Spline Sans Mono', monospace); font-size: 10px; letter-spacing: 0.1em; color: var(--color-muted, #8a8f98); } .ds-panel-body { padding: 16px 18px; font-family: var(--font-sans, 'Saira', sans-serif); font-size: 13px; line-height: 1.5; color: var(--color-ink-2, #c8ccd2); max-width: 70ch; }"
+    },
+    {
+      "name": "Lifecycle Status Pill",
       "kind": "chip",
       "refersTo": "chip",
-      "description": "Mono micro-label on a tinted wash of its own semantic hue; color is always paired with a dot + text.",
-      "html": "<span class=\"ds-pill\"><span class=\"ds-pill-dot\"></span>NOT REGISTERED</span>",
-      "css": ".ds-pill { display:inline-flex; align-items:center; gap:5px; height:20px; padding:0 8px; background:rgba(255,194,61,0.10); border:1px solid rgba(255,194,61,0.35); border-radius:3px; } .ds-pill-dot { width:5px; height:5px; border-radius:9999px; background:#ffc23d; } .ds-pill { font-family:'Spline Sans Mono',monospace; font-size:9px; letter-spacing:0.06em; color:#ffc23d; }"
+      "description": "Six derived weekend stages in two dialects: the calendar's loud solid fills (top) and the dashboard's quiet tinted washes (bottom). SCORED is flag-white; FINAL is dim neutral.",
+      "html": "<div class=\"ds-pill-row\"><span class=\"ds-pill ds-pill-open\">PICKS OPEN</span><span class=\"ds-pill ds-pill-live\">IN PROGRESS</span><span class=\"ds-pill ds-pill-awaiting\">AWAITING RESULTS</span><span class=\"ds-pill ds-pill-scored\">SCORED</span><span class=\"ds-pill ds-pill-final\">FINAL</span></div><div class=\"ds-pill-row\"><span class=\"ds-pill-q ds-pill-q-open\">Picks Open</span><span class=\"ds-pill-q ds-pill-q-live\">In Progress</span><span class=\"ds-pill-q ds-pill-q-warn\"><span class=\"ds-dot\"></span>NOT REGISTERED</span></div>",
+      "css": ".ds-pill-row { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; margin-bottom: 10px; } .ds-pill { display: inline-block; padding: 3px 9px; border-radius: 2px; font-family: var(--font-display, 'Saira Semi Condensed', sans-serif); font-size: 11px; letter-spacing: 0.06em; } .ds-pill-open { background: var(--color-brand, #e10600); color: var(--color-ink, #fff); } .ds-pill-live { background: var(--color-warn, #ff9e2c); color: var(--color-bg, #0a0b0d); } .ds-pill-awaiting { background: var(--color-surface-2, #16181c); color: var(--color-ink-2, #c8ccd2); } .ds-pill-scored { background: var(--color-ink, #fff); color: var(--color-bg, #0a0b0d); } .ds-pill-final { background: var(--color-surface-2, #16181c); color: var(--color-muted, #8a8f98); } .ds-pill-q { display: inline-flex; align-items: center; gap: 5px; height: 20px; padding: 0 8px; border-radius: 3px; border: 1px solid; font-family: var(--font-mono, 'Spline Sans Mono', monospace); font-size: 9px; letter-spacing: 0.06em; text-transform: uppercase; } .ds-pill-q-open { border-color: rgba(45,212,191,0.4); background: rgba(45,212,191,0.1); color: var(--color-success, #2dd4bf); } .ds-pill-q-live { border-color: rgba(255,158,44,0.4); background: rgba(255,158,44,0.1); color: var(--color-warn, #ff9e2c); } .ds-pill-q-warn { border-color: rgba(255,158,44,0.35); background: rgba(255,158,44,0.1); color: var(--color-warn, #ff9e2c); } .ds-dot { width: 5px; height: 5px; border-radius: 50%; background: currentColor; }"
+    },
+    {
+      "name": "Filter / Selection Chip",
+      "kind": "chip",
+      "refersTo": null,
+      "description": "Standings, board, and view-toggle filters. Selection shifts border + fill + ink and adds the nav's 2px brand underline as an inset rule — never a solid red fill.",
+      "html": "<div class=\"ds-filter-row\"><span class=\"ds-filter-label\">Series</span><button class=\"ds-chip ds-chip-on\" aria-pressed=\"true\">WeatherTech SportsCar Championship</button><button class=\"ds-chip\" aria-pressed=\"false\">Michelin Pilot Challenge</button><button class=\"ds-chip\" aria-pressed=\"false\">Whelen Mazda MX-5 Cup</button></div>",
+      "css": ".ds-filter-row { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; } .ds-filter-label { margin-right: 4px; font-family: var(--font-display, 'Saira Semi Condensed', sans-serif); font-size: 10px; letter-spacing: 0.14em; text-transform: uppercase; color: var(--color-muted, #8a8f98); } .ds-chip { height: 36px; padding: 0 14px; border: 1px solid var(--color-line-2, #2a2d33); border-radius: 3px; background: transparent; font-family: var(--font-display, 'Saira Semi Condensed', sans-serif); font-size: 13px; font-weight: 600; letter-spacing: 0.04em; text-transform: uppercase; color: var(--color-muted, #8a8f98); cursor: pointer; transition: color 150ms ease, border-color 150ms ease, background-color 150ms ease; } .ds-chip:hover { color: var(--color-ink-2, #c8ccd2); } .ds-chip:focus-visible { outline: 2px solid var(--color-brand-3, #ff5d5d); outline-offset: 2px; } .ds-chip-on { border-color: var(--color-line-3, #3a3f47); background: var(--color-surface-2, #16181c); color: var(--color-ink, #fff); box-shadow: inset 0 -2px 0 0 var(--color-brand, #e10600); }"
     },
     {
       "name": "Top Navigation",
       "kind": "nav",
       "refersTo": null,
-      "description": "Pure-black broadcast bar with a 2px IMSA-red bottom edge; condensed uppercase links, active underline.",
-      "html": "<nav class=\"ds-nav\"><a class=\"ds-nav-link ds-nav-active\">HOME</a><a class=\"ds-nav-link\">STANDINGS</a><a class=\"ds-nav-link\">STATS</a></nav>",
-      "css": ".ds-nav { display:flex; align-items:center; gap:24px; height:64px; padding:0 26px; background:#000; border-bottom:2px solid #e10600; } .ds-nav-link { display:flex; align-items:center; height:44px; border-bottom:2px solid transparent; font-family:'Saira Condensed',sans-serif; font-size:14px; font-weight:600; letter-spacing:0.08em; text-transform:uppercase; color:#8a8f98; text-decoration:none; cursor:pointer; transition:color .15s ease; } .ds-nav-link:hover { color:#c8ccd2; } .ds-nav-active { color:#fff; border-bottom-color:#e10600; }"
+      "description": "Pure-black bar with a 2px Endurance-red bottom edge — the broadcast lower-third. Inline links from lg only; below that they drop to a scrollable second row. Avatar is neutral at rest, red on hover.",
+      "html": "<div class=\"ds-nav\"><div class=\"ds-nav-bar\"><span class=\"ds-wordmark\">ENDURANCE<span>FANTASY</span></span><nav class=\"ds-nav-links\"><a href=\"#\" class=\"ds-nav-link ds-nav-link-active\">Home</a><a href=\"#\" class=\"ds-nav-link\">Standings</a><a href=\"#\" class=\"ds-nav-link\">Stats</a></nav><span class=\"ds-avatar\">AK</span></div></div>",
+      "css": ".ds-nav { background: #000; border-bottom: 2px solid var(--color-brand, #e10600); } .ds-nav-bar { display: flex; align-items: center; gap: 30px; height: 64px; padding: 0 26px; } .ds-wordmark { font-family: var(--font-display, 'Saira Semi Condensed', sans-serif); font-size: 21px; font-weight: 800; letter-spacing: -0.02em; color: var(--color-ink, #fff); } .ds-wordmark span { color: var(--color-brand, #e10600); } .ds-nav-links { display: flex; gap: 24px; flex: 1; } .ds-nav-link { display: flex; align-items: center; height: 44px; border-bottom: 2px solid transparent; font-family: var(--font-display, 'Saira Semi Condensed', sans-serif); font-size: 14px; font-weight: 600; letter-spacing: 0.08em; text-transform: uppercase; text-decoration: none; color: var(--color-muted, #8a8f98); transition: color 150ms ease; } .ds-nav-link:hover { color: var(--color-ink-2, #c8ccd2); } .ds-nav-link-active { color: var(--color-ink, #fff); border-bottom-color: var(--color-brand, #e10600); } .ds-avatar { display: flex; align-items: center; justify-content: center; width: 36px; height: 36px; border-radius: 50%; border: 1px solid var(--color-line-2, #2a2d33); background: var(--color-surface-2, #16181c); font-family: var(--font-display, 'Saira Semi Condensed', sans-serif); font-size: 14px; font-weight: 700; color: var(--color-ink-2, #c8ccd2); transition: color 150ms ease, border-color 150ms ease; } .ds-avatar:hover { border-color: rgba(255,93,93,0.6); color: var(--color-ink, #fff); }"
     },
     {
-      "name": "Broadcast Slash",
+      "name": "Leaderboard Row",
       "kind": "custom",
       "refersTo": null,
-      "description": "Skewed red leading accent — the angular motion mark of broadcast motorsport graphics. Deliberate punctuation, not on every heading.",
-      "html": "<div class=\"ds-slash-row\"><span class=\"ds-slash\"></span><span class=\"ds-slash-label\">QUALIFYING</span></div>",
-      "css": ".ds-slash-row { display:flex; align-items:center; gap:10px; } .ds-slash { width:6px; height:28px; background:#e10600; transform:skewX(-14deg); } .ds-slash-label { font-family:'Saira Condensed',sans-serif; font-size:18px; font-weight:700; letter-spacing:0.04em; text-transform:uppercase; color:#fff; }"
+      "description": "The system's workhorse. Fixed-column grid, hairline separators, tabular mono numerals, and the Broadcast Slash as the leading mark — red on the signed-in player's own row.",
+      "html": "<div class=\"ds-board\"><div class=\"ds-board-head\"><span>Pos</span><span>Team</span><span class=\"ds-num\">Points</span></div><a href=\"#\" class=\"ds-row\"><span class=\"ds-rank\">1</span><span class=\"ds-team\"><i class=\"ds-slash\"></i>No Lift Crew</span><span class=\"ds-num ds-pts\">418.5</span></a><a href=\"#\" class=\"ds-row ds-row-mine\"><span class=\"ds-rank\">2</span><span class=\"ds-team\"><i class=\"ds-slash ds-slash-red\"></i>Brake Late Racing<em class=\"ds-you\">YOU</em></span><span class=\"ds-num ds-pts\">402.0</span></a></div>",
+      "css": ".ds-board { overflow: hidden; background: var(--color-surface, #101317); border: 1px solid var(--color-line, #1f242a); border-radius: 4px; } .ds-board-head { display: grid; grid-template-columns: 54px 1fr 90px; align-items: center; padding: 10px 18px; background: var(--color-surface-3, #0e0f12); border-bottom: 1px solid var(--color-line, #1f242a); font-family: var(--font-display, 'Saira Semi Condensed', sans-serif); font-size: 11px; letter-spacing: 0.1em; text-transform: uppercase; color: var(--color-muted, #8a8f98); } .ds-row { display: grid; grid-template-columns: 54px 1fr 90px; align-items: center; padding: 13px 18px; border-bottom: 1px solid var(--color-surface-2, #16181c); text-decoration: none; transition: background-color 150ms ease; } .ds-row:hover { background: var(--color-surface-2, #16181c); } .ds-row-mine { background: rgba(225,6,0,0.07); } .ds-row-mine:hover { background: rgba(225,6,0,0.12); } .ds-rank { font-family: var(--font-mono, 'Spline Sans Mono', monospace); font-size: 16px; font-weight: 700; color: var(--color-ink, #fff); } .ds-team { display: flex; align-items: center; gap: 8px; font-family: var(--font-display, 'Saira Semi Condensed', sans-serif); font-size: 15px; font-weight: 700; letter-spacing: 0.02em; text-transform: uppercase; color: var(--color-ink, #fff); } .ds-slash { flex: none; width: 4px; height: 15px; background: var(--color-line-3, #3a3f47); transform: skewX(-14deg); } .ds-slash-red { background: var(--color-brand, #e10600); } .ds-you { flex: none; padding: 1px 6px; border-radius: 2px; background: var(--color-brand, #e10600); font-family: var(--font-mono, 'Spline Sans Mono', monospace); font-size: 10px; font-style: normal; letter-spacing: 0.08em; color: var(--color-ink, #fff); } .ds-num { text-align: right; font-family: var(--font-mono, 'Spline Sans Mono', monospace); font-variant-numeric: tabular-nums; } .ds-pts { font-size: 15px; font-weight: 600; color: var(--color-ink, #fff); }"
+    },
+    {
+      "name": "Calendar Row",
+      "kind": "custom",
+      "refersTo": null,
+      "description": "A weekend on the unified calendar. Every row is a door and names its destination; a retired weekend recedes via tokens (ink-2 title, unfilled pills) rather than opacity.",
+      "html": "<div class=\"ds-cal\"><a href=\"#\" class=\"ds-cal-row ds-cal-live\"><span class=\"ds-cal-r\">R06</span><span class=\"ds-cal-main\"><span class=\"ds-cal-title\">Six Hours of the Glen</span><span class=\"ds-cal-track\">Watkins Glen International</span></span><span class=\"ds-pill ds-pill-open\">PICKS OPEN</span><span class=\"ds-cal-cd\">2D 14H 06M</span><span class=\"ds-cal-act ds-cal-act-live\">Set lineup →</span></a><a href=\"#\" class=\"ds-cal-row ds-cal-dim\"><span class=\"ds-cal-r\">R05</span><span class=\"ds-cal-main\"><span class=\"ds-cal-title\">Chevrolet Grand Prix</span><span class=\"ds-cal-track\">Canadian Tire Motorsport Park</span></span><span class=\"ds-pill ds-pill-final\">FINAL</span><span class=\"ds-cal-cd\"></span><span class=\"ds-cal-act\">View results →</span></a></div>",
+      "css": ".ds-cal { background: var(--color-surface, #101317); border: 1px solid var(--color-line, #1f242a); border-radius: 4px; overflow: hidden; } .ds-cal-row { display: grid; grid-template-columns: 54px 1fr 112px 120px 132px; align-items: center; gap: 12px; padding: 13px 26px; border-bottom: 1px solid var(--color-line, #1f242a); text-decoration: none; transition: background-color 150ms ease; } .ds-cal-row:hover { background: var(--color-surface-2, #16181c); } .ds-cal-live { background: rgba(225,6,0,0.07); } .ds-cal-live:hover { background: rgba(225,6,0,0.12); } .ds-cal-r { font-family: var(--font-mono, 'Spline Sans Mono', monospace); font-size: 13px; font-weight: 700; color: var(--color-muted, #8a8f98); } .ds-cal-live .ds-cal-r { color: var(--color-brand-2, #ff2d2d); } .ds-cal-main { display: block; min-width: 0; } .ds-cal-title { display: block; font-family: var(--font-display, 'Saira Semi Condensed', sans-serif); font-size: 17px; font-weight: 700; text-transform: uppercase; color: var(--color-ink, #fff); } .ds-cal-dim .ds-cal-title { color: var(--color-ink-2, #c8ccd2); } .ds-cal-track { display: block; margin-top: 3px; font-family: var(--font-sans, 'Saira', sans-serif); font-size: 12px; color: var(--color-muted, #8a8f98); } .ds-cal-cd { font-family: var(--font-mono, 'Spline Sans Mono', monospace); font-size: 12px; letter-spacing: 0.06em; color: var(--color-ink-2, #c8ccd2); } .ds-cal-act { text-align: right; font-family: var(--font-display, 'Saira Semi Condensed', sans-serif); font-size: 10px; letter-spacing: 0.1em; text-transform: uppercase; color: var(--color-muted, #8a8f98); transition: color 150ms ease; } .ds-cal-act-live { color: var(--color-brand-3, #ff5d5d); } .ds-cal-row:hover .ds-cal-act { color: var(--color-ink-2, #c8ccd2); } .ds-pill { display: inline-block; padding: 3px 9px; border-radius: 2px; font-family: var(--font-display, 'Saira Semi Condensed', sans-serif); font-size: 11px; letter-spacing: 0.06em; } .ds-pill-open { background: var(--color-brand, #e10600); color: var(--color-ink, #fff); } .ds-pill-final { background: var(--color-surface-2, #16181c); color: var(--color-muted, #8a8f98); }"
+    },
+    {
+      "name": "Modal / Dialog",
+      "kind": "custom",
+      "refersTo": null,
+      "description": "The only surface with a drop shadow. Recessed panel, brand gradient crown, blurred void backdrop, actions on a darker plinth.",
+      "html": "<div class=\"ds-modal-scene\"><div class=\"ds-modal\"><div class=\"ds-modal-crown\"></div><div class=\"ds-modal-body\"><div class=\"ds-modal-kicker\">// JOIN_2026</div><h4 class=\"ds-modal-title\">Name your team</h4><p class=\"ds-modal-desc\">This is how you'll show up on leaderboards and in every league. In public leagues, only your team name is shared — never your real name.</p></div><div class=\"ds-modal-foot\"><button class=\"ds-btn-secondary\">Cancel</button><button class=\"ds-btn-primary ds-modal-confirm\">Confirm</button></div></div></div>",
+      "css": ".ds-modal-scene { padding: 24px; background: rgba(4,5,6,0.78); border-radius: 6px; } .ds-modal { overflow: hidden; max-width: 480px; margin: 0 auto; background: var(--color-surface-3, #0e0f12); border: 1px solid var(--color-line-2, #2a2d33); border-radius: 6px; box-shadow: 0 30px 80px rgba(0,0,0,0.6); } .ds-modal-crown { height: 4px; background: linear-gradient(to right, var(--color-brand, #e10600), var(--color-brand-3, #ff5d5d)); } .ds-modal-body { padding: 26px 28px 0; } .ds-modal-kicker { margin-bottom: 9px; font-family: var(--font-mono, 'Spline Sans Mono', monospace); font-size: 11px; letter-spacing: 0.14em; color: var(--color-brand-3, #ff5d5d); } .ds-modal-title { margin: 0; font-family: var(--font-display, 'Saira Semi Condensed', sans-serif); font-size: 28px; font-weight: 800; font-style: italic; line-height: 0.96; text-transform: uppercase; color: var(--color-ink, #fff); } .ds-modal-desc { margin: 8px 0 0; font-family: var(--font-sans, 'Saira', sans-serif); font-size: 13px; line-height: 1.5; color: var(--color-muted, #8a8f98); } .ds-modal-foot { display: flex; align-items: center; gap: 11px; margin-top: 22px; padding: 22px 28px 24px; background: #0b0c0f; border-top: 1px solid var(--color-line, #1f242a); } .ds-modal-confirm { flex: 1; } .ds-btn-primary { display: inline-flex; align-items: center; justify-content: center; height: 46px; padding: 0 22px; background: var(--color-brand, #e10600); color: var(--color-ink, #fff); border: none; border-radius: 3px; font-family: var(--font-display, 'Saira Semi Condensed', sans-serif); font-size: 16px; font-weight: 700; font-style: italic; letter-spacing: 0.05em; text-transform: uppercase; cursor: pointer; transition: background-color 150ms ease; } .ds-btn-primary:hover { background: var(--color-brand-2, #ff2d2d); } .ds-btn-secondary { display: inline-flex; align-items: center; justify-content: center; height: 46px; padding: 0 20px; background: transparent; color: var(--color-ink-2, #c8ccd2); border: 1px solid var(--color-line-2, #2a2d33); border-radius: 3px; font-family: var(--font-display, 'Saira Semi Condensed', sans-serif); font-size: 14px; font-weight: 600; letter-spacing: 0.05em; text-transform: uppercase; cursor: pointer; transition: color 150ms ease, border-color 150ms ease; } .ds-btn-secondary:hover { color: var(--color-ink, #fff); border-color: var(--color-line-3, #3a3f47); }"
+    },
+    {
+      "name": "Brand Marks — Wordmark + Broadcast Slash",
+      "kind": "custom",
+      "refersTo": null,
+      "description": "The logotype (ENDURANCE in ink, FANTASY in brand red, set solid, no icon) and the skewed red bar used as leading punctuation on section heads and player rows.",
+      "html": "<div class=\"ds-marks\"><span class=\"ds-wordmark\">ENDURANCE<span>FANTASY</span></span><div class=\"ds-slash-demo\"><i class=\"ds-slash-lg\"></i><span class=\"ds-slash-label\">Race Calendar</span></div></div>",
+      "css": ".ds-marks { display: flex; flex-direction: column; gap: 20px; } .ds-wordmark { font-family: var(--font-display, 'Saira Semi Condensed', sans-serif); font-size: 21px; font-weight: 800; letter-spacing: -0.02em; color: var(--color-ink, #fff); } .ds-wordmark span { color: var(--color-brand, #e10600); } .ds-slash-demo { display: flex; align-items: center; gap: 10px; } .ds-slash-lg { flex: none; width: 5px; height: 20px; background: var(--color-brand, #e10600); transform: skewX(-14deg); } .ds-slash-label { font-family: var(--font-display, 'Saira Semi Condensed', sans-serif); font-size: 22px; font-weight: 800; text-transform: uppercase; color: var(--color-ink, #fff); }"
     }
   ],
   "narrative": {
     "northStar": "The Timing Screen",
-    "overview": "IMSA Fantasy looks like a live broadcast timing-and-scoring graphics package, executed with the restraint of a premium motorsport marque. The surface is a near-black void; content rides on it as crisp, slightly-elevated panels. The numbers - positions, prices, points, deltas - are the heroes, set in a tabular monospace so they align and scan like a timing screen. IMSA red is the single brand voice, spent sparingly on the things that matter. It is broadcast-fluent but never cluttered: generous gutters, clear hierarchy, one accent at a time. The result reads as precise, fast, premium - the focus of the grid before lights-out, not the noise of a casino floor.",
+    "overview": "Endurance Fantasy looks like a live broadcast timing-and-scoring graphics package, executed with the restraint of a premium motorsport marque. The surface is a near-black void (#0a0b0d) the way a broadcast bug sits over dark footage; content rides on it as crisp, slightly-elevated panels. The numbers — positions, prices, points, deltas — are the heroes, set in a tabular monospace so they align and scan like a timing screen. Endurance red is the single brand voice, spent sparingly on the things that matter: the live state, the primary action, the bar under the wordmark.\n\nIt is broadcast-fluent but never cluttered. Where real timing software drowns the viewer in density, this system breathes: generous gutters, clear hierarchy, one accent at a time. The condensed display face (Saira Semi Condensed) carries the trackside, engineered character; the humanist body face (Saira) keeps prose calm and readable; the mono (Spline Sans Mono) is reserved for data and micro-labels. The result reads as precise, fast, premium — the focus of the grid before lights-out, not the noise of a casino floor.\n\nThis system explicitly rejects the generic SaaS dashboard (no cream surfaces, no identical icon-heading-text card grids, no hero-metric template), the DraftKings betting aesthetic (no loud green-on-black, no odds-board clutter, no manufactured urgency), and cluttered real-world timing software (density only where it earns its keep).",
     "keyCharacteristics": [
       "Near-black broadcast canvas; content as crisp elevated panels, not floating cards.",
-      "Monospace numerals treated as first-class typography - the data IS the interface.",
-      "One accent (IMSA red) spent deliberately; racing-class colors reserved strictly for wayfinding.",
-      "Tight, engineered corners (2-8px) and hairline borders over heavy shadow.",
+      "Monospace numerals treated as first-class typography — the data IS the interface.",
+      "One accent (Endurance red) spent deliberately; racing-class colors reserved strictly for wayfinding.",
+      "Tight, engineered corners (2–8px) and hairline borders over heavy shadow.",
       "Premium restraint: breathing room and hierarchy carry weight, not noise."
     ],
     "rules": [
-      { "name": "The One Red Rule", "body": "IMSA red is the only brand accent and appears on <=10% of any screen - the primary action, the live state, the nav bar. If two reds compete on a screen, one of them is wrong.", "section": "colors" },
-      { "name": "The Class-Color Reserve", "body": "GTP/LMP2/GTD PRO/GTD hues signify racing class and nothing else. Never borrow a class color for a button, a status, or decoration. Class is wayfinding; spending it elsewhere breaks the map.", "section": "colors" },
-      { "name": "The Tabular-Numeral Rule", "body": "Every number a player compares - position, price, points, delta - is set in Spline Sans Mono so columns align to the digit. Proportional numerals in a standings table are forbidden.", "section": "typography" },
-      { "name": "The Italic-Restraint Rule", "body": "Display italic is loud. Use it only on the primary CTA. Everywhere else, weight and case carry emphasis - not slant.", "section": "typography" },
-      { "name": "The Flat-Void Rule", "body": "In-page surfaces never cast shadows. Depth at rest is tonal layering plus a lightening border. A shadow on a card is a 2014 tell; if a panel looks like it's floating, flatten it.", "section": "elevation" }
+      {
+        "name": "The Confirmed-Is-Teal Rule",
+        "body": "A state the player has already achieved — a pick in the lineup, a series joined, a budget still inside the cap — is success teal, never brand red. Red marks the thing still to do (SAVE ROSTER) and the thing happening now (the live lock). A board where every selected row glowed red left the actual action with nowhere to stand out.",
+        "section": "colors"
+      },
+      {
+        "name": "The One Red Rule",
+        "body": "Endurance red is the only brand accent and appears on ≤10% of any screen. A view gets two solid-red spends: the primary action and the live state (plus the nav's 2px edge, which is chrome, not content). Anything else that wants red takes a tinted wash instead (brand/15 fill, brand/40 border, brand-3 label) or takes red only on hover. If you can count three solid reds in a screenshot, one of them is wrong.",
+        "section": "colors"
+      },
+      {
+        "name": "The Class-Color Reserve",
+        "body": "GTP/LMP2/GTD PRO/GTD hues signify racing class and nothing else. Never borrow a class color for a button, a status, or decoration. Class is wayfinding; spending it elsewhere breaks the map.",
+        "section": "colors"
+      },
+      {
+        "name": "The Contrast Floor Rule",
+        "body": "muted (#8a8f98) is the floor for any text a player reads. Below it the ramp is decoration only. Two corollaries, both learned the hard way: a placeholder is text (muted, not muted-2 — that reads 1.9:1), and opacity is not a de-emphasis tool — an opacity-70 row stacks on already-muted 11px labels and drops them under AA. Recede an element by changing its tokens (title to ink-2, pills unfilled), never by fading the whole row.",
+        "section": "colors"
+      },
+      {
+        "name": "The Tabular-Numeral Rule",
+        "body": "Every number a player compares — position, price, points, delta — is set in Spline Sans Mono so columns align to the digit. Proportional numerals in a standings table are forbidden.",
+        "section": "typography"
+      },
+      {
+        "name": "The Italic-Restraint Rule",
+        "body": "Display italic is loud. Use it only on the primary CTA (e.g. \"SAVE ROSTER\"). Everywhere else, weight and case carry emphasis — not slant.",
+        "section": "typography"
+      },
+      {
+        "name": "The Fixed-Step Rule",
+        "body": "Type sizes are fixed px with breakpoint steps (text-[34px] sm:text-[40px]), never clamp() or viewport units. A player reads this on a phone at the lock deadline and on a desktop between rounds; both deserve a size chosen for them, not interpolated between them.",
+        "section": "typography"
+      },
+      {
+        "name": "The Flat-Void Rule",
+        "body": "In-page surfaces never cast shadows. Depth at rest is tonal layering plus a lightening border. A shadow on a card is a 2014 tell; if a panel looks like it's floating, flatten it.",
+        "section": "elevation"
+      }
     ],
     "dos": [
-      "Do set every comparable number (position, price, points, delta) in Spline Sans Mono, tabular - columns align to the digit.",
-      "Do keep IMSA red to <=10% of any screen: the primary action, the live state, the nav edge.",
+      "Do set every comparable number (position, price, points, delta) in Spline Sans Mono, tabular — columns align to the digit (The Tabular-Numeral Rule).",
+      "Do keep Endurance red to ≤10% of any screen: the primary action, the live state, the nav edge (The One Red Rule).",
       "Do reserve GTP/LMP2/GTD PRO/GTD colors strictly for racing-class wayfinding, and always pair class/status color with text, icon, or position so it survives color-blindness.",
-      "Do convey depth with the tonal surface ramp + lightening hairline borders; keep in-page surfaces flat.",
-      "Do lead with breathing room - the premium register comes from generous gutters and clear hierarchy, not added ornament."
+      "Do convey depth with the tonal surface ramp + lightening hairline borders; keep in-page surfaces flat (The Flat-Void Rule).",
+      "Do lead with breathing room — the premium register comes from generous gutters and clear hierarchy, not added ornament.",
+      "Do name the destination of every clickable row (\"Set lineup →\"), quiet at rest and brightening with the row. A player under a lock deadline should never have to guess where a row goes.",
+      "Do floor de-emphasised text at muted (#8a8f98) — including placeholders, counters, and footnotes (The Contrast Floor Rule).",
+      "Do size type in fixed px with breakpoint steps (The Fixed-Step Rule)."
     ],
     "donts": [
-      "Don't build a generic SaaS dashboard - no cream/light surfaces, no identical icon-heading-text card grids, no big-number hero-metric template.",
-      "Don't drift toward the DraftKings betting aesthetic - no loud green-on-black, no odds-board clutter, no flashing CTAs or manufactured urgency.",
-      "Don't replicate cluttered timing software - density only where it earns its keep; never data-dump for its own sake.",
-      "Don't go toy or cartoonish - no mascots, no bubbly pill-rounded everything, no childish gamification. Corners stay tight (2-8px).",
-      "Don't use a border-left/border-right greater than 1px as a colored accent stripe on cards or rows.",
-      "Don't spend display italic or full-red beyond the single primary action per view.",
-      "Don't drop shadows on resting in-page surfaces - shadow is reserved for true overlays."
+      "Don't build a generic SaaS dashboard — no cream/light surfaces, no identical icon-heading-text card grids, no big-number hero-metric template.",
+      "Don't drift toward the DraftKings betting aesthetic — no loud green-on-black, no odds-board clutter, no flashing CTAs or manufactured urgency. The qualifying lock is the only deadline.",
+      "Don't replicate cluttered timing software — density only where it earns its keep; never data-dump for its own sake.",
+      "Don't go toy or cartoonish — no mascots, no bubbly pill-rounded everything, no childish gamification. Corners stay tight (2–8px).",
+      "Don't use a border-left/border-right greater than 1px as a colored accent stripe on cards or rows — use a full hairline border, a tinted wash, or a leading badge instead.",
+      "Don't spend display italic or full-red beyond the single primary action per view (The Italic-Restraint Rule).",
+      "Don't drop shadows on resting in-page surfaces — shadow is reserved for true overlays (modals, dropdowns, tooltips).",
+      "Don't fade an element with opacity to push it back — it stacks on already-muted micro-copy and breaks AA. Recede with tokens (ink-2 title, unfilled pills).",
+      "Don't put muted-2 (#5c626b) on anything a player has to read — it is a fill and stroke color, not an ink.",
+      "Don't use clamp() or viewport-scaled type. Fixed sizes, stepped at breakpoints.",
+      "Don't ship a row that's clickable but silent about its destination."
     ]
   }
 }

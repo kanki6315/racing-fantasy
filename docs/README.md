@@ -1,4 +1,4 @@
-# IMSA Fantasy League — Design Documentation
+# Endurance Fantasy League — Design Documentation
 
 Design docs for a motorsports fantasy league focused on the IMSA series:
 multi-championship (WeatherTech, Pilot Challenge, MX-5 Cup, …), opt-in per
