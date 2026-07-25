@@ -1,6 +1,0 @@
-@imsa_fantasy_api_HostAddress = http://localhost:5239
-
-GET {{imsa_fantasy_api_HostAddress}}/weatherforecast/
-Accept: application/json
-
-###

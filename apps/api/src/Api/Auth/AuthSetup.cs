@@ -19,7 +19,7 @@ public static class AuthSetup
     public const string GoogleScheme = "Google";
     public const string Provider = "google";
 
-    public static IServiceCollection AddImsaAuth(this IServiceCollection services, IConfiguration config)
+    public static IServiceCollection AddAuth(this IServiceCollection services, IConfiguration config)
     {
         var clientId = config["Authentication:Google:ClientId"];
         var clientSecret = config["Authentication:Google:ClientSecret"];
@@ -116,7 +116,7 @@ public static class AuthSetup
         principal.FindFirst("sub")?.Value is { } sub && admins.Subjects.Contains(sub);
 }
 
-/// <summary>The configured admin Google-subject allowlist, registered as a singleton (see AddImsaAuth).</summary>
+/// <summary>The configured admin Google-subject allowlist, registered as a singleton (see AddAuth).</summary>
 public sealed class AdminSubjects(IReadOnlyCollection<string> subjects)
 {
     public IReadOnlyCollection<string> Subjects { get; } = subjects;
