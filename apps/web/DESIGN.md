@@ -390,6 +390,14 @@ The row is this product's real workhorse — more screens are rows than are card
   for a card that has none would describe a layout nobody is looking at. Without the roles a row
   announced as one run-on string (`"1TG-Racing1,7951"`) with the trailing numbers unlabelled. The
   roles sit on top of the existing CSS grid and change nothing visually.
+- **When two layouts differ structurally, render one — don't hide the other.** `hidden sm:block` /
+  `sm:hidden` is right for a few nodes and wrong for a list: on a 65-team board it kept 825 of 1464
+  nodes mounted behind `display:none`, 56% of the board invisible on every device. Long lists pick
+  their branch in JS (`useMediaQuery(SM)`) so only the one on screen is built. Two rules come with
+  it: subscribe with `useSyncExternalStore`, so the first render already knows the answer and there
+  is no flash of the wrong layout; and express the breakpoint in **rem** (`40rem`), because Tailwind's
+  `sm` is rem-based and a hard-coded `640px` silently disagrees with the CSS for anyone whose root
+  font size isn't 16px.
 - **A clickable row is a link *inside* a cell, stretched over the row.** Never an `<a>` wrapping the
   row: `role="row"` on an anchor destroys the link semantics, and leaving it a bare anchor hands it
   the whole row's text as its accessible name. The link wraps the team name and covers the row with

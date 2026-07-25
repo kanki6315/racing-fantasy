@@ -2,6 +2,7 @@ import type { ReactNode } from 'react'
 import { Link } from 'react-router-dom'
 import type { LeaderboardEntry } from '../api/queries'
 import { BOARD_COLS, boardColsKey, tiedRanks } from '../lib/standings'
+import { SM, useMediaQuery } from '../lib/useMediaQuery'
 
 /**
  * Podium emphasis: the leader carries the one red, then the ink ramp dims down the order.
@@ -90,6 +91,13 @@ export function Leaderboard({
   /** The destination every linked row states, verb-first. Only rendered when `rowHref` is set. */
   action?: string
 }) {
+  // One layout in the DOM, not both. `hidden sm:block` / `sm:hidden` kept the entire card list
+  // mounted behind `display:none` on desktop and the entire table mounted on a phone — measured at
+  // 825 of the board's 1464 nodes on a 65-team board, 56% of it invisible. Rendering only the branch
+  // that is on screen halves the board's DOM and the mount work with it, and retires the "which of
+  // the two copies is the real one" problem the position bug had to solve to find a row.
+  const wide = useMediaQuery(SM)
+
   if (entries.length === 0) {
     return (
       <div className="rounded-[4px] border border-dashed border-line-2 px-5 py-12 text-center font-sans text-[13px] text-muted">
@@ -115,14 +123,19 @@ export function Leaderboard({
   return (
     <div className="overflow-hidden rounded-[4px] border border-line bg-surface">
       {/*
-       * sm+ : the full grid table.
+       * Wide: the full grid table.
        *
        * ARIA table roles rather than bare divs. Without them the header band was four unassociated
        * spans and a row announced as one run-on string — "1TG-Racing1,7951" — with the last two
        * numbers arriving with no idea which was points and which was rounds. The roles ride on top of
        * the CSS grid without changing a pixel of it.
+       *
+       * Narrow: each entry reflows into a card. A list, not a table — there are no aligned columns to
+       * describe there, and every figure already carries its own inline label ("2 rounds", "pts"), so
+       * claiming table structure would describe a layout that isn't on screen.
        */}
-      <div className="hidden sm:block" role="table" aria-label={caption}>
+      {wide ? (
+      <div role="table" aria-label={caption}>
         <div role="rowgroup">
           <div
             role="row"
@@ -180,12 +193,8 @@ export function Leaderboard({
         </div>
       </div>
 
-      {/*
-       * < sm : each entry reflows into a card. A list, not a table — there are no aligned columns to
-       * describe here, and every figure already carries its own inline label ("2 rounds", "pts"), so
-       * claiming table structure would be describing a layout that isn't on screen.
-       */}
-      <ul role="list" className="sm:hidden">
+      ) : (
+      <ul role="list">
         {entries.map((e) => {
           const mine = myRegistrationId != null && e.registrationId === myRegistrationId
           const href = rowHref?.(e)
@@ -228,6 +237,7 @@ export function Leaderboard({
           )
         })}
       </ul>
+      )}
     </div>
   )
 }

@@ -2,6 +2,7 @@ import { useCallback, useEffect, useState } from 'react'
 import type { LeaderboardEntry } from '../api/queries'
 import { Movement, Rank } from './Leaderboard'
 import { BOARD_COLS_SM, boardColsKey, tiedRanks } from '../lib/standings'
+import { SM, useMediaQuery } from '../lib/useMediaQuery'
 import { RegisterModal } from './RegisterModal'
 
 /**
@@ -14,15 +15,11 @@ const BUG_H = 52
 const prefersReducedMotion = () => window.matchMedia('(prefers-reduced-motion: reduce)').matches
 
 /**
- * The one *displayed* `[data-my-row]`. The board renders a desktop grid and a mobile card list at the
- * same time and hides one with `display:none`, so both carry the marker; `offsetParent` is null for
- * the hidden branch, which is what tells them apart.
+ * The viewer's row. Exactly one exists: the board renders the table *or* the card list, never both,
+ * so this no longer has to sift a `display:none` copy out of two identically marked nodes.
  */
-function visibleMyRow(): HTMLElement | null {
-  for (const node of document.querySelectorAll<HTMLElement>('[data-my-row]')) {
-    if (node.offsetParent !== null) return node
-  }
-  return null
+function myRow(): HTMLElement | null {
+  return document.querySelector<HTMLElement>('[data-my-row]')
 }
 
 function ordinal(n: number): string {
@@ -74,24 +71,13 @@ export function YourPosition({
 }) {
   const myEntry = myRegistrationId != null ? entries.find((e) => e.registrationId === myRegistrationId) : undefined
 
-  const [rowEl, setRowEl] = useState<HTMLElement | null>(null)
   const [sentinel, setSentinel] = useState<HTMLDivElement | null>(null)
   const [pinned, setPinned] = useState(false)
   const [rowVisible, setRowVisible] = useState(false)
   const [registerOpen, setRegisterOpen] = useState(false)
 
-  // Re-resolve the row on every board change (the node is remounted) and when the sm breakpoint flips
-  // the grid/card branches, which swaps which of the two marked nodes is the displayed one.
+  const wide = useMediaQuery(SM)
   const myRank = myEntry?.rank
-  useEffect(() => {
-    // Reading a node another component rendered is the DOM-synchronisation case effects exist for,
-    // and it can only happen after commit.
-    const resolve = () => setRowEl(myRank == null ? null : visibleMyRow())
-    resolve()
-    const mq = window.matchMedia('(min-width: 640px)')
-    mq.addEventListener('change', resolve)
-    return () => mq.removeEventListener('change', resolve)
-  }, [myRank, entries])
 
   useEffect(() => {
     if (!sentinel) return
@@ -100,20 +86,25 @@ export function YourPosition({
     return () => io.disconnect()
   }, [sentinel])
 
-  // No reset when `rowEl` goes null — a stale `true` can't leak, because `retired` below requires a
-  // live row, and a fresh observer reports the new row's state on its first callback anyway.
+  // The observer resolves the row itself rather than reading it from state. There is no second
+  // consumer for the node — `jump` re-queries anyway, since a resize between render and click can
+  // replace it — so holding it in state bought nothing but an extra render and a setState in an
+  // effect whose only job was a DOM read. Re-runs when the board changes or the breakpoint flips the
+  // layout; a fresh observer reports the new row's visibility on its first callback, so no stale
+  // `true` survives a swap.
   useEffect(() => {
-    if (!rowEl) return
+    if (myRank == null) return
+    const el = myRow()
+    if (!el) return
     const io = new IntersectionObserver(([e]) => setRowVisible(e.isIntersecting), {
       rootMargin: `-${BUG_H}px 0px 0px 0px`,
     })
-    io.observe(rowEl)
+    io.observe(el)
     return () => io.disconnect()
-  }, [rowEl])
+  }, [myRank, entries, wide])
 
   const jump = useCallback(() => {
-    // Re-resolve rather than trusting state: a resize between render and click can swap the branch.
-    const el = visibleMyRow() ?? rowEl
+    const el = myRow()
     if (!el) return
     el.scrollIntoView({ behavior: prefersReducedMotion() ? 'auto' : 'smooth', block: 'center' })
     // Focus, not just scroll — otherwise a keyboard or screen-reader user gets a repainted viewport
@@ -124,7 +115,7 @@ export function YourPosition({
     void el.offsetWidth // restart the animation if a previous flash is still running
     el.classList.add('row-flash')
     el.addEventListener('animationend', () => el.classList.remove('row-flash'), { once: true })
-  }, [rowEl])
+  }, [])
 
   if (entries.length === 0) return null
 
@@ -172,7 +163,7 @@ export function YourPosition({
   // Retire only while *pinned*: at rest the bug sits in normal flow, and fading it there would leave
   // a 52px hole above the board. Once pinned, its reserved slot is far above the viewport, so there
   // is nothing to collapse.
-  const retired = pinned && rowEl != null && rowVisible
+  const retired = pinned && rowVisible
   const points = Number.isInteger(myEntry.points) ? myEntry.points.toLocaleString() : myEntry.points.toFixed(1)
   // If your row is marked T25, the bug pointing at it says T25 too.
   const isTied = tiedRanks(entries).has(myEntry.rank)
