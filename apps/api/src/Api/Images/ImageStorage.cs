@@ -3,7 +3,7 @@ using Amazon.Runtime;
 using Amazon.S3;
 using Amazon.S3.Model;
 
-namespace ImsaFantasy.Api.Images;
+namespace EnduranceFantasy.Api.Images;
 
 /// <summary>
 /// Config for the public S3 image bucket (bound from the "Aws" section; set via user-secrets locally).

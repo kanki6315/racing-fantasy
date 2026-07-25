@@ -1,6 +1,6 @@
 using System.Globalization;
 
-namespace ImsaFantasy.Api.Ingestion;
+namespace EnduranceFantasy.Api.Ingestion;
 
 /// <summary>
 /// Parser for IMSA timing export CSVs (semicolon-delimited, BOM, up to 6 driver blocks per row).

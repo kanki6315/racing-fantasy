@@ -1,8 +1,8 @@
 using System.Text.RegularExpressions;
-using ImsaFantasy.Domain;
+using EnduranceFantasy.Domain;
 using Microsoft.EntityFrameworkCore;
 
-namespace ImsaFantasy.Infrastructure;
+namespace EnduranceFantasy.Infrastructure;
 
 public partial class FantasyDbContext(DbContextOptions<FantasyDbContext> options) : DbContext(options)
 {

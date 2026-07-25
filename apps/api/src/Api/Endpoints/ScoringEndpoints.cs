@@ -1,9 +1,9 @@
-using ImsaFantasy.Api.Scoring;
-using ImsaFantasy.Domain;
-using ImsaFantasy.Infrastructure;
+using EnduranceFantasy.Api.Scoring;
+using EnduranceFantasy.Domain;
+using EnduranceFantasy.Infrastructure;
 using Microsoft.EntityFrameworkCore;
 
-namespace ImsaFantasy.Api.Endpoints;
+namespace EnduranceFantasy.Api.Endpoints;
 
 /// <summary>
 /// Trigger scoring for a round and read the per-pick breakdown. Scoring is idempotent and runs

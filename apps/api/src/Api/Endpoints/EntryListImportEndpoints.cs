@@ -1,9 +1,9 @@
 using System.Text.Json.Serialization;
-using ImsaFantasy.Domain;
-using ImsaFantasy.Infrastructure;
+using EnduranceFantasy.Domain;
+using EnduranceFantasy.Infrastructure;
 using Microsoft.EntityFrameworkCore;
 
-namespace ImsaFantasy.Api.Endpoints;
+namespace EnduranceFantasy.Api.Endpoints;
 
 /// <summary>
 /// Imports a parser-produced entry-list JSON (one file per series per event, converted from the

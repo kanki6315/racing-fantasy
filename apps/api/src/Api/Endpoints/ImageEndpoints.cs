@@ -1,8 +1,8 @@
-using ImsaFantasy.Api.Images;
-using ImsaFantasy.Infrastructure;
+using EnduranceFantasy.Api.Images;
+using EnduranceFantasy.Infrastructure;
 using Microsoft.EntityFrameworkCore;
 
-namespace ImsaFantasy.Api.Endpoints;
+namespace EnduranceFantasy.Api.Endpoints;
 
 /// <summary>
 /// Admin image uploads. The API only issues a short-lived presigned PUT URL — the browser converts

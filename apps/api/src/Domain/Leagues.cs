@@ -1,4 +1,4 @@
-namespace ImsaFantasy.Domain;
+namespace EnduranceFantasy.Domain;
 
 /// <summary>
 /// A ranking group over a season (ADR-0005, shared-roster). Members compete on the same rosters

@@ -1,10 +1,10 @@
-using ImsaFantasy.Api.Auth;
-using ImsaFantasy.Api.Common;
-using ImsaFantasy.Domain;
-using ImsaFantasy.Infrastructure;
+using EnduranceFantasy.Api.Auth;
+using EnduranceFantasy.Api.Common;
+using EnduranceFantasy.Domain;
+using EnduranceFantasy.Infrastructure;
 using Microsoft.EntityFrameworkCore;
 
-namespace ImsaFantasy.Api.Endpoints;
+namespace EnduranceFantasy.Api.Endpoints;
 
 /// <summary>
 /// Per-season registration (per-championship opt-in). The signed-in user registers and provides a

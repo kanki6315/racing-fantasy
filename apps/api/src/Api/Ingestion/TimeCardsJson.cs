@@ -1,7 +1,7 @@
 using System.Text.Json;
 using System.Text.Json.Serialization;
 
-namespace ImsaFantasy.Api.Ingestion;
+namespace EnduranceFantasy.Api.Ingestion;
 
 /// <summary>
 /// Parser for Al Kamel "Time Cards" race JSON (lap-by-lap, per driver). Each lap carries a

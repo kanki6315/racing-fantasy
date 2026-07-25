@@ -4,7 +4,7 @@
         <TargetFramework>net10.0</TargetFramework>
         <Nullable>enable</Nullable>
         <ImplicitUsings>enable</ImplicitUsings>
-        <RootNamespace>ImsaFantasy.Api</RootNamespace>
+        <RootNamespace>EnduranceFantasy.Api</RootNamespace>
       <UserSecretsId>e301b393-f20d-4669-8c0e-b49b104dcd4d</UserSecretsId>
   </PropertyGroup>
 
@@ -26,8 +26,8 @@
     </ItemGroup>
 
     <ItemGroup>
-        <ProjectReference Include="..\Domain\ImsaFantasy.Domain.csproj" />
-        <ProjectReference Include="..\Infrastructure\ImsaFantasy.Infrastructure.csproj" />
+        <ProjectReference Include="..\Domain\EnduranceFantasy.Domain.csproj" />
+        <ProjectReference Include="..\Infrastructure\EnduranceFantasy.Infrastructure.csproj" />
     </ItemGroup>
 
 </Project>

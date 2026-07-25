@@ -1,4 +1,4 @@
-namespace ImsaFantasy.Domain;
+namespace EnduranceFantasy.Domain;
 
 /// <summary>A car (number + team) entered in a class for a season — a "team" pick target.</summary>
 public class CarEntry

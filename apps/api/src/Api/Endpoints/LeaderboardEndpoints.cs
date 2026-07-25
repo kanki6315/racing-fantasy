@@ -1,8 +1,8 @@
-using ImsaFantasy.Api.Leaderboards;
-using ImsaFantasy.Infrastructure;
+using EnduranceFantasy.Api.Leaderboards;
+using EnduranceFantasy.Infrastructure;
 using Microsoft.EntityFrameworkCore;
 
-namespace ImsaFantasy.Api.Endpoints;
+namespace EnduranceFantasy.Api.Endpoints;
 
 /// <summary>
 /// The season-wide ("Global") standings and a single round's leaderboard, aggregated from

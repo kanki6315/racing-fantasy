@@ -1,9 +1,9 @@
-using ImsaFantasy.Api.Email;
-using ImsaFantasy.Domain;
-using ImsaFantasy.Infrastructure;
+using EnduranceFantasy.Api.Email;
+using EnduranceFantasy.Domain;
+using EnduranceFantasy.Infrastructure;
 using Microsoft.EntityFrameworkCore;
 
-namespace ImsaFantasy.Api.Workers;
+namespace EnduranceFantasy.Api.Workers;
 
 /// <summary>
 /// Sends one opt-in picks-reminder email per race weekend (ADR-0009). Mirrors LockSweepService: a

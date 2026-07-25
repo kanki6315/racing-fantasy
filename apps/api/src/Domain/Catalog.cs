@@ -1,4 +1,4 @@
-namespace ImsaFantasy.Domain;
+namespace EnduranceFantasy.Domain;
 
 /// <summary>A championship series: WeatherTech, Pilot Challenge, MX-5 Cup, …</summary>
 public class Championship

@@ -3,7 +3,7 @@ using Microsoft.EntityFrameworkCore.Migrations;
 
 #nullable disable
 
-namespace ImsaFantasy.Infrastructure.Migrations
+namespace EnduranceFantasy.Infrastructure.Migrations
 {
     /// <inheritdoc />
     public partial class AddEventPicksOpenedAt : Migration

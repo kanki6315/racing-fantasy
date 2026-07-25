@@ -1,8 +1,8 @@
-using ImsaFantasy.Infrastructure;
+using EnduranceFantasy.Infrastructure;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Caching.Memory;
 
-namespace ImsaFantasy.Api.Endpoints;
+namespace EnduranceFantasy.Api.Endpoints;
 
 /// <summary>
 /// Public aggregate stats for the landing page (the "Players"/"Leagues" tiles). A player is a

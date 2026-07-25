@@ -6,15 +6,15 @@ FROM mcr.microsoft.com/dotnet/sdk:10.0 AS build
 WORKDIR /src
 
 # Copy project files first so `restore` is cached unless a .csproj changes.
-COPY ImsaFantasy.slnx ./
-COPY src/Api/ImsaFantasy.Api.csproj src/Api/
-COPY src/Domain/ImsaFantasy.Domain.csproj src/Domain/
-COPY src/Infrastructure/ImsaFantasy.Infrastructure.csproj src/Infrastructure/
-RUN dotnet restore src/Api/ImsaFantasy.Api.csproj
+COPY EnduranceFantasy.slnx ./
+COPY src/Api/EnduranceFantasy.Api.csproj src/Api/
+COPY src/Domain/EnduranceFantasy.Domain.csproj src/Domain/
+COPY src/Infrastructure/EnduranceFantasy.Infrastructure.csproj src/Infrastructure/
+RUN dotnet restore src/Api/EnduranceFantasy.Api.csproj
 
 # Copy the rest of the source and publish.
 COPY . .
-RUN dotnet publish src/Api/ImsaFantasy.Api.csproj -c Release -o /app --no-restore
+RUN dotnet publish src/Api/EnduranceFantasy.Api.csproj -c Release -o /app --no-restore
 
 # --- runtime ---
 FROM mcr.microsoft.com/dotnet/aspnet:10.0 AS runtime
@@ -28,4 +28,4 @@ COPY --from=build /app ./
 EXPOSE 8080
 # Bind to Railway's injected $PORT (falls back to 8080 locally). `exec` keeps dotnet as PID 1 so it
 # receives SIGTERM for graceful shutdown.
-ENTRYPOINT ["sh", "-c", "exec dotnet ImsaFantasy.Api.dll --urls http://+:${PORT:-8080}"]
+ENTRYPOINT ["sh", "-c", "exec dotnet EnduranceFantasy.Api.dll --urls http://+:${PORT:-8080}"]

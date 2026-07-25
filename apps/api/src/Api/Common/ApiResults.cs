@@ -1,4 +1,4 @@
-namespace ImsaFantasy.Api.Common;
+namespace EnduranceFantasy.Api.Common;
 
 public static class ApiResults
 {

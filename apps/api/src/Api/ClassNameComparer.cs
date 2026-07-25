@@ -1,4 +1,4 @@
-namespace ImsaFantasy.Api;
+namespace EnduranceFantasy.Api;
 
 /// <summary>
 /// Matches class names across IMSA data feeds that disagree on spacing/case

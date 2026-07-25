@@ -1,10 +1,10 @@
 using System.Text.RegularExpressions;
-using ImsaFantasy.Api.Common;
-using ImsaFantasy.Domain;
-using ImsaFantasy.Infrastructure;
+using EnduranceFantasy.Api.Common;
+using EnduranceFantasy.Domain;
+using EnduranceFantasy.Infrastructure;
 using Microsoft.EntityFrameworkCore;
 
-namespace ImsaFantasy.Api.Endpoints;
+namespace EnduranceFantasy.Api.Endpoints;
 
 public static class ClassEndpoints
 {

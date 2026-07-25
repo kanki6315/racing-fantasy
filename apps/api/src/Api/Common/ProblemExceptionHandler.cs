@@ -2,7 +2,7 @@ using Microsoft.AspNetCore.Diagnostics;
 using Microsoft.EntityFrameworkCore;
 using Npgsql;
 
-namespace ImsaFantasy.Api.Common;
+namespace EnduranceFantasy.Api.Common;
 
 /// <summary>
 /// Translates Postgres constraint violations into clean HTTP problem responses so the

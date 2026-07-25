@@ -1,9 +1,9 @@
-using ImsaFantasy.Api.Ingestion;
-using ImsaFantasy.Domain;
-using ImsaFantasy.Infrastructure;
+using EnduranceFantasy.Api.Ingestion;
+using EnduranceFantasy.Domain;
+using EnduranceFantasy.Infrastructure;
 using Microsoft.EntityFrameworkCore;
 
-namespace ImsaFantasy.Api.Endpoints;
+namespace EnduranceFantasy.Api.Endpoints;
 
 /// <summary>
 /// Results ingestion (ADR-0001 D8). Qualifying results stage to a preview, then commit to

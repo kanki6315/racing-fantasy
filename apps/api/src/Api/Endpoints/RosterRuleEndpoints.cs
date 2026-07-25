@@ -1,9 +1,9 @@
-using ImsaFantasy.Api.Common;
-using ImsaFantasy.Domain;
-using ImsaFantasy.Infrastructure;
+using EnduranceFantasy.Api.Common;
+using EnduranceFantasy.Domain;
+using EnduranceFantasy.Infrastructure;
 using Microsoft.EntityFrameworkCore;
 
-namespace ImsaFantasy.Api.Endpoints;
+namespace EnduranceFantasy.Api.Endpoints;
 
 /// <summary>Roster composition rules per season/class/slot. A null classId bounds IMPACT picks across all classes.</summary>
 public static class RosterRuleEndpoints

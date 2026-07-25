@@ -1,4 +1,4 @@
-namespace ImsaFantasy.Api.Email;
+namespace EnduranceFantasy.Api.Email;
 
 /// <summary>
 /// Config for sending mail via Amazon SES (bound from the "Aws:Ses" section; set via user-secrets

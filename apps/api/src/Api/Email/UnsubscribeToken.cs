@@ -1,8 +1,8 @@
 using System.Security.Cryptography;
 using System.Text;
-using ImsaFantasy.Api.Workers;
+using EnduranceFantasy.Api.Workers;
 
-namespace ImsaFantasy.Api.Email;
+namespace EnduranceFantasy.Api.Email;
 
 /// <summary>
 /// Signs / verifies the one-click unsubscribe token (ADR-0009 D7): "{userId}.{kind}.{HMAC}". The kind

@@ -1,7 +1,7 @@
 using System.Reflection;
-using ImsaFantasy.Domain;
+using EnduranceFantasy.Domain;
 
-namespace ImsaFantasy.Api.Email;
+namespace EnduranceFantasy.Api.Email;
 
 /// <summary>Inputs for one reminder email. One email per event; the unsubscribe link is per-recipient.</summary>
 public sealed record ReminderEmailModel(

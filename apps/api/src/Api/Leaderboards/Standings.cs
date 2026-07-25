@@ -1,8 +1,8 @@
-using ImsaFantasy.Domain;
-using ImsaFantasy.Infrastructure;
+using EnduranceFantasy.Domain;
+using EnduranceFantasy.Infrastructure;
 using Microsoft.EntityFrameworkCore;
 
-namespace ImsaFantasy.Api.Leaderboards;
+namespace EnduranceFantasy.Api.Leaderboards;
 
 /// <summary>
 /// Shared ranking for the season board and per-league boards (ADR-0005). Takes per-registration
