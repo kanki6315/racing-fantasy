@@ -15,7 +15,7 @@ without ingested results, can't rank without scores.
 > response-DTO annotations across the admin endpoints, **image upload** (presigned S3 PUT + CloudFront,
 > keyed by `CarEntry.Id`), and the `GET /rounds/{id}/prices` `PriceItem` gaining each car's **driver
 > lineup + race number** (so the pick board shows who drives each team and orders by number); see
-> [frontend-roadmap.md](frontend-roadmap.md) and CLAUDE.md.
+> [frontend-roadmap.md](frontend-roadmap.md) and AGENTS.md.
 
 ## Critical path
 

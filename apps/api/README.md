@@ -60,7 +60,7 @@ Populate your local secret store from `src/Api`:
 dotnet user-secrets set "Authentication:Google:ClientId"     "<client-id>"
 dotnet user-secrets set "Authentication:Google:ClientSecret" "<client-secret>"
 
-# S3 image bucket (admin image upload — see CLAUDE.md "Images")
+# S3 image bucket (admin image upload — see AGENTS.md "Images")
 dotnet user-secrets set "Aws:BucketName" "<bucket>"
 dotnet user-secrets set "Aws:Region"     "<region>"          # e.g. us-east-1
 # Credentials are OPTIONAL — omit to use the default AWS credential chain

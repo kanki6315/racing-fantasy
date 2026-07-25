@@ -66,4 +66,4 @@ All documents are **Accepted**. As of 2026-06-18: **backend P0–P5 complete** (
 [roadmap.md](roadmap.md)); **frontend F0–F4 complete; F5 (polish/ship) done for all player pages** —
 image display, mobile/responsive, and loading/empty/error + a11y — [frontend-roadmap.md](frontend-roadmap.md).
 Remaining for a shippable MVP: **admin responsive** (deferred) and **production deploy**. See
-[CLAUDE.md](../CLAUDE.md) for the live status + known gaps.
+[AGENTS.md](../AGENTS.md) for the live status + known gaps.
