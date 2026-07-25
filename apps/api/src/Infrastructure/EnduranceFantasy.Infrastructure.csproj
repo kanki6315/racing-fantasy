@@ -14,7 +14,7 @@
   </ItemGroup>
 
   <ItemGroup>
-    <ProjectReference Include="..\Domain\ImsaFantasy.Domain.csproj" />
+    <ProjectReference Include="..\Domain\EnduranceFantasy.Domain.csproj" />
   </ItemGroup>
 
 </Project>

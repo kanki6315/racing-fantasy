@@ -26,8 +26,8 @@
     </ItemGroup>
 
     <ItemGroup>
-        <ProjectReference Include="..\Domain\ImsaFantasy.Domain.csproj" />
-        <ProjectReference Include="..\Infrastructure\ImsaFantasy.Infrastructure.csproj" />
+        <ProjectReference Include="..\Domain\EnduranceFantasy.Domain.csproj" />
+        <ProjectReference Include="..\Infrastructure\EnduranceFantasy.Infrastructure.csproj" />
     </ItemGroup>
 
 </Project>
