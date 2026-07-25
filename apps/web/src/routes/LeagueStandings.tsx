@@ -32,7 +32,7 @@ export function LeagueStandings() {
         <div className="flex min-w-0 items-center gap-[13px]">
           <span className="h-[28px] w-[6px] flex-none bg-brand [transform:skewX(-14deg)]" />
           <div className="min-w-0">
-            <h1 className="truncate font-display text-[26px] font-extrabold italic uppercase leading-none text-ink sm:text-[30px]">
+            <h1 className="truncate font-display text-[26px] font-extrabold uppercase leading-none text-ink sm:text-[30px]">
               {lb.data?.name ?? league.data?.name ?? 'League'}
             </h1>
             {league.data && (
@@ -44,7 +44,7 @@ export function LeagueStandings() {
         </div>
         {isPrivate && league.data?.joinCode && (
           <div className="shrink-0 self-start rounded-[3px] border border-line-2 bg-surface px-[14px] py-[8px] sm:self-auto sm:text-right">
-            <div className="font-display text-[10px] tracking-[0.12em] uppercase text-muted-2">Join Code</div>
+            <div className="font-display text-[10px] tracking-[0.12em] uppercase text-muted">Join Code</div>
             <div className="font-mono text-[15px] font-bold tracking-[0.1em] text-ink">{league.data.joinCode}</div>
           </div>
         )}

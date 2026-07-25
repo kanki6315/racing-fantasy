@@ -1,4 +1,4 @@
-# ADR-0001: Core Architecture for the IMSA Fantasy League
+# ADR-0001: Core Architecture for the Endurance Fantasy League
 
 **Status:** Accepted
 **Date:** 2026-06-16

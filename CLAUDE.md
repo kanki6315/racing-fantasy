@@ -1,4 +1,4 @@
-# IMSA Fantasy League
+# Endurance Fantasy League
 
 A motorsports fantasy app for the IMSA series. Users register per championship-season,
 pick teams/drivers under a salary cap each round (picks lock at qualifying), and score on

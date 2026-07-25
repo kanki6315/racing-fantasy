@@ -67,7 +67,7 @@ export function isShownOnDashboard(status: EventStatus): boolean {
 
 /** Label + Tailwind color classes (border/bg/text) per status; layout/sizing is the caller's. */
 export const EVENT_STATUS_META: Record<EventStatus, { label: string; className: string }> = {
-  WAITING: { label: 'Waiting to Open', className: 'border-line-2 bg-surface-2 text-muted-2' },
+  WAITING: { label: 'Waiting to Open', className: 'border-line-2 bg-surface-2 text-muted' },
   OPEN: { label: 'Picks Open', className: 'border-success/40 bg-success/10 text-success' },
   IN_PROGRESS: { label: 'In Progress', className: 'border-warn/40 bg-warn/10 text-warn' },
   AWAITING: { label: 'Awaiting Results', className: 'border-line-2 bg-surface-2 text-ink-2' },

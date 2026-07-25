@@ -1,4 +1,4 @@
-# Build Order / Milestone Plan — IMSA Fantasy League
+# Build Order / Milestone Plan — Endurance Fantasy League
 
 **Status:** Accepted
 **Date:** 2026-06-16

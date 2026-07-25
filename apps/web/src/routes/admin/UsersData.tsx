@@ -51,7 +51,7 @@ export function UsersData() {
 
       {/* Visibility tiers legend */}
       <div className="mb-5 flex flex-wrap items-center gap-x-6 gap-y-2 rounded-[6px] border border-line bg-surface px-5 py-3">
-        <span className="font-mono text-[9px] uppercase tracking-[0.12em] text-muted-2">Visibility</span>
+        <span className="font-mono text-[9px] uppercase tracking-[0.12em] text-muted">Visibility</span>
         <Tier color="bg-success" code="team_name" desc="public — the leaderboard identity" />
         <Tier color="bg-warn" code="name" desc="private-league members only" />
         <Tier color="bg-danger" code="email" desc="holder-only · never shown here" />
@@ -59,7 +59,7 @@ export function UsersData() {
 
       <div className="rounded-[6px] border border-line bg-surface">
         <div className="flex items-center justify-between border-b border-line px-4 py-3">
-          <span className="font-mono text-[10px] tracking-[0.14em] uppercase text-muted-2">
+          <span className="font-mono text-[10px] tracking-[0.14em] uppercase text-muted">
             {filtered.length} of {users.length} users
           </span>
           <TextInput
@@ -76,7 +76,7 @@ export function UsersData() {
           </div>
         ) : (
           <div className="grid grid-cols-[7rem_6rem_7rem_6rem_1fr]">
-            <div className="contents font-mono text-[9px] uppercase tracking-[0.12em] text-muted-2">
+            <div className="contents font-mono text-[9px] uppercase tracking-[0.12em] text-muted">
               <div className="border-b border-line px-4 py-2">User ID</div>
               <div className="border-b border-line px-4 py-2">Provider</div>
               <div className="border-b border-line px-4 py-2">Joined</div>
@@ -91,10 +91,10 @@ export function UsersData() {
                 <div className="flex items-center border-b border-line px-4 py-3 font-mono text-[11px] uppercase text-muted">
                   {u.externalProvider}
                 </div>
-                <div className="flex items-center border-b border-line px-4 py-3 font-mono text-[12px] text-muted-2">
+                <div className="flex items-center border-b border-line px-4 py-3 font-mono text-[12px] text-muted">
                   {fmtDate(u.createdAt)}
                 </div>
-                <div className="flex items-center justify-end border-b border-line px-4 py-3 font-mono text-[12px] text-muted-2">
+                <div className="flex items-center justify-end border-b border-line px-4 py-3 font-mono text-[12px] text-muted">
                   {u.registrationCount}
                 </div>
                 <div className="flex items-center justify-end gap-2 border-b border-line px-4 py-3">
@@ -109,7 +109,7 @@ export function UsersData() {
                   <button
                     type="button"
                     onClick={() => setErasing(u)}
-                    className="font-mono text-[11px] uppercase text-muted-2 hover:text-danger"
+                    className="font-mono text-[11px] uppercase text-muted hover:text-danger"
                   >
                     Delete
                   </button>
@@ -148,7 +148,7 @@ function EraseDialog({ user, onClose }: { user: UserDto; onClose: () => void }) 
         onClick={(e) => e.stopPropagation()}
       >
         <div className="border-t-[3px] border-danger px-5 pt-4">
-          <h2 className="font-display text-[18px] font-bold italic uppercase text-ink">Erase User Data</h2>
+          <h2 className="font-display text-[18px] font-bold uppercase text-ink">Erase User Data</h2>
           <div className="font-mono text-[10px] tracking-[0.1em] uppercase text-danger">
             Irreversible · Right to Erasure
           </div>
@@ -170,7 +170,7 @@ function EraseDialog({ user, onClose }: { user: UserDto; onClose: () => void }) 
               <span className="text-success">✓</span> Keeps anonymized scoring/leaderboard history
             </li>
           </ul>
-          <label className="mb-1 block font-mono text-[9px] uppercase tracking-[0.12em] text-muted-2">
+          <label className="mb-1 block font-mono text-[9px] uppercase tracking-[0.12em] text-muted">
             Type <span className="text-ink-2">{phrase}</span> to confirm
           </label>
           <TextInput

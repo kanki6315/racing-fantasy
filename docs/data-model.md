@@ -1,4 +1,4 @@
-# Data Model / ERD — IMSA Fantasy League
+# Data Model / ERD — Endurance Fantasy League
 
 **Status:** Accepted
 **Date:** 2026-06-16

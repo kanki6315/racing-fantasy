@@ -9,7 +9,7 @@ namespace ImsaFantasy.Api.Email;
 /// </summary>
 public sealed class SesOptions
 {
-    /// <summary>Verified SES sender (e.g. "IMSA Fantasy &lt;no-reply@mail.example.com&gt;").</summary>
+    /// <summary>Verified SES sender (e.g. "Endurance Fantasy &lt;no-reply@mail.example.com&gt;").</summary>
     public string? FromAddress { get; set; }
     public string? ReplyTo { get; set; }
     public string? Region { get; set; }

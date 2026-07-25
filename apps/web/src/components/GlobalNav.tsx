@@ -110,7 +110,7 @@ export function GlobalNav() {
             <button
               type="button"
               onClick={() => void devLogin('dev-user', 'Dev User', 'dev@dev.local')}
-              className="shrink-0 whitespace-nowrap font-mono text-[11px] tracking-[0.05em] uppercase text-muted-2 border border-line-2 rounded-[3px] px-3 h-9 hover:text-ink-2 transition-colors cursor-pointer"
+              className="shrink-0 whitespace-nowrap font-mono text-[11px] tracking-[0.05em] uppercase text-muted border border-line-2 rounded-[3px] px-3 h-9 hover:text-ink-2 transition-colors cursor-pointer"
             >
               Dev<span className="hidden sm:inline"> sign in</span>
             </button>

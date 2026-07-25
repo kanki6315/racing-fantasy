@@ -1,4 +1,4 @@
-# IMSA Fantasy — Web (`apps/web`)
+# Endurance Fantasy — Web (`apps/web`)
 
 React + TypeScript (Vite) frontend. Player-first; see [`docs/frontend-roadmap.md`](../../docs/frontend-roadmap.md).
 

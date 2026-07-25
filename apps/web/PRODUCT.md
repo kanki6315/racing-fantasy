@@ -22,7 +22,7 @@ scoring through a desktop console — a power-user surface, not the player-facin
 
 ## Product Purpose
 
-IMSA Fantasy lets fans register per championship-season, pick teams and drivers under a
+Endurance Fantasy lets fans register per championship-season, pick teams and drivers under a
 salary cap each round, and score on qualifying + race position (plus free per-round bonus
 modifiers). Standings run as a season-wide pool plus user-created leagues.
 

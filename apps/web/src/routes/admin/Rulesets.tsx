@@ -32,7 +32,7 @@ function statusChip(status: RulesetDto['status']) {
   const map: Record<RulesetDto['status'], string> = {
     Active: 'border-success/40 bg-success/[0.08] text-success',
     Draft: 'border-warn/40 bg-warn/[0.08] text-warn',
-    Archived: 'border-line-2 bg-surface-3 text-muted-2',
+    Archived: 'border-line-2 bg-surface-3 text-muted',
   }
   return (
     <span className={`rounded-[3px] border px-2 py-[2px] font-mono text-[9px] uppercase tracking-[0.08em] ${map[status]}`}>
@@ -137,7 +137,7 @@ export function Rulesets() {
           actions={
             <div className="flex items-center gap-2">
               {active ? (
-                <span className="font-mono text-[10px] text-muted-2">editing from v{active.version}</span>
+                <span className="font-mono text-[10px] text-muted">editing from v{active.version}</span>
               ) : (
                 <span className="font-mono text-[10px] text-warn">new — v1</span>
               )}
@@ -151,7 +151,7 @@ export function Rulesets() {
             <EmptyState>Loading rulesets…</EmptyState>
           ) : (
             <>
-              <div className="grid grid-cols-2 gap-x-3 border-b border-line pb-2 font-mono text-[9px] uppercase tracking-[0.1em] text-muted-2">
+              <div className="grid grid-cols-2 gap-x-3 border-b border-line pb-2 font-mono text-[9px] uppercase tracking-[0.1em] text-muted">
                 <div>Finishing Rank</div>
                 <div className="text-right">Points</div>
               </div>
@@ -160,7 +160,7 @@ export function Rulesets() {
                   <div key={r.rank} className="grid grid-cols-2 items-center gap-x-3 border-b border-line py-[6px] last:border-b-0">
                     <div className="font-mono text-[13px] text-ink-2">
                       P{r.rank}
-                      {r.rank === 1 && <span className="ml-2 text-[10px] text-muted-2">class pole / win</span>}
+                      {r.rank === 1 && <span className="ml-2 text-[10px] text-muted">class pole / win</span>}
                     </div>
                     <div className="flex justify-end">
                       <TextInput
@@ -219,7 +219,7 @@ export function Rulesets() {
                     <span className="font-mono text-[13px] text-ink-2">v{r.version}</span>
                     {statusChip(r.status)}
                   </div>
-                  <span className="font-mono text-[10px] text-muted-2">
+                  <span className="font-mono text-[10px] text-muted">
                     {new Date(r.effectiveFrom).toLocaleDateString()}
                   </span>
                 </div>

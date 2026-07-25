@@ -97,7 +97,7 @@ export function Scoring() {
         <EmptyState>No scores yet — run scoring once results are committed</EmptyState>
       ) : (
         <div className="rounded-[6px] border border-line bg-surface">
-          <div className="grid grid-cols-[3rem_1fr_5rem_5rem_5rem_6rem] gap-x-3 border-b border-line px-4 py-2 font-mono text-[9px] uppercase tracking-[0.1em] text-muted-2">
+          <div className="grid grid-cols-[3rem_1fr_5rem_5rem_5rem_6rem] gap-x-3 border-b border-line px-4 py-2 font-mono text-[9px] uppercase tracking-[0.1em] text-muted">
             <div>Rank</div>
             <div>Team</div>
             <div className="text-right">Quali</div>
@@ -129,7 +129,7 @@ function SourceTile({ label, value, dot }: { label: string; value: number; dot: 
     <div className="rounded-[6px] border border-line bg-surface px-4 py-3">
       <div className="flex items-center gap-2">
         <span className={`h-[6px] w-[6px] rounded-full ${dot}`} />
-        <span className="font-mono text-[9px] uppercase tracking-[0.12em] text-muted-2">{label}</span>
+        <span className="font-mono text-[9px] uppercase tracking-[0.12em] text-muted">{label}</span>
       </div>
       <div className="mt-1 font-mono text-[20px] text-ink">{value.toLocaleString()}</div>
     </div>

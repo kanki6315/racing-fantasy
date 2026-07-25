@@ -88,14 +88,14 @@ export function ImageUpload({
 
   return (
     <div>
-      <div className="mb-[6px] font-mono text-[9px] uppercase tracking-[0.12em] text-muted-2">{label}</div>
+      <div className="mb-[6px] font-mono text-[9px] uppercase tracking-[0.12em] text-muted">{label}</div>
       <div className="flex items-center gap-3">
         <div className={`${box} shrink-0 overflow-hidden rounded-[5px] border border-line-2 bg-surface-3`}>
           {src && !broken ? (
             // eslint-disable-next-line jsx-a11y/alt-text
             <img src={src} alt="" className="h-full w-full object-cover" onError={() => setBroken(true)} />
           ) : (
-            <div className="flex h-full w-full items-center justify-center font-mono text-[9px] uppercase text-muted-2">
+            <div className="flex h-full w-full items-center justify-center font-mono text-[9px] uppercase text-muted">
               none
             </div>
           )}

@@ -44,7 +44,7 @@ export function Events() {
       <div className="grid grid-cols-1 gap-5 lg:grid-cols-[1.4fr_1fr]">
         <div className="rounded-[6px] border border-line bg-surface">
           <div className="flex items-center justify-between border-b border-line px-4 py-3">
-            <span className="font-mono text-[10px] tracking-[0.14em] uppercase text-muted-2">
+            <span className="font-mono text-[10px] tracking-[0.14em] uppercase text-muted">
               {events.length} events
             </span>
             <GhostButton onClick={() => setSel(null)}>+ New</GhostButton>
@@ -140,7 +140,7 @@ function EventForm({ event, onSaved }: { event: EventDto | null; onSaved: (id: n
 
   return (
     <div className="rounded-[6px] border border-line bg-surface p-4">
-      <h2 className="mb-4 font-mono text-[10px] tracking-[0.14em] uppercase text-muted-2">
+      <h2 className="mb-4 font-mono text-[10px] tracking-[0.14em] uppercase text-muted">
         {event ? 'Edit Event' : 'New Event'}
       </h2>
       <div className="grid gap-4">
@@ -205,7 +205,7 @@ function EventForm({ event, onSaved }: { event: EventDto | null; onSaved: (id: n
 
         {event && (
           <div className="border-t border-line pt-4">
-            <div className="mb-2 font-mono text-[9px] tracking-[0.12em] uppercase text-muted-2">
+            <div className="mb-2 font-mono text-[9px] tracking-[0.12em] uppercase text-muted">
               Participating Championships
             </div>
             {event.rounds.length === 0 ? (

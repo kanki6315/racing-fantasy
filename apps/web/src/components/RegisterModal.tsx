@@ -76,7 +76,7 @@ export function RegisterModal({
             <div className="flex items-start justify-between">
               <div>
                 <div className="font-mono text-[11px] tracking-[0.14em] text-brand-3 mb-[9px]">// JOIN_2026</div>
-                <Dialog.Title className="font-display text-[28px] font-extrabold italic uppercase leading-[0.96] text-ink">
+                <Dialog.Title className="font-display text-[28px] font-extrabold uppercase leading-[0.96] text-ink">
                   Name your team
                 </Dialog.Title>
                 <Dialog.Description className="mt-2 font-sans text-[13px] text-muted">
@@ -106,7 +106,7 @@ export function RegisterModal({
                 autoFocus
                 placeholder="e.g. No Lift Crew"
                 className={`h-[50px] w-full rounded-[4px] border bg-[#070809] px-[15px] font-display text-[20px] font-bold tracking-[0.02em] text-ink outline-none placeholder:text-muted ${
-                  showError ? 'border-danger' : valid ? 'border-[#3a6e3f]' : 'border-line-2'
+                  showError ? 'border-danger' : valid ? 'border-success/60' : 'border-line-2'
                 }`}
               />
               <div className="mt-[9px] flex min-h-[18px] items-center gap-[7px]">

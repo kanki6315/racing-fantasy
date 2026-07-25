@@ -149,15 +149,17 @@ function CarEntriesTab({ seasonId }: { seasonId: number }) {
             const m = classMeta(cl?.name, cl?.color)
             return (
               <ListRow key={c.id} selected={c.id === sel} onClick={() => setSel(c.id)}>
-                <span
-                  className="w-10 shrink-0 border-l-[3px] pl-2 font-mono text-[13px] font-semibold text-ink"
-                  style={{ borderColor: m.hex }}
-                >
+                {/* Class identity rides on a leading broadcast slash, not a side-stripe border. */}
+                <span className="flex w-11 shrink-0 items-center gap-2 font-mono text-[13px] font-semibold text-ink">
+                  <span
+                    className="h-[13px] w-[3px] flex-none [transform:skewX(-14deg)]"
+                    style={{ background: m.hex }}
+                  />
                   {c.number}
                 </span>
                 <span className="flex-1 font-sans text-[13px] text-ink-2">{c.teamName}</span>
                 <span className="font-mono text-[10px] uppercase text-muted">{m.label}</span>
-                <span className="w-16 text-right font-mono text-[11px] text-muted-2">
+                <span className="w-16 text-right font-mono text-[11px] text-muted">
                   {driverCount.get(c.id) ?? 0} drv
                 </span>
               </ListRow>
@@ -209,7 +211,7 @@ function CarEntryForm({
 
   return (
     <div className="rounded-[6px] border border-line bg-surface p-4">
-      <h2 className="mb-4 font-mono text-[10px] tracking-[0.14em] uppercase text-muted-2">
+      <h2 className="mb-4 font-mono text-[10px] tracking-[0.14em] uppercase text-muted">
         {car ? 'Edit Car Entry' : 'New Car Entry'}
       </h2>
       <div className="grid gap-4">
@@ -250,7 +252,7 @@ function CarEntryForm({
                 previewUrl={liveryUrl(roundId, car.id)}
               />
             ) : (
-              <div className="font-mono text-[10px] uppercase tracking-[0.06em] text-muted-2">
+              <div className="font-mono text-[10px] uppercase tracking-[0.06em] text-muted">
                 Select a round in the topbar to upload a livery
               </div>
             )}
@@ -340,7 +342,7 @@ function DriversTab() {
             </div>
             <div className="min-w-0">
               <div className="truncate font-sans text-[13px] font-semibold text-ink">{d.fullName}</div>
-              <div className="font-mono text-[10px] uppercase text-muted-2">{d.country ?? '—'}</div>
+              <div className="font-mono text-[10px] uppercase text-muted">{d.country ?? '—'}</div>
             </div>
           </button>
         ))}
@@ -359,7 +361,7 @@ function DriverForm({ driver, onClose }: { driver: DriverDto | null; onClose: ()
 
   return (
     <div className="rounded-[6px] border border-line bg-surface p-4">
-      <h2 className="mb-4 font-mono text-[10px] tracking-[0.14em] uppercase text-muted-2">
+      <h2 className="mb-4 font-mono text-[10px] tracking-[0.14em] uppercase text-muted">
         {driver ? 'Edit Driver' : 'New Driver'}
       </h2>
       {driver && (
@@ -466,7 +468,7 @@ function LineupsTab({ seasonId }: { seasonId: number }) {
             <div className="flex items-center gap-2 border-b border-line px-4 py-2">
               <ClassSwatch hex={classMeta(cl.name, cl.color).hex} />
               <span className="font-display text-[13px] font-semibold uppercase text-ink">{cl.name}</span>
-              <span className="font-mono text-[10px] text-muted-2">{byClass.get(cl.id)?.length} cars</span>
+              <span className="font-mono text-[10px] text-muted">{byClass.get(cl.id)?.length} cars</span>
             </div>
             {byClass.get(cl.id)?.map((car) => {
               const carLinks = linksByCar.get(car.id) ?? []
@@ -478,7 +480,7 @@ function LineupsTab({ seasonId }: { seasonId: number }) {
                   <span className="w-40 shrink-0 font-sans text-[13px] text-ink-2">{car.teamName}</span>
                   <div className="flex flex-1 flex-wrap items-center gap-2">
                     {overridden && (
-                      <span className="font-mono text-[10px] tracking-[0.14em] uppercase text-muted-2">
+                      <span className="font-mono text-[10px] tracking-[0.14em] uppercase text-muted">
                         This round
                       </span>
                     )}
@@ -499,7 +501,7 @@ function LineupsTab({ seasonId }: { seasonId: number }) {
                           <button
                             type="button"
                             onClick={() => deleteLink.mutate(l.id)}
-                            className="text-muted-2 hover:text-danger"
+                            className="text-muted hover:text-danger"
                             aria-label="Remove driver from this round"
                           >
                             ×
@@ -508,7 +510,7 @@ function LineupsTab({ seasonId }: { seasonId: number }) {
                       )
                     })}
                     {overridden && carLinks.length > 0 && (
-                      <span className="font-mono text-[10px] tracking-[0.14em] uppercase text-muted-2">
+                      <span className="font-mono text-[10px] tracking-[0.14em] uppercase text-muted">
                         Season
                       </span>
                     )}
@@ -528,7 +530,7 @@ function LineupsTab({ seasonId }: { seasonId: number }) {
                         <button
                           type="button"
                           onClick={() => deleteLink.mutate(l.id)}
-                          className="text-muted-2 hover:text-danger"
+                          className="text-muted hover:text-danger"
                           aria-label="Remove driver"
                         >
                           ×
@@ -614,7 +616,7 @@ function LineupsTab({ seasonId }: { seasonId: number }) {
                           // season-wide lineup this tab has always edited.
                           setAddScope(overridden && roundId != null ? 'round' : 'season')
                         }}
-                        className="rounded-[3px] border border-dashed border-line-2 px-2 py-1 font-mono text-[11px] text-muted-2 hover:text-ink-2"
+                        className="rounded-[3px] border border-dashed border-line-2 px-2 py-1 font-mono text-[11px] text-muted hover:text-ink-2"
                       >
                         + Add
                       </button>
@@ -713,7 +715,7 @@ function BulkGrid<Row extends Record<string, string>>({
         {columns.map((c) => (
           <span
             key={c.key}
-            className={`font-mono text-[9px] tracking-[0.12em] uppercase text-muted-2 ${c.width ?? 'flex-1'}`}
+            className={`font-mono text-[9px] tracking-[0.12em] uppercase text-muted ${c.width ?? 'flex-1'}`}
           >
             {c.label}
           </span>
@@ -725,7 +727,7 @@ function BulkGrid<Row extends Record<string, string>>({
         const last = i === rows.length - 1
         return (
           <div key={i} className="flex items-center gap-2 border-b border-line px-3 py-[5px] last:border-b-0">
-            <span className="w-6 shrink-0 text-right font-mono text-[10px] text-muted-2">{i + 1}</span>
+            <span className="w-6 shrink-0 text-right font-mono text-[10px] text-muted">{i + 1}</span>
             {columns.map((c) => (
               <div key={c.key} className={c.width ?? 'flex-1'}>
                 <TextInput
@@ -747,7 +749,7 @@ function BulkGrid<Row extends Record<string, string>>({
                   type="button"
                   onClick={() => removeRow(i)}
                   aria-label="Remove row"
-                  className="font-mono text-[14px] leading-none text-muted-2 hover:text-danger"
+                  className="font-mono text-[14px] leading-none text-muted hover:text-danger"
                 >
                   ×
                 </button>
@@ -809,7 +811,7 @@ function EntryListImportPanel({ onClose }: { onClose: () => void }) {
   return (
     <div className="rounded-[6px] border border-line bg-surface p-4">
       <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
-        <h2 className="font-mono text-[10px] tracking-[0.14em] uppercase text-muted-2">
+        <h2 className="font-mono text-[10px] tracking-[0.14em] uppercase text-muted">
           Import Entry List (JSON)
         </h2>
         <span className="font-mono text-[11px] text-muted">
@@ -868,7 +870,7 @@ function EntryListImportPanel({ onClose }: { onClose: () => void }) {
 
               {res.driversCreated.length > 0 && (
                 <div className="max-h-32 overflow-y-auto">
-                  <div className="mb-1 font-mono text-[10px] tracking-[0.14em] uppercase text-muted-2">
+                  <div className="mb-1 font-mono text-[10px] tracking-[0.14em] uppercase text-muted">
                     New drivers — check for near-duplicates of existing names
                   </div>
                   <div className="flex flex-wrap gap-1">
@@ -934,7 +936,7 @@ function BulkPanel({
   return (
     <div className="rounded-[6px] border border-line bg-surface p-4">
       <div className="mb-3 flex items-center justify-between">
-        <h2 className="font-mono text-[10px] tracking-[0.14em] uppercase text-muted-2">{title}</h2>
+        <h2 className="font-mono text-[10px] tracking-[0.14em] uppercase text-muted">{title}</h2>
         {summary && <span className="font-mono text-[11px] text-muted">{summary}</span>}
       </div>
       {children}

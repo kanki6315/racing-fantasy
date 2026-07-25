@@ -122,17 +122,19 @@ export function Dashboard() {
     <div className="flex flex-1 flex-col lg:flex-row">
       {/* left rail — full-width below the content on mobile, fixed left rail at lg+ */}
       <aside className="order-last w-full flex-none border-t border-line bg-surface-3 p-[18px] pt-6 lg:order-first lg:w-[268px] lg:border-r lg:border-t-0">
-        <div className="font-display text-[26px] font-extrabold italic uppercase text-ink">My Team</div>
+        <div className="font-display text-[26px] font-extrabold uppercase text-ink">My Team</div>
         <div className="mb-5 font-sans text-[12px] text-muted">
           {regs.length} series · {leagues.length} leagues · {regs[0] ? seasonInfo(regs[0].seasonId).year : '—'}
         </div>
 
-        <div className="mb-[11px] font-display text-[11px] tracking-[0.12em] uppercase text-muted-2">Championships</div>
+        <div className="mb-[11px] font-display text-[11px] tracking-[0.12em] uppercase text-muted">Championships</div>
         <div className="flex flex-col gap-1">
           {regs.map((r) => (
             <div key={r.id} className="flex items-center justify-between gap-2 rounded-[3px] border border-success/50 bg-success/[0.06] px-[13px] py-[10px]">
               <span className="flex items-center gap-2 font-display text-[13px] font-semibold uppercase tracking-[0.04em] text-ink">
-                <span className="h-[15px] w-[4px] flex-none bg-brand [transform:skewX(-14deg)]" />
+                {/* The slash takes the card's own state hue — a red one per registered series put
+                    four extra reds in the sidebar for no signal. */}
+                <span className="h-[15px] w-[4px] flex-none bg-success [transform:skewX(-14deg)]" />
                 {seasonInfo(r.seasonId).champName}
               </span>
               <svg className="h-[15px] w-[15px] flex-none text-success" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round" aria-label="Signed up">
@@ -145,13 +147,16 @@ export function Dashboard() {
             <button
               key={j.champId}
               onClick={() => setJoinSeasonId(j.seasonId)}
-              className="flex items-center justify-between gap-2 rounded-[3px] border border-dotted border-[#a855f7] bg-[#a855f7]/[0.06] px-[13px] py-[10px] text-left transition-colors hover:border-[#c084fc] hover:bg-[#a855f7]/[0.1] cursor-pointer"
+              // A series you could join is an attention state, so it speaks warn orange — the same
+              // hue as the nav's NOT REGISTERED pill. It used to be #a855f7 purple, a color that
+              // exists nowhere in the palette and read as the loudest thing on the page.
+              className="flex items-center justify-between gap-2 rounded-[3px] border border-dotted border-warn/50 bg-warn/[0.06] px-[13px] py-[10px] text-left transition-colors hover:border-warn/70 hover:bg-warn/[0.1] cursor-pointer"
             >
               <span className="flex items-center gap-2 font-display text-[13px] font-semibold uppercase tracking-[0.04em] text-ink-2">
-                <span className="h-[15px] w-[4px] flex-none bg-[#a855f7] [transform:skewX(-14deg)]" />
+                <span className="h-[15px] w-[4px] flex-none bg-warn [transform:skewX(-14deg)]" />
                 {j.name}
               </span>
-              <span className="flex-none font-display text-[11px] font-bold uppercase tracking-[0.06em] text-[#c084fc]">
+              <span className="flex-none font-display text-[11px] font-bold uppercase tracking-[0.06em] text-warn">
                 Sign Up
               </span>
             </button>
@@ -159,7 +164,7 @@ export function Dashboard() {
         </div>
 
         <div className="my-5 h-px bg-line" />
-        <div className="mb-[11px] font-display text-[11px] tracking-[0.12em] uppercase text-muted-2">Leagues</div>
+        <div className="mb-[11px] font-display text-[11px] tracking-[0.12em] uppercase text-muted">Leagues</div>
         <div className="flex flex-col gap-1 font-display text-[13px] font-semibold uppercase tracking-[0.04em]">
           <Row label="All Leagues" value={leagues.length} strong />
           <Row label="Public" value={leagues.filter((l) => l.visibility === 'Public').length} />
@@ -174,7 +179,7 @@ export function Dashboard() {
         </button>
 
         <div className="my-5 h-px bg-line" />
-        <div className="mb-[11px] font-display text-[11px] tracking-[0.12em] uppercase text-muted-2">Race emails</div>
+        <div className="mb-[11px] font-display text-[11px] tracking-[0.12em] uppercase text-muted">Race emails</div>
         <EmailPreferenceControls
           prefs={prefsFromList(user.emailPreferences)}
           onChange={(kind, enabled) =>
@@ -185,14 +190,14 @@ export function Dashboard() {
           }
           pending={updatePref.isPending}
         />
-        <p className="mt-[8px] font-sans text-[11px] leading-[15px] text-muted-2">One email each, unsubscribe anytime.</p>
+        <p className="mt-[8px] font-sans text-[11px] leading-[15px] text-muted">One email each, unsubscribe anytime.</p>
       </aside>
 
       {/* main */}
       <div className="min-w-0 flex-1 bg-bg">
         <div className="flex flex-wrap items-center gap-x-[11px] gap-y-1 px-4 pb-1 pt-[22px] sm:px-[26px]">
-          <h1 className="font-display text-[22px] font-extrabold italic uppercase text-ink">Your Picks</h1>
-          <span className="hidden rounded-full border border-line-2 bg-surface-2 px-[10px] py-[3px] font-sans text-[11px] text-ink-2 sm:inline-block">
+          <h1 className="font-display text-[22px] font-extrabold uppercase text-ink">Your Picks</h1>
+          <span className="hidden rounded-[3px] border border-line-2 bg-surface-2 px-[10px] py-[3px] font-sans text-[11px] text-ink-2 sm:inline-block">
             One lineup per championship — scored across all your leagues
           </span>
         </div>
@@ -209,7 +214,7 @@ export function Dashboard() {
 
         {/* your leagues */}
         <div className="flex flex-wrap items-center gap-x-[11px] gap-y-1 px-4 pb-[14px] pt-5 sm:px-[26px]">
-          <h2 className="font-display text-[22px] font-extrabold italic uppercase text-ink">Your Leagues</h2>
+          <h2 className="font-display text-[22px] font-extrabold uppercase text-ink">Your Leagues</h2>
           <span className="hidden font-sans text-[12px] text-muted sm:inline">Your picks are scored into every league below</span>
         </div>
         {leagues.length === 0 ? (
@@ -218,7 +223,7 @@ export function Dashboard() {
           </div>
         ) : (
           <>
-            <div className="hidden grid-cols-[1fr_110px_100px_110px] items-center border-y border-line px-[26px] py-[10px] font-display text-[11px] tracking-[0.1em] uppercase text-muted-2 sm:grid">
+            <div className="hidden grid-cols-[1fr_110px_100px_110px] items-center border-y border-line px-[26px] py-[10px] font-display text-[11px] tracking-[0.1em] uppercase text-muted sm:grid">
               <span>League</span><span className="text-center">Position</span><span className="text-center">Trend</span><span />
             </div>
             {leagues.map((l) => (
@@ -253,7 +258,7 @@ function Row({ label, value, strong }: { label: string; value: number; strong?: 
 function EmptyPicks() {
   return (
     <div className="flex min-h-[150px] items-center justify-center rounded-[4px] border border-dashed border-line-2 bg-surface/30 px-6 py-14 text-center">
-      <span className="font-display text-[15px] font-semibold uppercase tracking-[0.1em] text-muted-2">
+      <span className="font-display text-[15px] font-semibold uppercase tracking-[0.1em] text-muted">
         No picks to be made
       </span>
     </div>
@@ -270,12 +275,14 @@ function PicksCard({ card }: { card: PickCard }) {
     Date.now(),
   )
   const badge = EVENT_STATUS_META[status]
+  // Hairline all round — a thick red left edge is a banned side-stripe, and it was also a third
+  // solid red on this view. The weekend is already marked by its header band and status badge.
   return (
-    <div className="overflow-hidden rounded-[4px] border border-line border-l-[3px] border-l-brand bg-surface">
+    <div className="overflow-hidden rounded-[4px] border border-line bg-surface">
       <div className="flex flex-wrap items-center gap-x-3 gap-y-1 border-b border-line bg-surface-2/40 px-[15px] py-[10px]">
         <span className="font-display text-[14px] font-bold uppercase tracking-[0.04em] text-ink">{card.eventName}</span>
         {card.eventCircuit && <span className="font-sans text-[12px] text-muted">{card.eventCircuit}</span>}
-        <span className={`ml-auto rounded-full border px-[9px] py-[2px] font-mono text-[10px] uppercase tracking-[0.06em] ${badge.className}`}>
+        <span className={`ml-auto rounded-[3px] border px-[9px] py-[2px] font-mono text-[10px] uppercase tracking-[0.06em] ${badge.className}`}>
           {badge.label}
         </span>
       </div>
@@ -311,12 +318,14 @@ function PicksRow({ reg, round, champName }: { reg: Registration; round: PickRou
     <div className="flex flex-col items-stretch sm:flex-row">
       <div className="flex-none border-b border-line p-[15px] sm:w-[188px] sm:border-b-0 sm:border-r">
         <div className="flex items-start gap-2">
-          <span className="mt-1 h-[18px] w-[5px] flex-none bg-brand [transform:skewX(-14deg)]" />
+          {/* Structural mark, not a red spend — the slash goes brand only where it marks the page
+              heading or the player's own row, never once per repeated row. */}
+          <span className="mt-1 h-[18px] w-[5px] flex-none bg-line-3 [transform:skewX(-14deg)]" />
           <span className="font-display text-[17px] font-bold uppercase leading-tight text-ink">{champName}</span>
         </div>
         <div className="mt-[7px] font-sans text-[12px] text-muted">{round.name}</div>
         <div className="mt-[6px] flex items-center gap-1.5">
-          <span className="font-mono text-[9px] uppercase tracking-[0.1em] text-muted-2">Team</span>
+          <span className="font-mono text-[9px] uppercase tracking-[0.1em] text-muted">Team</span>
           <span className="truncate font-sans text-[12px] font-medium text-ink-2">{reg.teamName}</span>
         </div>
         <div className={`mt-[9px] font-mono text-[11px] font-semibold ${status.c}`}>
@@ -326,7 +335,7 @@ function PicksRow({ reg, round, champName }: { reg: Registration; round: PickRou
 
       <div className="flex flex-1 flex-wrap items-center gap-2 p-[15px]">
         {roster.isLoading ? (
-          <span className="font-sans text-[13px] text-muted-2">Loading lineup…</span>
+          <span className="font-sans text-[13px] text-muted">Loading lineup…</span>
         ) : roster.isError ? (
           <span className="font-sans text-[13px] text-danger">Couldn't load this lineup.</span>
         ) : picks > 0 ? (
@@ -394,18 +403,18 @@ function LeagueRow({ league, me }: { league: League; me: Me }) {
       {/* sm+ : grid row */}
       <div className="hidden grid-cols-[1fr_110px_100px_110px] items-center border-b border-surface-2 px-[26px] py-[15px] sm:grid">
         <div className="flex min-w-0 items-center gap-3">
-          <div className="flex h-10 w-10 flex-none items-center justify-center rounded-[5px] border border-line-3 bg-surface-2 font-display text-[15px] font-extrabold italic text-ink">{initials}</div>
+          <div className="flex h-10 w-10 flex-none items-center justify-center rounded-[5px] border border-line-3 bg-surface-2 font-display text-[15px] font-extrabold text-ink">{initials}</div>
           <div className="min-w-0">
             <div className="truncate font-display text-[17px] font-bold uppercase leading-none text-ink">{league.name}</div>
             <div className="mt-[3px] font-sans text-[11px] text-muted">{league.visibility} · {league.memberCount} players</div>
           </div>
         </div>
         <span className="text-center font-mono text-[16px] font-bold text-ink">
-          {rank ?? '—'}<span className="text-[11px] text-muted-2">/{league.memberCount}</span>
+          {rank ?? '—'}<span className="text-[11px] text-muted">/{league.memberCount}</span>
         </span>
         <span
           aria-label={trend == null ? 'Trend unavailable' : `Trend ${trend > 0 ? `up ${trend}` : trend < 0 ? `down ${-trend}` : 'unchanged'}`}
-          className={`block text-center font-mono text-[13px] ${trend != null && trend > 0 ? 'text-success' : trend != null && trend < 0 ? 'text-danger' : 'text-muted-2'}`}
+          className={`block text-center font-mono text-[13px] ${trend != null && trend > 0 ? 'text-success' : trend != null && trend < 0 ? 'text-danger' : 'text-muted'}`}
         >
           {trend == null ? '—' : trend > 0 ? `▲ ${trend}` : trend < 0 ? `▼ ${-trend}` : '— 0'}
         </span>
@@ -418,14 +427,14 @@ function LeagueRow({ league, me }: { league: League; me: Me }) {
 
       {/* < sm : card (Trend column dropped for space) */}
       <div className="flex items-center gap-3 border-b border-surface-2 px-4 py-[14px] sm:hidden">
-        <div className="flex h-9 w-9 flex-none items-center justify-center rounded-[5px] border border-line-3 bg-surface-2 font-display text-[14px] font-extrabold italic text-ink">{initials}</div>
+        <div className="flex h-9 w-9 flex-none items-center justify-center rounded-[5px] border border-line-3 bg-surface-2 font-display text-[14px] font-extrabold text-ink">{initials}</div>
         <div className="min-w-0 flex-1">
           <div className="truncate font-display text-[16px] font-bold uppercase leading-none text-ink">{league.name}</div>
           <div className="mt-[3px] font-sans text-[11px] text-muted">{league.visibility} · {league.memberCount} players</div>
         </div>
         <div className="flex shrink-0 flex-col items-end gap-1">
           <span className="font-mono text-[15px] font-bold text-ink">
-            {rank ?? '—'}<span className="text-[10px] text-muted-2">/{league.memberCount}</span>
+            {rank ?? '—'}<span className="text-[10px] text-muted">/{league.memberCount}</span>
           </span>
           <Link to={`/leagues/${league.id}`} className="rounded-[3px] border border-line-2 px-[10px] py-[4px] font-display text-[11px] font-semibold uppercase tracking-[0.04em] text-ink-2">
             Standings
@@ -446,7 +455,7 @@ function DiscoverLeagues({ seasonId }: { seasonId: number | undefined }) {
 
   return (
     <div className="px-4 py-6 sm:px-[26px]">
-      <h2 className="mb-[14px] font-display text-[18px] font-extrabold italic uppercase text-ink">Discover Public Leagues</h2>
+      <h2 className="mb-[14px] font-display text-[18px] font-extrabold uppercase text-ink">Discover Public Leagues</h2>
       <div className="flex flex-wrap gap-3">
         {leagues.map((l) => (
           <div

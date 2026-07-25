@@ -186,10 +186,10 @@ export function PrivacyPolicyModal({ triggerClassName }: { triggerClassName?: st
           <div className="h-1 flex-none bg-gradient-to-r from-brand to-brand-3" />
           <div className="flex flex-none items-start justify-between border-b border-line px-7 pb-[18px] pt-[22px]">
             <div>
-              <Dialog.Title className="font-display text-[24px] font-extrabold italic uppercase leading-[0.96] text-ink">
+              <Dialog.Title className="font-display text-[24px] font-extrabold uppercase leading-[0.96] text-ink">
                 Privacy Policy
               </Dialog.Title>
-              <Dialog.Description className="mt-[7px] font-mono text-[11px] tracking-[0.1em] uppercase text-muted-2">
+              <Dialog.Description className="mt-[7px] font-mono text-[11px] tracking-[0.1em] uppercase text-muted">
                 Last updated June 19, 2026
               </Dialog.Description>
             </div>

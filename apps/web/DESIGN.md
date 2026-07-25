@@ -1,6 +1,6 @@
 ---
-name: IMSA Fantasy
-description: A broadcast-grade fantasy app for the IMSA sportscar championship.
+name: Endurance Fantasy
+description: A broadcast-grade fantasy app for sportscar endurance racing.
 colors:
   brand: "#e10600"
   brand-2: "#ff2d2d"
@@ -26,15 +26,15 @@ colors:
 typography:
   display:
     fontFamily: "Saira Semi Condensed, sans-serif"
-    fontSize: "clamp(2rem, 5vw, 3.25rem)"
-    fontWeight: 700
-    lineHeight: 1.0
+    fontSize: "34px"
+    fontWeight: 800
+    lineHeight: 0.98
     letterSpacing: "0.0em"
   headline:
     fontFamily: "Saira Semi Condensed, sans-serif"
-    fontSize: "1.5rem"
-    fontWeight: 600
-    lineHeight: 1.1
+    fontSize: "22px"
+    fontWeight: 800
+    lineHeight: 1.05
     letterSpacing: "0.0em"
   title:
     fontFamily: "Saira Semi Condensed, sans-serif"
@@ -96,7 +96,7 @@ components:
     typography: "{typography.label}"
     rounded: "{rounded.md}"
     padding: "0 15px"
-    height: "48px"
+    height: "50px"
   chip:
     backgroundColor: "{colors.surface-3}"
     textColor: "{colors.ink-2}"
@@ -105,17 +105,17 @@ components:
     padding: "2px 8px"
 ---
 
-# Design System: IMSA Fantasy
+# Design System: Endurance Fantasy
 
 ## 1. Overview
 
 **Creative North Star: "The Timing Screen"**
 
-IMSA Fantasy looks like a live broadcast timing-and-scoring graphics package, executed with the
+Endurance Fantasy looks like a live broadcast timing-and-scoring graphics package, executed with the
 restraint of a premium motorsport marque. The surface is a near-black void (`#0a0b0d`) the way a
 broadcast bug sits over dark footage; content rides on it as crisp, slightly-elevated panels. The
 numbers — positions, prices, points, deltas — are the heroes, set in a tabular monospace so they
-align and scan like a timing screen. IMSA red is the single brand voice, spent sparingly on the
+align and scan like a timing screen. Endurance red is the single brand voice, spent sparingly on the
 things that matter: the live state, the primary action, the bar under the wordmark.
 
 It is broadcast-fluent but never cluttered. Where real timing software drowns the viewer in
@@ -133,7 +133,7 @@ timing software (density only where it earns its keep).
 **Key Characteristics:**
 - Near-black broadcast canvas; content as crisp elevated panels, not floating cards.
 - Monospace numerals treated as first-class typography — the data IS the interface.
-- One accent (IMSA red) spent deliberately; racing-class colors reserved strictly for wayfinding.
+- One accent (Endurance red) spent deliberately; racing-class colors reserved strictly for wayfinding.
 - Tight, engineered corners (2–8px) and hairline borders over heavy shadow.
 - Premium restraint: breathing room and hierarchy carry weight, not noise.
 
@@ -143,7 +143,7 @@ A near-black broadcast palette: a cool-dark surface ramp, a single hot red brand
 load-bearing racing-class hues that function as wayfinding.
 
 ### Primary
-- **IMSA Red** (`#e10600`): the one brand voice. Primary buttons, the 2px bar under the wordmark/nav,
+- **Endurance Red** (`#e10600`): the one brand voice. Primary buttons, the 2px bar under the wordmark/nav,
   live-state indicators, the skewed broadcast slash motif. Spent sparingly — its rarity is the point.
 - **Red Glow** (`#ff5d5d`, with `#ff2d2d` mid): hover/active states and the focus-visible ring; the
   lighter tints carry red into text and tinted-badge contexts where the full brand would vibrate.
@@ -172,15 +172,33 @@ so a status signal can never be mistaken for class wayfinding.
 - **Lines** (`#1f242a` / `#2a2d33` / `#3a3f47`): hairline borders and dividers, lightening as
   elements come forward or gain focus.
 - **Ink** (`#ffffff`): primary text and key numerals. **Ink-2** (`#c8ccd2`): secondary text.
-  **Muted** (`#8a8f98`) / **Muted-2** (`#5c626b`): labels and de-emphasized data.
+  **Muted** (`#8a8f98`): labels, micro-copy, and de-emphasized data — the darkest ink that still
+  carries text. **Muted-2** (`#5c626b`): non-text only — disabled fills, inert dots, decorative
+  strokes. It lands near 3.2:1 on `surface-3` and must never carry a word a player has to read.
 
 ### Named Rules
-**The One Red Rule.** IMSA red is the only brand accent and appears on ≤10% of any screen — the
-primary action, the live state, the nav bar. If two reds compete on a screen, one of them is wrong.
+**The Confirmed-Is-Teal Rule.** A state the player has already achieved — a pick in the lineup, a
+series joined, a budget still inside the cap — is `success` teal, never brand red. Red marks the
+thing still to do (SAVE ROSTER) and the thing happening now (the live lock). A board where every
+selected row glowed red left the actual action with nowhere to stand out.
+
+**The One Red Rule.** Endurance red is the only brand accent and appears on ≤10% of any screen. A view
+gets **two solid-red spends: the primary action and the live state** (plus the nav's 2px edge, which
+is chrome, not content). Anything else that wants red takes a tinted wash instead (`brand/15` fill,
+`brand/40` border, `brand-3` label) or takes red only on hover. If you can count three solid reds in
+a screenshot, one of them is wrong.
 
 **The Class-Color Reserve.** GTP/LMP2/GTD PRO/GTD hues signify racing class and nothing else. Never
 borrow a class color for a button, a status, or decoration. Class is wayfinding; spending it
 elsewhere breaks the map.
+
+**The Contrast Floor Rule.** `muted` (`#8a8f98`) is the floor for any text a player reads. Below it
+the ramp is decoration only. Two corollaries, both learned the hard way: a placeholder is text
+(`muted`, not `muted-2` — that reads 1.9:1), and **opacity is not a de-emphasis tool** — an
+`opacity-70` row stacks on already-muted 11px labels and drops them under AA. Recede an element by
+changing its tokens (title to `ink-2`, pills unfilled), never by fading the whole row. The single
+exemption is a genuinely **disabled control** — WCAG exempts inactive elements, and the drop to
+`muted-2` (or the desaturated-red fill at 60%) is itself the signal. Nothing else is exempt.
 
 ## 3. Typography
 
@@ -194,9 +212,10 @@ prose humane. Spline Sans Mono is the timing-screen numeral: tabular, exact, use
 and micro-label so numbers align and scan.
 
 ### Hierarchy
-- **Display** (Saira Semi Condensed, 700, clamp(2rem→3.25rem), lh 1.0): page and hero titles, scoreboard
-  headers. Uppercase. Reserve true italic for the single primary CTA.
-- **Headline** (Saira Semi Condensed, 600, ~1.5rem, lh 1.1): section and panel titles.
+- **Display** (Saira Semi Condensed, 800, 34px → 40px at `sm`, lh 0.98): page and hero titles,
+  scoreboard headers. Uppercase, `text-wrap: balance`. Reserve true italic for the primary CTA.
+- **Headline** (Saira Semi Condensed, 800, 22px, lh 1.05): section and panel titles. Panel
+  sub-headers step down to 15–17px at weight 700.
 - **Title** (Saira Semi Condensed, 600, ~0.875rem, +0.08em, uppercase): nav links, button labels, table
   headers — the engineered all-caps voice.
 - **Body** (Saira, 400, ~0.8125rem, lh 1.5): prose, descriptions, helper text. Cap measure at 65–75ch.
@@ -210,6 +229,10 @@ are forbidden.
 
 **The Italic-Restraint Rule.** Display italic is loud. Use it only on the primary CTA (e.g. "SAVE
 ROSTER"). Everywhere else, weight and case carry emphasis — not slant.
+
+**The Fixed-Step Rule.** Type sizes are fixed px with breakpoint steps (`text-[34px] sm:text-[40px]`),
+never `clamp()` or viewport units. A player reads this on a phone at the lock deadline and on a
+desktop between rounds; both deserve a size chosen for them, not interpolated between them.
 
 ## 4. Elevation
 
@@ -235,7 +258,7 @@ the primary action always wins the eye.
 
 ### Buttons
 - **Shape:** sharp, engineered corners — 3px (`rounded.sm`) for actions, never pill-rounded.
-- **Primary:** solid IMSA red (`#e10600`) fill, white ink, Saira Semi Condensed uppercase title type,
+- **Primary:** solid Endurance red (`#e10600`) fill, white ink, Saira Semi Condensed uppercase title type,
   ~44px tall. The one true action per view; italic permitted here only.
 - **Hover / Focus:** brighten to `#ff2d2d`; keyboard focus shows the global 2px `#ff5d5d` ring at
   2px offset. Transitions are color-only and fast (~150ms).
@@ -247,6 +270,21 @@ the primary action always wins the eye.
   wash of its own semantic hue (`warn/10` + `warn/35` border, `brand/15`, `surface-3` neutral).
 - **State:** a leading dot or icon plus text always accompanies color — pills read "NOT REGISTERED"
   with an amber dot, never amber alone. Selected vs. idle shifts border + fill, not just hue.
+- **Filter / selection chips.** 3px corners, `h-11` on phones tightening to `h-9` at `sm` (a filter
+  is a touch target before it is a label). Idle: `line-2` border, `muted` label. Selected: `line-3`
+  border + `surface-2` fill + `ink` label + a 2px brand underline as an *inset* shadow — the nav's
+  active-link language, borrowed so selection reads the same everywhere. Always carries
+  `aria-pressed`. **Never fill a filter with solid brand red:** selection is neither the primary
+  action nor the live state, and three filter rows can be active at once.
+- **Lifecycle pills — two vocabularies, one state machine.** A race weekend has six derived stages
+  (Waiting → Picks Open → In Progress → Awaiting Results → Scored → Final). The **calendar** speaks
+  the loud broadcast dialect: solid fills, condensed caps, terse copy ("COMING SOON", "PICKS OPEN",
+  "AWAITING RESULTS", "FINAL"). The **dashboard** speaks the quiet dialect: tinted wash + hairline
+  border in the same hue, sentence case ("Picks Open", "Awaiting Results", "Final"). Never mix them
+  on one surface, and never let the two disagree about a stage's name.
+- **Flag White for SCORED.** Results-posted is the only stage that fills with `ink` (dark text) or
+  washes `ink/10` — the checkered-flag moment. It must stay visually distinct from FINAL's dim
+  neutral: "your points are up, go look" reads differently from "this weekend is archived."
 
 ### Cards / Containers
 - **Corner Style:** 6px (`rounded.lg`) for primary panels; 4px for nested/inset blocks.
@@ -263,23 +301,60 @@ the primary action always wins the eye.
 - **Error / Disabled:** error border + helper text in `danger` (`#ff5d5d`); disabled drops to `muted-2`.
 
 ### Navigation
-- **Style:** pure-black top bar with a 2px IMSA-red bottom border — the broadcast lower-third edge.
+- **Style:** pure-black top bar with a 2px Endurance-red bottom border — the broadcast lower-third edge.
   Links are Saira Semi Condensed uppercase, tracked. Active link carries a `brand` underline (the border
   is present-but-transparent when idle, so labels never shift). Idle `muted` → hover `ink-2`.
-- **Mobile:** the inline nav collapses to a horizontally scrollable section row beneath the bar;
-  the identity block replaces the initials avatar with name/email.
+- **Below `lg`:** the inline section nav drops to a horizontally scrollable second row beneath the
+  bar (scrollbar hidden, links `shrink-0`). The inline nav returns only at `lg` — the bar cannot hold
+  wordmark + links + status pill + identity + sign-out any earlier, and a nav link that overlaps the
+  identity block silently swallows a destination.
+- **Identity block:** the initials avatar is the constant; the name/email text beside it appears only
+  where there's room — below `sm` (no avatar rendered) and again at `xl`. The avatar sits neutral at
+  rest (`line-2` border, `surface-2` fill, `ink-2` initials) and takes red only on hover, so a
+  signed-in-unregistered view doesn't spend a third red (The One Red Rule).
+
+### Modals / Dialogs
+- **Shell:** recessed `surface-3` (`#0e0f12`) panel, `line-2` hairline, 6px radius, 480px max width,
+  capped at `calc(100vw - 32px)`. The only surface allowed a drop shadow (Overlay, see Elevation).
+- **Crown:** a 4px `brand → brand-3` gradient rule across the top edge — the modal's one red spend,
+  which is why the confirm button is the *only* other red in the dialog.
+- **Backdrop:** near-opaque void (`rgba(4,5,6,0.78)`) with a 3px blur. The blur is functional
+  (dismissing the board behind a deadline-critical decision), not decorative glassmorphism.
+- **Footer:** actions sit on a darker plinth (`#0b0c0f`) above a `line` divider — cancel as a ghost
+  button, confirm filling the remaining width. Disabled confirm goes desaturated red (`#3a1614`) at
+  60% opacity, never gray: the action stays recognizable while it's unavailable.
+
+### Data Rows (calendar + leaderboard)
+The row is this product's real workhorse — more screens are rows than are cards.
+- **Structure:** a fixed-column grid at `sm`+ (rank / name / metrics), reflowing to a stacked card
+  below it. Rows separate with a `line` bottom border, never with gaps or shadows.
+- **Hover:** background lifts to `surface-2` (or `brand/[0.12]` on a live row); no transform, no
+  scale — the row is a target, not a toy.
+- **Every row is a door, and says where it goes.** A row-level link carries a quiet destination
+  label ("Set lineup →", "View results →", "View standings →") in `muted`, brightening to `ink-2`
+  with the row. Mystery-meat rows — clickable with no stated destination — are forbidden.
+- **Receding a row:** archived/finalized rows step the title to `ink-2` and drop the pill *fill*
+  (border-only). Never `opacity` (The Contrast Floor Rule).
+- **The "you" row:** highlighted by the Broadcast Slash going red plus a solid `YOU` chip — position
+  and mark, not color alone.
 
 ### Signature — The Broadcast Slash
-A skewed red bar (`background: brand; transform: skewX(-14deg)`) used as a section/leading accent —
-the angular motion mark of broadcast motorsport graphics. Use it as a deliberate punctuation, not on
+A skewed red bar (`background: brand; transform: skewX(-14deg)`) used as a section/leading accent and
+as the leading mark on every leaderboard row (`line-3` normally, `brand` for the signed-in player) —
+the angular motion mark of broadcast motorsport graphics. Use it as deliberate punctuation, not on
 every heading.
+
+### Signature — The Wordmark
+`ENDURANCE` in `ink` + `FANTASY` in `brand`, set solid (no space) in Saira Semi Condensed 800 at
+21px, tight tracking. The color break *is* the logotype — there is no mark, no icon, no lockup
+variant. Never re-color the halves, never letterspace it, never set it in the body face.
 
 ## 6. Do's and Don'ts
 
 ### Do:
 - **Do** set every comparable number (position, price, points, delta) in Spline Sans Mono, tabular —
   columns align to the digit (The Tabular-Numeral Rule).
-- **Do** keep IMSA red to ≤10% of any screen: the primary action, the live state, the nav edge
+- **Do** keep Endurance red to ≤10% of any screen: the primary action, the live state, the nav edge
   (The One Red Rule).
 - **Do** reserve GTP/LMP2/GTD PRO/GTD colors strictly for racing-class wayfinding, and always pair
   class/status color with text, icon, or position so it survives color-blindness.
@@ -287,6 +362,11 @@ every heading.
   surfaces flat (The Flat-Void Rule).
 - **Do** lead with breathing room — the premium register comes from generous gutters and clear
   hierarchy, not added ornament.
+- **Do** name the destination of every clickable row ("Set lineup →"), quiet at rest and brightening
+  with the row. A player under a lock deadline should never have to guess where a row goes.
+- **Do** floor de-emphasised text at `muted` (`#8a8f98`) — including placeholders, counters, and
+  footnotes (The Contrast Floor Rule).
+- **Do** size type in fixed px with breakpoint steps (The Fixed-Step Rule).
 
 ### Don't:
 - **Don't** build a generic SaaS dashboard — no cream/light surfaces, no identical
@@ -303,3 +383,9 @@ every heading.
   (The Italic-Restraint Rule).
 - **Don't** drop shadows on resting in-page surfaces — shadow is reserved for true overlays
   (modals, dropdowns, tooltips).
+- **Don't** fade an element with `opacity` to push it back — it stacks on already-muted micro-copy
+  and breaks AA. Recede with tokens (`ink-2` title, unfilled pills).
+- **Don't** put `muted-2` (`#5c626b`) on anything a player has to read — it is a fill and stroke
+  color, not an ink.
+- **Don't** use `clamp()` or viewport-scaled type. Fixed sizes, stepped at breakpoints.
+- **Don't** ship a row that's clickable but silent about its destination.

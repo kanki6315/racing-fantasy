@@ -96,7 +96,7 @@ export function Results() {
       {/* Race target — only on multi-race rounds; staged previews reset on change */}
       {kind === 'race' && multiRace && (
         <div className="mb-4 flex items-center gap-3 rounded-[6px] border border-line bg-surface px-4 py-3">
-          <span className="font-mono text-[10px] uppercase tracking-[0.12em] text-muted-2">Target race</span>
+          <span className="font-mono text-[10px] uppercase tracking-[0.12em] text-muted">Target race</span>
           <div className="flex gap-2">
             {raceNumbers.map((n) => (
               <button
@@ -165,7 +165,7 @@ function StatChip({ label, value, tone }: { label: string; value: number; tone: 
   const color = tone === 'success' ? 'text-success' : tone === 'warn' ? 'text-warn' : 'text-ink'
   return (
     <div className="flex flex-col">
-      <span className="font-mono text-[9px] uppercase tracking-[0.12em] text-muted-2">{label}</span>
+      <span className="font-mono text-[9px] uppercase tracking-[0.12em] text-muted">{label}</span>
       <span className={`font-mono text-[16px] ${color}`}>{value}</span>
     </div>
   )
@@ -208,9 +208,9 @@ function PreviewView({
             <div className="flex items-center gap-2 border-b border-line px-4 py-2">
               <ClassSwatch hex={byClassName(cn).hex} />
               <span className="font-display text-[13px] font-semibold uppercase text-ink">{cn}</span>
-              <span className="font-mono text-[10px] text-muted-2">{rows.length} classified</span>
+              <span className="font-mono text-[10px] text-muted">{rows.length} classified</span>
             </div>
-            <div className="grid grid-cols-[4rem_4rem_1fr] gap-x-3 border-b border-line px-4 py-2 font-mono text-[9px] uppercase tracking-[0.1em] text-muted-2">
+            <div className="grid grid-cols-[4rem_4rem_1fr] gap-x-3 border-b border-line px-4 py-2 font-mono text-[9px] uppercase tracking-[0.1em] text-muted">
               <div>Pos</div>
               <div>No.</div>
               <div>{isQuali ? 'Best Lap' : 'Status / Laps'}</div>
@@ -221,10 +221,12 @@ function PreviewView({
                 className="grid grid-cols-[4rem_4rem_1fr] items-center gap-x-3 border-b border-line px-4 py-2 last:border-b-0"
               >
                 <div className="font-mono text-[13px] font-semibold text-ink">P{r.position}</div>
-                <div
-                  className="border-l-[3px] pl-2 font-mono text-[13px] text-ink-2"
-                  style={{ borderColor: byClassName(cn).hex }}
-                >
+                {/* Class identity rides on a leading broadcast slash, not a side-stripe border. */}
+                <div className="flex items-center gap-2 font-mono text-[13px] text-ink-2">
+                  <span
+                    className="h-[13px] w-[3px] flex-none [transform:skewX(-14deg)]"
+                    style={{ background: byClassName(cn).hex }}
+                  />
                   {r.number}
                 </div>
                 <div className="font-mono text-[12px] text-muted">
@@ -252,7 +254,7 @@ function IssuesPanel({ issues }: { issues: IngestResponse['issues'] }) {
           <div key={idx} className="flex items-center gap-3 font-mono text-[11px]">
             <span className="w-12 text-ink-2">#{i.number}</span>
             <span className="w-20 uppercase text-muted">{i.class}</span>
-            <span className="text-muted-2">{i.reason}</span>
+            <span className="text-muted">{i.reason}</span>
           </div>
         ))}
       </div>

@@ -44,13 +44,13 @@ export function CreateLeagueModal({
           <div className="p-7">
             {created ? (
               <>
-                <Dialog.Title className="font-display text-[24px] font-extrabold italic uppercase text-ink">League created</Dialog.Title>
+                <Dialog.Title className="font-display text-[24px] font-extrabold uppercase text-ink">League created</Dialog.Title>
                 <p className="mt-2 font-sans text-[13px] text-muted">
                   <span className="text-ink-2">{created.name}</span> is live. Your picks are scored into it automatically.
                 </p>
                 {created.joinCode && (
                   <div className="mt-4 rounded-[4px] border border-line bg-[#070809] p-4">
-                    <div className="font-display text-[10px] tracking-[0.14em] uppercase text-muted-2">Invite code</div>
+                    <div className="font-display text-[10px] tracking-[0.14em] uppercase text-muted">Invite code</div>
                     <div className="mt-1 font-mono text-[22px] font-bold tracking-[0.1em] text-ink">{created.joinCode}</div>
                     <div className="mt-1 font-sans text-[12px] text-muted">Share this so friends can join your private league.</div>
                   </div>
@@ -61,7 +61,7 @@ export function CreateLeagueModal({
               </>
             ) : (
               <>
-                <Dialog.Title className="font-display text-[24px] font-extrabold italic uppercase text-ink">Create a league</Dialog.Title>
+                <Dialog.Title className="font-display text-[24px] font-extrabold uppercase text-ink">Create a league</Dialog.Title>
                 <Dialog.Description className="mt-2 font-sans text-[13px] text-muted">
                   A private group ranked on the same picks you already make.
                 </Dialog.Description>
@@ -90,7 +90,7 @@ export function CreateLeagueModal({
                     </button>
                   ))}
                 </div>
-                <p className="mt-2 font-sans text-[12px] text-muted-2">
+                <p className="mt-2 font-sans text-[12px] text-muted">
                   {visibility === 'Private' ? 'Invite-only via a join code.' : 'Anyone can find and join from Discover.'}
                 </p>
 
@@ -140,7 +140,7 @@ export function JoinByCodeModal({ open, onOpenChange }: { open: boolean; onOpenC
         <Dialog.Content className={content}>
           <div className="h-1 bg-gradient-to-r from-brand to-brand-3" />
           <div className="p-7">
-            <Dialog.Title className="font-display text-[24px] font-extrabold italic uppercase text-ink">Join with code</Dialog.Title>
+            <Dialog.Title className="font-display text-[24px] font-extrabold uppercase text-ink">Join with code</Dialog.Title>
             <Dialog.Description className="mt-2 font-sans text-[13px] text-muted">
               Enter the invite code for a private league.
             </Dialog.Description>

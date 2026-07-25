@@ -36,7 +36,7 @@ function PipelineStep({
       ? 'border-success/50 text-success'
       : state === 'active'
         ? 'border-brand text-brand-3'
-        : 'border-line-2 text-muted-2'
+        : 'border-line-2 text-muted'
   return (
     <div className="flex items-center gap-3 rounded-[5px] border border-line bg-surface px-4 py-3">
       <div className={`flex h-7 w-7 items-center justify-center rounded-full border font-mono text-[11px] ${ring}`}>
@@ -104,7 +104,7 @@ export function AdminOverview() {
       />
 
       {!round ? (
-        <div className="rounded-[6px] border border-line bg-surface p-8 text-center font-mono text-[12px] tracking-[0.08em] uppercase text-muted-2">
+        <div className="rounded-[6px] border border-line bg-surface p-8 text-center font-mono text-[12px] tracking-[0.08em] uppercase text-muted">
           No round selected
         </div>
       ) : (
@@ -132,7 +132,7 @@ export function AdminOverview() {
 
           {/* Setup pipeline */}
           <div>
-            <div className="mb-3 font-mono text-[10px] tracking-[0.14em] uppercase text-muted-2">
+            <div className="mb-3 font-mono text-[10px] tracking-[0.14em] uppercase text-muted">
               Round Setup Pipeline
             </div>
             <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
