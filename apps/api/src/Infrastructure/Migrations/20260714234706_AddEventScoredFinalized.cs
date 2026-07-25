@@ -2,7 +2,7 @@
 
 #nullable disable
 
-namespace ImsaFantasy.Infrastructure.Migrations
+namespace EnduranceFantasy.Infrastructure.Migrations
 {
     /// <inheritdoc />
     public partial class AddEventScoredFinalized : Migration

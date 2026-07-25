@@ -1,7 +1,7 @@
-using ImsaFantasy.Infrastructure;
+using EnduranceFantasy.Infrastructure;
 using Microsoft.EntityFrameworkCore;
 
-namespace ImsaFantasy.Api.Workers;
+namespace EnduranceFantasy.Api.Workers;
 
 /// <summary>
 /// Defense-in-depth for the lock (ADR-0002): once a round's quali_start passes, stamp locked_at on

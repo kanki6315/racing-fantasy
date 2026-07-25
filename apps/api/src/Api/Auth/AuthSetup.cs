@@ -1,11 +1,11 @@
 using System.Security.Claims;
-using ImsaFantasy.Domain;
-using ImsaFantasy.Infrastructure;
+using EnduranceFantasy.Domain;
+using EnduranceFantasy.Infrastructure;
 using Microsoft.AspNetCore.Authentication.Cookies;
 using Microsoft.AspNetCore.Authentication.OpenIdConnect;
 using Microsoft.EntityFrameworkCore;
 
-namespace ImsaFantasy.Api.Auth;
+namespace EnduranceFantasy.Api.Auth;
 
 /// <summary>
 /// Authentication wiring (ADR-0004, amended 2026-06-17): a session cookie plus Google OIDC. We

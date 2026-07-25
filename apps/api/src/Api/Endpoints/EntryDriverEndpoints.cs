@@ -1,9 +1,9 @@
-using ImsaFantasy.Api.Common;
-using ImsaFantasy.Domain;
-using ImsaFantasy.Infrastructure;
+using EnduranceFantasy.Api.Common;
+using EnduranceFantasy.Domain;
+using EnduranceFantasy.Infrastructure;
 using Microsoft.EntityFrameworkCore;
 
-namespace ImsaFantasy.Api.Endpoints;
+namespace EnduranceFantasy.Api.Endpoints;
 
 /// <summary>Lineup management — which drivers share a car entry (handles endurance co-drivers).</summary>
 public static class EntryDriverEndpoints

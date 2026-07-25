@@ -1,4 +1,4 @@
-# ImsaFantasy API
+# EnduranceFantasy API
 
 Modular-monolith backend for the Endurance Fantasy League. See [../docs](../docs/README.md)
 for the design (ADRs, ERD, roadmap). This is **Phase 0** — schema + project structure.
@@ -6,7 +6,7 @@ for the design (ADRs, ERD, roadmap). This is **Phase 0** — schema + project st
 ## Layout
 
 ```
-ImsaFantasy.slnx
+EnduranceFantasy.slnx
 └── src/
     ├── Api/            ASP.NET Core host (startup project)
     ├── Domain/         entities + enums (no infra deps)

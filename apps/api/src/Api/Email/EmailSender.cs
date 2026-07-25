@@ -3,7 +3,7 @@ using Amazon.Runtime;
 using Amazon.SimpleEmailV2;
 using Amazon.SimpleEmailV2.Model;
 
-namespace ImsaFantasy.Api.Email;
+namespace EnduranceFantasy.Api.Email;
 
 /// <summary>One transactional HTML email. <see cref="ListUnsubscribeUrl"/>, when set, adds the
 /// one-click List-Unsubscribe headers Gmail/Yahoo bulk senders require (ADR-0009 D7).</summary>

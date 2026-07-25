@@ -1,6 +1,6 @@
-using ImsaFantasy.Domain;
+using EnduranceFantasy.Domain;
 
-namespace ImsaFantasy.Api.Scoring;
+namespace EnduranceFantasy.Api.Scoring;
 
 /// <summary>
 /// A modifier's score-time behaviour (ADR-0006 D7). Each <see cref="RosterModifier"/> kind plugs in

@@ -1,12 +1,12 @@
 using System.Text.Json.Serialization;
 using System.Threading.RateLimiting;
-using ImsaFantasy.Api.Auth;
-using ImsaFantasy.Api.Common;
-using ImsaFantasy.Api.Email;
-using ImsaFantasy.Api.Endpoints;
-using ImsaFantasy.Api.Images;
-using ImsaFantasy.Api.Workers;
-using ImsaFantasy.Infrastructure;
+using EnduranceFantasy.Api.Auth;
+using EnduranceFantasy.Api.Common;
+using EnduranceFantasy.Api.Email;
+using EnduranceFantasy.Api.Endpoints;
+using EnduranceFantasy.Api.Images;
+using EnduranceFantasy.Api.Workers;
+using EnduranceFantasy.Infrastructure;
 using Microsoft.AspNetCore.HttpOverrides;
 using Microsoft.EntityFrameworkCore;
 
@@ -17,7 +17,7 @@ builder.Services.AddProblemDetails();
 builder.Services.AddExceptionHandler<ProblemExceptionHandler>();
 builder.Services.AddMemoryCache();
 builder.Services.AddHostedService<LockSweepService>();
-builder.Services.AddScoped<ImsaFantasy.Api.Scoring.ScoringService>();
+builder.Services.AddScoped<EnduranceFantasy.Api.Scoring.ScoringService>();
 builder.Services.AddImsaAuth(builder.Configuration);
 builder.Services.AddImageStorage(builder.Configuration);
 
@@ -28,10 +28,10 @@ var reminderOptions = builder.Configuration.GetSection("Reminders").Get<Reminder
 reminderOptions.WebBaseUrl ??= builder.Configuration["Web:Origin"];
 builder.Services.AddSingleton(reminderOptions);
 builder.Services.AddSingleton(
-    builder.Configuration.GetSection("Aws:Ses").Get<ImsaFantasy.Api.Email.SesOptions>() ?? new ImsaFantasy.Api.Email.SesOptions());
+    builder.Configuration.GetSection("Aws:Ses").Get<EnduranceFantasy.Api.Email.SesOptions>() ?? new EnduranceFantasy.Api.Email.SesOptions());
 builder.Services.AddEmail();
 builder.Services.AddSingleton<UnsubscribeTokenService>();
-builder.Services.AddScoped<ImsaFantasy.Api.Email.SesEventProcessor>();
+builder.Services.AddScoped<EnduranceFantasy.Api.Email.SesEventProcessor>();
 builder.Services.AddHostedService<PicksReminderService>();
 
 // Rate-limit the email-preference toggle so it can't be hammered (ADR-0009). Per-user fixed window;

@@ -1,4 +1,4 @@
-namespace ImsaFantasy.Domain;
+namespace EnduranceFantasy.Domain;
 
 /// <summary>The two picks-reminder email kinds (ADR-0009 amendment). Each is independently opt-in.</summary>
 public static class ReminderKind

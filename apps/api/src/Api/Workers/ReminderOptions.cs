@@ -1,4 +1,4 @@
-namespace ImsaFantasy.Api.Workers;
+namespace EnduranceFantasy.Api.Workers;
 
 /// <summary>
 /// Config for the picks-reminder worker (bound from the "Reminders" section, ADR-0009). The reminder

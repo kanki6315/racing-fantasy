@@ -1,8 +1,8 @@
-using ImsaFantasy.Domain;
-using ImsaFantasy.Infrastructure;
+using EnduranceFantasy.Domain;
+using EnduranceFantasy.Infrastructure;
 using Microsoft.EntityFrameworkCore;
 
-namespace ImsaFantasy.Api.Picks;
+namespace EnduranceFantasy.Api.Picks;
 
 /// <summary>
 /// Single source of truth for a round's roster rules (ADR-0001 D4/D5): the salary cap (from the

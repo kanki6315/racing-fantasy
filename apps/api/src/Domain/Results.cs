@@ -1,4 +1,4 @@
-namespace ImsaFantasy.Domain;
+namespace EnduranceFantasy.Domain;
 
 /// <summary>
 /// Qualifying grid result, per car, per class (the grid is a car concept).

@@ -1,10 +1,10 @@
 using System.Text.Json;
 using Amazon.SimpleNotificationService.Util;
-using ImsaFantasy.Domain;
-using ImsaFantasy.Infrastructure;
+using EnduranceFantasy.Domain;
+using EnduranceFantasy.Infrastructure;
 using Microsoft.EntityFrameworkCore;
 
-namespace ImsaFantasy.Api.Email;
+namespace EnduranceFantasy.Api.Email;
 
 /// <summary>
 /// Ingests SES bounce/complaint events delivered via SNS (ADR-0010). Verifies the SNS signature and

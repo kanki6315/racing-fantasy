@@ -1,8 +1,8 @@
-using ImsaFantasy.Domain;
-using ImsaFantasy.Infrastructure;
+using EnduranceFantasy.Domain;
+using EnduranceFantasy.Infrastructure;
 using Microsoft.EntityFrameworkCore;
 
-namespace ImsaFantasy.Api.Scoring;
+namespace EnduranceFantasy.Api.Scoring;
 
 /// <summary>
 /// The scoring engine (ADR-0003). Computes each pick's points from the active, versioned rulesets

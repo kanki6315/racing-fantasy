@@ -101,7 +101,7 @@ imsa-fantasy/                 ← monorepo root
 │   └── frontend-roadmap.md   ← React/TS build plan (F0..F5)
 └── apps/
     ├── api/                  ← .NET backend (solution root)
-    │   ├── ImsaFantasy.slnx
+    │   ├── EnduranceFantasy.slnx
     │   ├── docker-compose.yml    ← local Postgres
     │   └── src/{Api,Domain,Infrastructure}/
     └── web/                  ← React + TS frontend (Vite); F0–F4 done, F5 in progress

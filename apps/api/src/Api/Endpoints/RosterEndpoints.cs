@@ -1,11 +1,11 @@
-using ImsaFantasy.Api.Auth;
-using ImsaFantasy.Api.Picks;
-using ImsaFantasy.Domain;
-using ImsaFantasy.Infrastructure;
+using EnduranceFantasy.Api.Auth;
+using EnduranceFantasy.Api.Picks;
+using EnduranceFantasy.Domain;
+using EnduranceFantasy.Infrastructure;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Storage;
 
-namespace ImsaFantasy.Api.Endpoints;
+namespace EnduranceFantasy.Api.Endpoints;
 
 /// <summary>
 /// The integrity-critical path (ADR-0002, ADR-0001 D4/D5). A roster's picks are validated for

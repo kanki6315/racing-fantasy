@@ -1,4 +1,4 @@
-namespace ImsaFantasy.Domain;
+namespace EnduranceFantasy.Domain;
 
 /// <summary>
 /// Which roster slot a pick occupies (ADR-0001 D5/D6). <see cref="Impact"/> is **deprecated**

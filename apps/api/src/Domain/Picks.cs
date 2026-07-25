@@ -1,4 +1,4 @@
-namespace ImsaFantasy.Domain;
+namespace EnduranceFantasy.Domain;
 
 /// <summary>
 /// The account identity, keyed by a pseudonymous external subject. Per the ADR-0004 amendment

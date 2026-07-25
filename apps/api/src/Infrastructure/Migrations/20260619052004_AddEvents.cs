@@ -4,7 +4,7 @@ using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 
 #nullable disable
 
-namespace ImsaFantasy.Infrastructure.Migrations
+namespace EnduranceFantasy.Infrastructure.Migrations
 {
     /// <inheritdoc />
     public partial class AddEvents : Migration

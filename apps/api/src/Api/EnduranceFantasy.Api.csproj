@@ -4,7 +4,7 @@
         <TargetFramework>net10.0</TargetFramework>
         <Nullable>enable</Nullable>
         <ImplicitUsings>enable</ImplicitUsings>
-        <RootNamespace>ImsaFantasy.Api</RootNamespace>
+        <RootNamespace>EnduranceFantasy.Api</RootNamespace>
       <UserSecretsId>e301b393-f20d-4669-8c0e-b49b104dcd4d</UserSecretsId>
   </PropertyGroup>
 

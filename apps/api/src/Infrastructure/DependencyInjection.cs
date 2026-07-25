@@ -1,7 +1,7 @@
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
 
-namespace ImsaFantasy.Infrastructure;
+namespace EnduranceFantasy.Infrastructure;
 
 public static class DependencyInjection
 {

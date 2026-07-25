@@ -1,4 +1,4 @@
-namespace ImsaFantasy.Domain;
+namespace EnduranceFantasy.Domain;
 
 /// <summary>
 /// Versioned scoring rules per season and <see cref="ScoringSource"/> (ADR-0003). MAIN picks are
