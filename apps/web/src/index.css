@@ -1,7 +1,8 @@
 @import 'tailwindcss';
 
 /*
- * IMSA Fantasy design tokens (from the handoff designs).
+ * Endurance Fantasy design tokens. The canonical spec is DESIGN.md at the app root — these values
+ * and its frontmatter must agree.
  * Tailwind v4 turns each token into utilities, e.g. --color-surface → bg-surface / text-surface,
  * --font-display → font-display. The class-color tokens (gtp/lmp2/gtdpro/gtd) are load-bearing —
  * they encode each racing class's identity across the whole app.
@@ -26,7 +27,7 @@
   --color-muted: #8a8f98;
   --color-muted-2: #5c626b;
 
-  /* brand (IMSA red) */
+  /* brand (Endurance red) */
   --color-brand: #e10600;
   --color-brand-2: #ff2d2d;
   --color-brand-3: #ff5d5d;
