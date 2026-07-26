@@ -216,8 +216,17 @@ export function Dashboard() {
         </div>
 
         <div className="flex flex-col gap-3 px-4 py-[10px] sm:px-[26px]">
-          {picksCards.length === 0 ? (
-            <EmptyPicks />
+          {events.isError ? (
+            <SectionError
+              title="Couldn't load race weekends"
+              body="This is a connection problem, not an empty calendar. Any lineup you've already saved is safe."
+              onRetry={() => void events.refetch()}
+              pending={events.isFetching}
+            />
+          ) : events.isPending ? (
+            <PicksSkeleton />
+          ) : picksCards.length === 0 ? (
+            <EmptyPicks registered={regs.length > 0} />
           ) : (
             picksCards.map((card) => <PicksCard key={card.eventId} card={card} classById={classById} />)
           )}
@@ -230,7 +239,29 @@ export function Dashboard() {
           <h2 className="font-display text-[22px] font-extrabold uppercase text-ink">Your Leagues</h2>
           <span className="hidden font-sans text-[12px] text-muted sm:inline">Your picks are scored into every league below</span>
         </div>
-        {leagues.length === 0 ? (
+        {myLeagues.isError ? (
+          <div className="mx-4 sm:mx-[26px]">
+            <SectionError
+              title="Couldn't load your leagues"
+              body="This is a connection problem, not an empty league list. You're still a member of everything you joined."
+              onRetry={() => void myLeagues.refetch()}
+              pending={myLeagues.isFetching}
+            />
+          </div>
+        ) : myLeagues.isPending ? (
+          <div className="mx-4 space-y-2 sm:mx-[26px]" aria-hidden="true">
+            {[0, 1, 2].map((i) => (
+              <div key={i} className="flex items-center gap-3 rounded-[4px] border border-line px-4 py-[15px]">
+                <div className="h-10 w-10 flex-none rounded-[5px] bg-surface-2" />
+                <div className="flex-1 space-y-[6px]">
+                  <div className="h-[15px] w-[180px] rounded-[2px] bg-line-2" />
+                  <div className="h-[11px] w-[120px] rounded-[2px] bg-line" />
+                </div>
+                <div className="h-[27px] w-[92px] rounded-[3px] bg-line" />
+              </div>
+            ))}
+          </div>
+        ) : leagues.length === 0 ? (
           <div className="mx-4 rounded-[4px] border border-dashed border-line-2 px-5 py-8 text-center font-sans text-[13px] text-muted sm:mx-[26px]">
             You haven't joined any leagues yet — create one or join with a code.
           </div>
@@ -267,13 +298,86 @@ function Row({ label, value, strong }: { label: string; value: number; strong?: 
   )
 }
 
-// ---- Empty state: no open event → nothing to pick (off-season). ----
-function EmptyPicks() {
+/**
+ * A section whose data didn't load.
+ *
+ * This exists because the alternative is worse than an error: these queries used to resolve to `[]`
+ * on failure, so an API outage rendered as a confident, wrong "nothing here". A player opening the
+ * hub on race morning was told there was nothing to pick. An empty state is a claim about the world
+ * and we may only make it when we actually heard back.
+ */
+function SectionError({
+  title,
+  body,
+  onRetry,
+  pending,
+}: {
+  title: string
+  body: string
+  onRetry: () => void
+  pending: boolean
+}) {
   return (
-    <div className="flex min-h-[150px] items-center justify-center rounded-[4px] border border-dashed border-line-2 bg-surface/30 px-6 py-14 text-center">
+    <div className="rounded-[4px] border border-danger/40 bg-danger/[0.06] px-5 py-8 text-center">
+      <div className="font-display text-[15px] font-bold uppercase tracking-[0.06em] text-ink">{title}</div>
+      <p className="mx-auto mt-[6px] max-w-[46ch] font-sans text-[13px] text-muted">{body}</p>
+      <button
+        type="button"
+        onClick={onRetry}
+        disabled={pending}
+        className="mt-4 inline-flex h-9 items-center rounded-[3px] border border-line-2 px-4 font-display text-[13px] font-semibold uppercase tracking-[0.05em] text-ink-2 transition-colors hover:border-line-3 hover:text-ink disabled:text-muted pointer-coarse:h-11 cursor-pointer"
+      >
+        {pending ? 'Retrying…' : 'Try again'}
+      </button>
+    </div>
+  )
+}
+
+/**
+ * Loading placeholder shaped like the card it replaces.
+ *
+ * Not cosmetic. Without a loading branch the section falls straight through to its empty state, so a
+ * slow or retrying request renders "No picks to be made" — a confident claim, made before we have
+ * heard anything back, that is then replaced by the real content. An empty state must mean "we asked
+ * and there is nothing", never "we have not asked yet".
+ */
+function PicksSkeleton() {
+  return (
+    <div className="overflow-hidden rounded-[4px] border border-line bg-surface" aria-hidden="true">
+      <div className="flex items-center gap-3 border-b border-line bg-surface-2/40 px-[15px] py-[10px]">
+        <div className="h-[14px] w-[190px] rounded-[2px] bg-line-2" />
+        <div className="ml-auto h-[18px] w-[86px] rounded-[3px] bg-line" />
+      </div>
+      {[0, 1].map((i) => (
+        <div key={i} className="flex flex-col items-stretch border-b border-line last:border-b-0 sm:flex-row">
+          <div className="flex-none space-y-[9px] p-[15px] sm:w-[188px]">
+            <div className="h-[17px] w-[150px] rounded-[2px] bg-line-2" />
+            <div className="h-[12px] w-[110px] rounded-[2px] bg-line" />
+            <div className="h-[24px] w-[84px] rounded-[2px] bg-line" />
+          </div>
+          <div className="flex flex-1 flex-wrap items-center gap-2 p-[15px]">
+            {[0, 1, 2].map((j) => (
+              <div key={j} className="h-[46px] w-[196px] rounded-[3px] border border-line-2 bg-surface-2" />
+            ))}
+          </div>
+        </div>
+      ))}
+    </div>
+  )
+}
+
+// ---- Empty state: nothing to pick. Two different reasons, and they are not interchangeable. ----
+function EmptyPicks({ registered }: { registered: boolean }) {
+  return (
+    <div className="flex min-h-[150px] flex-col items-center justify-center rounded-[4px] border border-dashed border-line-2 bg-surface/30 px-6 py-14 text-center">
       <span className="font-display text-[15px] font-semibold uppercase tracking-[0.1em] text-muted">
-        No picks to be made
+        {registered ? 'No picks to be made' : 'No series joined yet'}
       </span>
+      <p className="mt-[7px] max-w-[44ch] font-sans text-[13px] text-muted">
+        {registered
+          ? 'Every open weekend is picked, and the next one has not been released yet.'
+          : 'Join a championship from the list on the left to start building a lineup.'}
+      </p>
     </div>
   )
 }

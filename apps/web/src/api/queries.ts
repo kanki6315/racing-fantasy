@@ -137,8 +137,8 @@ export function useEvents() {
   return useQuery({
     queryKey: ['events'],
     queryFn: async () => {
-      const { data, error } = await api.GET('/events')
-      if (error) throw error
+      const { data, error, response } = await api.GET('/events')
+      assertOk(response, error)
       return data ?? []
     },
   })
@@ -226,8 +226,8 @@ export function useMyLeagues() {
   return useQuery({
     queryKey: ['leagues', 'mine'],
     queryFn: async () => {
-      const { data, error } = await api.GET('/leagues', { params: { query: { mine: true } } })
-      if (error) throw error
+      const { data, error, response } = await api.GET('/leagues', { params: { query: { mine: true } } })
+      assertOk(response, error)
       return data ?? []
     },
   })
@@ -238,8 +238,8 @@ export function useDiscoverLeagues(seasonId: number | undefined) {
     queryKey: ['leagues', 'public', seasonId],
     enabled: seasonId != null,
     queryFn: async () => {
-      const { data, error } = await api.GET('/leagues', { params: { query: { seasonId } } })
-      if (error) throw error
+      const { data, error, response } = await api.GET('/leagues', { params: { query: { seasonId } } })
+      assertOk(response, error)
       return (data ?? []).filter((l) => !l.isMember)
     },
   })
