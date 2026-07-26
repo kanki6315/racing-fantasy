@@ -21,12 +21,14 @@ import {
 import { classMeta } from '../lib/classMeta'
 import { fmtMoney, fmtPts, fmtSeasonPoints, fmtTotal, hasScored, sourceLabel } from '../lib/scoreFormat'
 import { useCountdown, useNow } from '../lib/useCountdown'
+import { SM, useMediaQuery } from '../lib/useMediaQuery'
 import { CreateLeagueModal, JoinByCodeModal } from '../components/LeagueModals'
 import { RegisterModal } from '../components/RegisterModal'
 import { RateLimitModal } from '../components/RateLimitModal'
 import { EntityThumb } from '../components/EntityThumb'
 import { DriverLineup } from '../components/DriverLineup'
 import { EmailPreferenceControls, prefsFromList } from '../components/EmailPreferences'
+import { BoardStatus } from '../components/Leaderboard'
 import { deriveEventStatus, isShownOnDashboard, EVENT_STATUS_META } from '../lib/eventStatus'
 
 type Registration = Me['registrations'][number]
@@ -142,6 +144,13 @@ export function Dashboard() {
    * declined the red on its own and nothing else could claim it: the page quietly ended up with no
    * primary action at all. A minute's granularity is plenty for a deadline measured in hours.
    */
+  // Which league layout to build. Both used to be rendered with the other hidden by CSS, which is
+  // the pattern DESIGN.md names: two structurally different presentations, so pick one in JS rather
+  // than mounting both. `useSyncExternalStore` inside the hook means the first render already knows
+  // the answer, so there is no flash of the wrong layout, and SM is expressed in rem to agree with
+  // Tailwind's own breakpoint.
+  const isWide = useMediaQuery(SM)
+
   const now = useNow(60_000)
   const urgentRoundId = useMemo(() => {
     let best: { id: number; at: number } | null = null
@@ -166,6 +175,28 @@ export function Dashboard() {
   const countBy = (v: 'Public' | 'Private'): number | string =>
     myLeagues.isError ? '—' : leagues.filter((l) => l.visibility === v).length
   const primarySeason = regs[0]?.seasonId
+
+  // What each section currently is, in a sentence. Everything this page gained recently — skeletons,
+  // error branches, retry — was visible only. A sighted user watched the picks board go from skeleton
+  // to four weekends; a screen-reader user was told nothing at any point.
+  const picksStatusText = events.isError
+    ? "Your picks could not be loaded."
+    : events.isPending
+      ? 'Loading your race weekends…'
+      : picksCards.length === 0
+        ? regs.length > 0
+          ? 'No race weekends are open for picks.'
+          : 'You have not joined a championship yet.'
+        : `${picksCards.length} race ${picksCards.length === 1 ? 'weekend' : 'weekends'}, ` +
+          `${picksCards.reduce((sum, c) => sum + c.rows.length, 0)} lineups.`
+
+  const leaguesStatusText = myLeagues.isError
+    ? 'Your leagues could not be loaded.'
+    : myLeagues.isPending
+      ? 'Loading your leagues…'
+      : leagues.length === 0
+        ? 'You have not joined any leagues.'
+        : `${leagues.length} ${leagues.length === 1 ? 'league' : 'leagues'}.`
 
   return (
     <div className="flex flex-1 flex-col lg:flex-row">
@@ -258,7 +289,12 @@ export function Dashboard() {
           </span>
         </div>
 
-        <div className="flex flex-col gap-3 px-4 py-[10px] sm:px-[26px]">
+        {/* Mounted in every state, never inserted alongside its own text — a live region added at the
+            same moment its message appears is unreliably announced (the standings board learned this
+            the hard way, and this is its component). */}
+        <BoardStatus text={picksStatusText} />
+
+        <div className="flex flex-col gap-3 px-4 py-[10px] sm:px-[26px]" aria-busy={events.isPending}>
           {events.isError ? (
             <SectionError
               title="Couldn't load race weekends"
@@ -284,6 +320,8 @@ export function Dashboard() {
           <h2 className="font-display text-[22px] font-extrabold uppercase text-ink">Your Leagues</h2>
           <span className="hidden font-sans text-[12px] text-muted sm:inline">Your picks are scored into every league below</span>
         </div>
+        <BoardStatus text={leaguesStatusText} />
+
         {myLeagues.isError ? (
           <div className="mx-4 sm:mx-[26px]">
             <SectionError
@@ -312,12 +350,35 @@ export function Dashboard() {
           </div>
         ) : (
           <>
-            <div className="hidden grid-cols-[1fr_110px_100px_110px] items-center border-y border-line px-[26px] py-[10px] font-display text-[11px] tracking-[0.1em] uppercase text-muted sm:grid">
-              <span>League</span><span className="text-center">Position</span><span className="text-center">Trend</span><span />
+            {/* Table semantics for the grid only. Below `sm` the same data is a stacked card list
+                with no columns, so claiming aligned columns there would describe a layout nobody is
+                looking at — the cards carry list semantics instead (see LeagueRow). */}
+            {isWide ? (
+            <div role="table" aria-label="Your leagues">
+              <div role="rowgroup">
+                <div
+                  role="row"
+                  className="grid grid-cols-[1fr_110px_100px_110px] items-center border-y border-line px-[26px] py-[10px] font-display text-[11px] tracking-[0.1em] uppercase text-muted"
+                >
+                  <span role="columnheader">League</span>
+                  <span role="columnheader" className="text-center">Position</span>
+                  <span role="columnheader" className="text-center">Trend</span>
+                  <span role="columnheader" className="sr-only">Standings</span>
+                </div>
+              </div>
+              <div role="rowgroup">
+                {leagues.map((l) => (
+                  <LeagueRow key={l.id} league={l} me={user} layout="grid" />
+                ))}
+              </div>
             </div>
-            {leagues.map((l) => (
-              <LeagueRow key={l.id} league={l} me={user} />
-            ))}
+            ) : (
+              <ul>
+                {leagues.map((l) => (
+                  <LeagueRow key={l.id} league={l} me={user} layout="card" />
+                ))}
+              </ul>
+            )}
           </>
         )}
 
@@ -453,7 +514,11 @@ function PicksCard({
   return (
     <div className="overflow-hidden rounded-[4px] border border-line bg-surface">
       <div className="flex flex-wrap items-center gap-x-3 gap-y-1 border-b border-line bg-surface-2/40 px-[15px] py-[10px]">
-        <span className="font-display text-[14px] font-bold uppercase tracking-[0.04em] text-ink">{card.eventName}</span>
+        {/* A heading, not a styled span. The outline used to run h1 -> h2 -> h2 with nothing for the
+            eight pick rows beneath, so a screen-reader user could reach "Your Picks" and then had no
+            way to jump to a weekend or a championship. Tailwind's preflight zeroes heading margins
+            and size, so the promotion costs nothing visually. */}
+        <h2 className="font-display text-[14px] font-bold uppercase tracking-[0.04em] text-ink">{card.eventName}</h2>
         {card.eventCircuit && <span className="font-sans text-[12px] text-muted">{card.eventCircuit}</span>}
         <span className={`ml-auto rounded-[3px] border px-[9px] py-[2px] font-mono text-[10px] uppercase tracking-[0.06em] ${badge.className}`}>
           {badge.label}
@@ -559,7 +624,7 @@ function PicksRow({
           {/* Structural mark, not a red spend — the slash goes brand only where it marks the page
               heading or the player's own row, never once per repeated row. */}
           <span className="mt-1 h-[18px] w-[5px] flex-none bg-line-3 [transform:skewX(-14deg)]" />
-          <span className="font-display text-[17px] font-bold uppercase leading-tight text-ink">{champName}</span>
+          <h3 className="font-display text-[17px] font-bold uppercase leading-tight text-ink">{champName}</h3>
         </div>
         <div className="mt-[7px] font-sans text-[12px] text-muted">{round.name}</div>
         <div className="mt-[6px] flex items-center gap-1.5">
@@ -751,7 +816,14 @@ function PicksRow({
 }
 
 // ---- Your-leagues row (position from the league leaderboard) ----
-function LeagueRow({ league, me }: { league: League; me: Me }) {
+//
+// One layout per call, chosen by the caller, rather than both rendered and one hidden with CSS. The
+// two presentations are structurally different — an aligned grid above `sm`, a stacked card below —
+// and each needs its own semantics: table roles describe columns the card does not have, and list
+// semantics describe a card that is not a row. Mounting both and hiding one with `display:none` would
+// not double-announce (hidden subtrees are dropped from the accessibility tree) but it does build
+// every league twice, which is the waste DESIGN.md's render-one-layout rule exists to prevent.
+function LeagueRow({ league, me, layout }: { league: League; me: Me; layout: 'grid' | 'card' }) {
   const lb = useLeagueLeaderboard(league.id)
   const myReg = me.registrations.find((r) => r.seasonId === league.seasonId)
   const myRow = lb.data?.entries.find((e) => e.registrationId === myReg?.id)
@@ -767,18 +839,17 @@ function LeagueRow({ league, me }: { league: League; me: Me }) {
   // from "position unknown", and a bare em-dash was letting it read as a bug in the data.
   const unranked = !lb.isLoading && rank == null
 
-  return (
-    <>
-      {/* sm+ : grid row */}
-      <div className="hidden grid-cols-[1fr_110px_100px_110px] items-center border-b border-surface-2 px-[26px] py-[15px] sm:grid">
-        <div className="flex min-w-0 items-center gap-3">
+  if (layout === 'grid') {
+    return (
+      <div role="row" className="grid grid-cols-[1fr_110px_100px_110px] items-center border-b border-surface-2 px-[26px] py-[15px]">
+        <div role="cell" className="flex min-w-0 items-center gap-3">
           <div className="flex h-10 w-10 flex-none items-center justify-center rounded-[5px] border border-line-3 bg-surface-2 font-display text-[15px] font-extrabold text-ink">{initials}</div>
           <div className="min-w-0">
             <div className="truncate font-display text-[17px] font-bold uppercase leading-none text-ink">{league.name}</div>
             <div className="mt-[3px] font-sans text-[11px] text-muted">{league.visibility} · {league.memberCount} players</div>
           </div>
         </div>
-        <span className="block text-center">
+        <span role="cell" className="block text-center">
           <span className="font-mono text-[16px] font-bold text-ink">
             {rank ?? '—'}<span className="text-[11px] text-muted">/{league.memberCount}</span>
           </span>
@@ -787,23 +858,27 @@ function LeagueRow({ league, me }: { league: League; me: Me }) {
           </span>
         </span>
         <span
+          role="cell"
           aria-label={trend == null ? 'Trend unavailable' : `Trend ${trend > 0 ? `up ${trend}` : trend < 0 ? `down ${-trend}` : 'unchanged'}`}
           className={`block text-center font-mono text-[13px] ${trend != null && trend > 0 ? 'text-success' : trend != null && trend < 0 ? 'text-danger' : 'text-muted'}`}
         >
           {trend == null ? '—' : trend > 0 ? `▲ ${trend}` : trend < 0 ? `▼ ${-trend}` : '— 0'}
         </span>
-        <span className="text-right">
+        <span role="cell" className="text-right">
           <Link
             to={`/leagues/${league.id}`}
+            aria-label={`${league.name} standings`}
             className="inline-flex min-h-9 items-center rounded-[3px] border border-line-2 px-[14px] font-display text-[13px] font-semibold uppercase tracking-[0.04em] text-ink-2 transition-colors hover:border-line-3 hover:text-ink pointer-coarse:min-h-11"
           >
             Standings
           </Link>
         </span>
       </div>
+    )
+  }
 
-      {/* < sm : card (Trend column dropped for space) */}
-      <div className="flex items-center gap-3 border-b border-surface-2 px-4 py-[14px] sm:hidden">
+  return (
+    <li className="flex items-center gap-3 border-b border-surface-2 px-4 py-[14px]">
         <div className="flex h-9 w-9 flex-none items-center justify-center rounded-[5px] border border-line-3 bg-surface-2 font-display text-[14px] font-extrabold text-ink">{initials}</div>
         <div className="min-w-0 flex-1">
           <div className="truncate font-display text-[16px] font-bold uppercase leading-none text-ink">{league.name}</div>
@@ -818,15 +893,15 @@ function LeagueRow({ league, me }: { league: League; me: Me }) {
               {points != null ? `${fmtSeasonPoints(points)} pts` : unranked ? 'Not scored yet' : ''}
             </span>
           </span>
-          <Link
-            to={`/leagues/${league.id}`}
-            className="inline-flex min-h-9 items-center rounded-[3px] border border-line-2 px-[10px] font-display text-[11px] font-semibold uppercase tracking-[0.04em] text-ink-2 pointer-coarse:min-h-11"
-          >
-            Standings
-          </Link>
-        </div>
+        <Link
+          to={`/leagues/${league.id}`}
+          aria-label={`${league.name} standings`}
+          className="inline-flex min-h-9 items-center rounded-[3px] border border-line-2 px-[10px] font-display text-[11px] font-semibold uppercase tracking-[0.04em] text-ink-2 pointer-coarse:min-h-11"
+        >
+          Standings
+        </Link>
       </div>
-    </>
+    </li>
   )
 }
 
