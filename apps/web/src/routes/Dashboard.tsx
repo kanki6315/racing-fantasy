@@ -387,7 +387,7 @@ function PicksSkeleton() {
             <div className="h-[12px] w-[110px] rounded-[2px] bg-line" />
             <div className="h-[24px] w-[84px] rounded-[2px] bg-line" />
           </div>
-          <div className="flex flex-1 flex-wrap items-center gap-2 p-[15px]">
+          <div className="flex flex-1 flex-col justify-center gap-1 p-[15px]">
             {[0, 1, 2].map((j) => (
               <div key={j} className="h-[46px] w-[196px] rounded-[3px] border border-line-2 bg-surface-2" />
             ))}
@@ -605,7 +605,7 @@ function PicksRow({
         )}
       </div>
 
-      <div className="flex flex-1 flex-wrap items-center gap-2 p-[15px]">
+      <div className="flex flex-1 flex-col justify-center gap-1 p-[15px]">
         {source.isLoading ? (
           <span className="font-sans text-[13px] text-muted">Loading lineup…</span>
         ) : source.isError ? (
@@ -629,10 +629,15 @@ function PicksRow({
             return (
               <div
                 key={`${p.entityType}:${p.entityId}`}
-                // Full width in a single column below `sm`, so the points land in a column and can be
-                // compared at a glance. Content-sized chips put three totals at three different x
-                // positions, which is the alignment The Tabular-Numeral Rule exists to protect.
-                className="flex w-full items-center gap-2 rounded-[3px] border border-line-2 bg-surface-2 p-1.5 pr-2.5 sm:w-auto"
+                // A pick is a row, not an object in a box. The bordered `surface-2` chip made this
+                // page → card → row → chip: four levels of bordered container, which is the nesting
+                // the shared bans call always wrong and which DESIGN.md contradicts by naming the
+                // *row* this product's workhorse. The class slash is the left edge now, and reading
+                // down a group the slashes line up into the class column they always wanted to be.
+                //
+                // Full width rather than content-sized, because the points track below only aligns
+                // if every pick starts and ends at the same x (The Tabular-Numeral Rule).
+                className="flex w-full items-center gap-2 rounded-[3px] py-[5px] pr-1"
               >
                 {/* Class identity leads the chip as a broadcast slash, the same mark the pick page
                     and the standings drill-in use. Class is wayfinding; the hub was the one player
@@ -650,9 +655,8 @@ function PicksRow({
                   tintHex={m.hex}
                   className="w-11"
                 />
-                {/* Grows to fill the full-width mobile chip so the points stay pinned right; capped
-                    again at `sm`, where chips size to their content and sit side by side. */}
-                <div className="min-w-0 flex-1 sm:max-w-[150px] sm:flex-none">
+                {/* Takes all the slack, so the points track is pushed to a constant right edge. */}
+                <div className="min-w-0 flex-1">
                   <div className="flex items-center gap-1.5">
                     <span className="truncate font-sans text-[12px] font-medium text-ink-2" title={name}>
                       {name}
@@ -684,8 +688,12 @@ function PicksRow({
                   )}
                 </div>
                 {showResults && (
-                  <div className="ml-1 shrink-0 text-right">
-                    <div className="font-mono text-[15px] font-bold leading-none text-ink">
+                  // The points track. A fixed width with tabular figures is what makes a column of
+                  // totals comparable at a glance — ragged right-alignment was the cost of dropping
+                  // the chip's box, and this is the thing that actually pays for it. Wide enough for
+                  // four digits and a decimal (`1245.0`), which is more than any single pick scores.
+                  <div className="w-[72px] flex-none pl-2 text-right">
+                    <div className="font-mono text-[15px] font-bold leading-none text-ink tabular-nums">
                       {p.scores && p.scores.length > 0 ? fmtTotal(p.points ?? 0) : '—'}
                     </div>
                     <div className="mt-[2px] font-mono text-[8px] uppercase tracking-[0.1em] text-muted">pts</div>
