@@ -65,9 +65,10 @@ export type ShareCardPick = {
   /** Right-hand figure: points once scored, price before. Pre-formatted by the caller so the card
    *  and the page beneath it can never print the same value in two dialects. */
   figure: string
-  /** `Q +48.0   R +364.0` — scorecard only. */
+  /** `QUALI +48.0   RACE +364.0` — scorecard only. Spelled out, not the app's `Q`/`R`: see
+   *  `sourceLabelLong`. */
   breakdown: string | null
-  /** Short marks on the row: the bonus applied (`2×`, `C`) and/or `TOP` for the round's best pick. */
+  /** Marks on the row: the bonus applied (`2× POINTS`, `CAPTAIN`) and/or `TOP` for the best pick. */
   chips: { text: string; tone: 'bonus' | 'top' }[]
   /** The pick this card is *about* — the modifier target before the race, the best pick after it. */
   marked: boolean
@@ -99,6 +100,17 @@ type Ctx = CanvasRenderingContext2D
 const display = (size: number, weight = 800) => `${weight} ${size}px ${DISPLAY}`
 const sans = (size: number, weight = 400) => `${weight} ${size}px ${SANS}`
 const mono = (size: number, weight = 500) => `${weight} ${size}px ${MONO}`
+
+/**
+ * Tracking in px for a given size, from DESIGN.md's label spec (+0.08em).
+ *
+ * Canvas takes `letterSpacing` in absolute units, so every call site used to carry a hand-picked px
+ * value — which is a ratio that silently changes with the font size. The header label sat at 3px,
+ * which is 0.136em at 22px (nearly double spec) and 0.19em once the size ladder stepped it down to
+ * 16px, where the tracking was visibly wider than the counters. Deriving it from the size keeps one
+ * ratio at every step and matches the token the rest of the app uses.
+ */
+const track = (size: number, em = 0.08) => size * em
 
 /**
  * `ctx.letterSpacing` is the only way to track canvas text and is missing on older Safari. Tracking
@@ -153,12 +165,23 @@ function fit(ctx: Ctx, value: string, font: string, maxWidth: number, tracking =
  * cut. The same applies to the class label, where "GTD PRO" is three characters longer than every
  * other label and is the only one that has to shrink to clear the gutter.
  */
-function fitStepped(ctx: Ctx, value: string, fonts: string[], maxWidth: number, tracking = 0) {
-  for (const font of fonts) {
-    if (measure(ctx, value, font, tracking) <= maxWidth) return { value, font }
+function fitStepped(
+  ctx: Ctx,
+  value: string,
+  sizes: number[],
+  make: (size: number) => string,
+  maxWidth: number,
+  em = 0,
+): { value: string; font: string; tracking: number } {
+  for (const size of sizes) {
+    const font = make(size)
+    const tracking = track(size, em)
+    if (measure(ctx, value, font, tracking) <= maxWidth) return { value, font, tracking }
   }
-  const font = fonts[fonts.length - 1]
-  return { value: fit(ctx, value, font, maxWidth, tracking), font }
+  const size = sizes[sizes.length - 1]
+  const font = make(size)
+  const tracking = track(size, em)
+  return { value: fit(ctx, value, font, maxWidth, tracking), font, tracking }
 }
 
 function measure(ctx: Ctx, value: string, font: string, tracking = 0): number {
@@ -212,13 +235,20 @@ function arrow(ctx: Ctx, x: number, y: number, size: number, up: boolean, fill: 
   ctx.fill()
 }
 
+const CHIP_FONT = mono(19, 700)
+
+/** Drawn width of a chip, so callers can test whether one fits before committing to it. */
+function chipWidth(ctx: Ctx, label: string): number {
+  return measure(ctx, label, CHIP_FONT, track(19)) + 20
+}
+
 function chip(ctx: Ctx, x: number, y: number, label: string, tone: 'bonus' | 'top'): number {
   // Bonus chips are teal (The Confirmed-Is-Teal Rule — a modifier the player chose and which paid
   // out is a confirmed state). TOP is not a chosen state but a results fact, so it takes the Flag
   // White that DESIGN.md reserves for results-posted, rather than a fifth invented hue.
   const hue = tone === 'bonus' ? C.success : C.ink
-  const font = mono(19, 700)
-  const w = measure(ctx, label, font, 1) + 20
+  const font = CHIP_FONT
+  const w = chipWidth(ctx, label)
   const h = 30
   ctx.fillStyle = alpha(hue, 0.15)
   ctx.strokeStyle = alpha(hue, 0.45)
@@ -227,7 +257,7 @@ function chip(ctx: Ctx, x: number, y: number, label: string, tone: 'bonus' | 'to
   ctx.roundRect(x, y, w, h, 3)
   ctx.fill()
   ctx.stroke()
-  text(ctx, label, x + 10, y + 21, { font, fill: hue, tracking: 1 })
+  text(ctx, label, x + 10, y + 21, { font, fill: hue, tracking: track(19) })
   return w
 }
 
@@ -250,25 +280,24 @@ function drawHeader(ctx: Ctx, m: ShareCardModel) {
   // sit on one baseline: the card's subject and its result, read as a single line.
   const heroFont = mono(88, 700)
   text(ctx, m.heroValue, RIGHT, 272, { font: heroFont, fill: C.ink, align: 'right' })
-  text(ctx, m.heroUnit, RIGHT, 308, { font: mono(20, 500), fill: C.muted, align: 'right', tracking: 2 })
-  const heroW = Math.max(measure(ctx, m.heroValue, heroFont), measure(ctx, m.heroUnit, mono(20, 500), 2))
+  text(ctx, m.heroUnit, RIGHT, 308, { font: mono(20, 500), fill: C.muted, align: 'right', tracking: track(20) })
+  const heroW = Math.max(measure(ctx, m.heroValue, heroFont), measure(ctx, m.heroUnit, mono(20, 500), track(20)))
 
   // "WeatherTech SportsCar Championship · Sahlen's Six Hours of the Glen" is 68 characters; a real
   // championship-plus-round line steps down rather than losing the round name to an ellipsis.
   const label = `${m.championship} · ${m.roundName}`.toUpperCase()
   // The floor is set by the real worst case, not a guess: "WeatherTech SportsCar Championship ·
   // Motul SportsCar Endurance Grand Prix" is 71 characters and needs the 16px step to survive whole.
-  const head = fitStepped(
-    ctx,
-    label,
-    [mono(22, 500), mono(20, 500), mono(18, 500), mono(16, 500)],
-    CARD_W - PAD * 2,
-    3,
-  )
-  text(ctx, head.value, PAD, 198, { font: head.font, fill: C.muted, tracking: 3 })
+  const head = fitStepped(ctx, label, [22, 20, 18, 16], (s) => mono(s, 500), CARD_W - PAD * 2, 0.08)
+  text(ctx, head.value, PAD, 198, { font: head.font, fill: C.muted, tracking: head.tracking })
 
+  // The ladder runs to 34px. It used to stop at 44, where a 29-character team name — "Bartholomew
+  // Racing Collective", nothing exotic — still needed 638px against the 611px the hero figure left
+  // it, and got cut to "BARTHOLOMEW RACING COLLE…". The team name is the one element that says whose
+  // card this is; truncating it defeats the artifact, and 34px is still 1.6× the body size, so the
+  // hierarchy holds long before legibility does.
   const nameMax = RIGHT - heroW - 40 - PAD
-  const name = fitStepped(ctx, m.teamName.toUpperCase(), [display(66), display(58), display(50), display(44)], nameMax)
+  const name = fitStepped(ctx, m.teamName.toUpperCase(), [66, 58, 50, 44, 38, 34], (s) => display(s), nameMax)
   text(ctx, name.value, PAD, 272, { font: name.font, fill: C.ink })
 
   if (m.circuit) {
@@ -300,13 +329,12 @@ function drawPitLane(ctx: Ctx, m: ShareCardModel, top: number, bottom: number) {
     // group, a label for five GTD rows floats beside the third of them with blank gutter above and
     // below — it reads as a row that failed to render rather than as a heading for the run. Sat on
     // the first row it lines up with that row's own slash and name, and still heads the whole group.
+    // Deliberately untracked, unlike every other mono micro-label on the card. The gutter is 74px
+    // and "GTD PRO" is the longest label in the series; adding the spec's +0.08em costs ~12px, which
+    // forces two extra steps down the ladder and lands the label at 15px. In a colour that is also
+    // doing wayfinding, legibility beats tracking consistency.
     const big = compact ? 18 : 21
-    const cl = fitStepped(
-      ctx,
-      picks[i].classLabel,
-      [mono(big, 700), mono(big - 3, 700), mono(big - 6, 700)],
-      ROW_L - PAD - 20,
-    )
+    const cl = fitStepped(ctx, picks[i].classLabel, [big, big - 3, big - 6], (s) => mono(s, 700), ROW_L - PAD - 20)
     text(ctx, cl.value, (PAD + ROW_L - 14) / 2, gTop + rowH / 2 + (compact ? 6 : 8), {
       font: cl.font,
       fill: picks[i].classHex,
@@ -351,16 +379,34 @@ function drawPitLane(ctx: Ctx, m: ShareCardModel, top: number, bottom: number) {
 
     // Lines are collected first, then centred as a block — a lineup card has no breakdown line, and
     // laying rows out from a fixed top would leave every row on it visibly bottom-light.
+    // Chips are right-aligned to the text column's edge and the name's width is reduced to clear
+    // them, rather than the chips trailing the name.
+    //
+    // Trailing worked only while the labels were `2×` and `TOP`. Spelling them out for a reader who
+    // has never used the app pushed a typical row to `cx 728 + chip 136 = 864` against a `textR` of
+    // 850 — over by 14px, so the fit guard correctly refused to draw them and the marked row lost
+    // its marks entirely. Reserving the space up front makes the collision impossible instead of
+    // detectable, and a chip column beside the figure column reads as part of the card's grid.
+    const chipsW = p.chips.reduce((w, c) => w + chipWidth(ctx, c.text) + 8, 0)
+    const nameMax = maxText - (chipsW > 0 ? chipsW + 16 : 0)
+
+    // Same ladder-before-ellipsis rule the team name uses. It matters most on exactly the row that
+    // has chips, since that row is the one whose text width was just reduced to make room for them —
+    // and it is also the row the card is about, so it is the worst one to truncate.
     const lines: { value: string; font: string; fill: string; lh: number; tracking?: number }[] = []
-    const nameFont = display(compact ? 32 : 40, 800)
-    lines.push({ value: fit(ctx, p.name.toUpperCase(), nameFont, maxText), font: nameFont, fill: C.ink, lh: compact ? 34 : 42 })
+    const nameSizes = compact ? [32, 29, 26] : [40, 36, 32]
+    const name = fitStepped(ctx, p.name.toUpperCase(), nameSizes, (s) => display(s, 800), nameMax)
+    // Line height stays keyed to the base size, not the chosen one, so a shrunk name doesn't change
+    // the row's vertical rhythm relative to its neighbours.
+    lines.push({ value: name.value, font: name.font, fill: C.ink, lh: compact ? 34 : 42 })
     if (!compact && p.drivers.length > 0) {
       const d = mono(21, 400)
-      lines.push({ value: fit(ctx, p.drivers.join(' · ').toUpperCase(), d, maxText, 1), font: d, fill: C.muted, lh: 32, tracking: 1 })
+      lines.push({ value: fit(ctx, p.drivers.join(' · ').toUpperCase(), d, maxText, track(21)), font: d, fill: C.muted, lh: 32, tracking: track(21) })
     }
     if (p.breakdown) {
-      const b = mono(compact ? 19 : 23, 500)
-      lines.push({ value: fit(ctx, p.breakdown, b, maxText, 1), font: b, fill: C.ink2, lh: compact ? 28 : 34, tracking: 1 })
+      const bSize = compact ? 19 : 23
+      const b = mono(bSize, 500)
+      lines.push({ value: fit(ctx, p.breakdown, b, maxText, track(bSize)), font: b, fill: C.ink2, lh: compact ? 28 : 34, tracking: track(bSize) })
     }
 
     const blockH = lines.reduce((s, l) => s + l.lh, 0)
@@ -368,12 +414,13 @@ function drawPitLane(ctx: Ctx, m: ShareCardModel, top: number, bottom: number) {
     lines.forEach((l, li) => {
       text(ctx, l.value, textL, baseline, { font: l.font, fill: l.fill, tracking: l.tracking })
       if (li === 0 && p.chips.length > 0) {
-        // Chips trail the name rather than sitting in a column: the name's width varies per row, and
-        // a fixed chip column would leave a ragged empty channel down the card on most lineups.
-        let cx = textL + measure(ctx, l.value, l.font) + 14
-        for (const c of p.chips) {
-          if (cx + 70 > textR) break
-          cx += chip(ctx, cx, baseline - (compact ? 24 : 28), c.text, c.tone) + 8
+        // Laid out right-to-left from the column edge, so the last chip lands flush with `textR`
+        // however many there are.
+        let cx = textR
+        for (const c of [...p.chips].reverse()) {
+          cx -= chipWidth(ctx, c.text)
+          chip(ctx, cx, baseline - (compact ? 24 : 28), c.text, c.tone)
+          cx -= 8
         }
       }
       baseline += lines[li + 1]?.lh ?? 0
@@ -431,7 +478,7 @@ function drawFooter(ctx: Ctx, m: ShareCardModel) {
 
   // Stage pill — the same words the page beneath it uses, from the same derivation.
   const pillFont = mono(20, 700)
-  const pw = measure(ctx, m.stageLabel, pillFont, 2) + 54
+  const pw = measure(ctx, m.stageLabel, pillFont, track(20)) + 54
   ctx.fillStyle = alpha(m.stageHex, 0.12)
   ctx.strokeStyle = alpha(m.stageHex, 0.4)
   ctx.lineWidth = 2
@@ -443,35 +490,40 @@ function drawFooter(ctx: Ctx, m: ShareCardModel) {
   ctx.beginPath()
   ctx.arc(PAD + 22, 1234, 6, 0, Math.PI * 2)
   ctx.fill()
-  text(ctx, m.stageLabel, PAD + 38, 1241, { font: pillFont, fill: m.stageHex, tracking: 2 })
+  text(ctx, m.stageLabel, PAD + 38, 1241, { font: pillFont, fill: m.stageHex, tracking: track(20) })
 
-  text(ctx, m.siteUrl, PAD, 1316, { font: mono(21, 500), fill: C.muted, tracking: 1 })
+  text(ctx, m.siteUrl, PAD, 1316, { font: mono(21, 500), fill: C.muted, tracking: track(21) })
 
-  // Season context, right-aligned so the two figures stack into a column rather than a sentence. A
-  // lineup card has no round rank — there is no round board until scoring runs — so the season line
-  // takes the first line's baseline rather than leaving a visible hole above itself.
-  if (m.roundRank) {
-    const rank = `P${m.roundRank.rank}`
-    const rest = ` / ${m.roundRank.of} THIS ROUND`
-    const restW = measure(ctx, rest, mono(21, 500), 1.5)
-    text(ctx, rest, RIGHT, 1242, { font: mono(21, 500), fill: C.muted, align: 'right', tracking: 1.5 })
-    text(ctx, rank, RIGHT - restW, 1242, { font: mono(30, 700), fill: C.ink, align: 'right' })
-  }
+  // Season context, right-aligned so the two figures stack into a column rather than a sentence.
+  //
+  // SEASON SITS ABOVE ROUND, and the order is the whole point. Read top-down the card used to close
+  // on season movement, which meant a player who had just *won* a round got a rose ▼19 as the last
+  // thing on their own bragging artifact. The two facts don't actually contradict — one is this
+  // round, the other is the campaign, and the labels say so — but peak-end decides how an image
+  // feels, and the round result is what the card is about. So the round line goes last and in ink.
+  // Nothing was removed to achieve this; the same two figures are simply read in the other order.
+  const seasonRow = m.roundRank ? 1242 : 1246
   if (m.seasonRank) {
-    const row = m.roundRank ? 1290 : 1246
     let x = RIGHT
     const mv = m.seasonRank.movement
     if (mv != null && mv !== 0) {
       // Colour is never the only signal: the arrow shape carries the direction on its own.
       const tone = mv > 0 ? C.success : C.danger
       const n = String(Math.abs(mv))
-      text(ctx, n, x, row, { font: mono(24, 700), fill: tone, align: 'right' })
+      text(ctx, n, x, seasonRow, { font: mono(24, 700), fill: tone, align: 'right' })
       x -= measure(ctx, n, mono(24, 700)) + 22
-      arrow(ctx, x, row - 18, 16, mv > 0, tone)
+      arrow(ctx, x, seasonRow - 18, 16, mv > 0, tone)
       x -= 10
     }
     const label = `P${m.seasonRank.rank} OVERALL`
-    text(ctx, label, x, row, { font: mono(22, 500), fill: C.ink2, align: 'right', tracking: 1.5 })
+    text(ctx, label, x, seasonRow, { font: mono(22, 500), fill: C.ink2, align: 'right', tracking: track(22) })
+  }
+  if (m.roundRank) {
+    const rank = `P${m.roundRank.rank}`
+    const rest = ` / ${m.roundRank.of} THIS ROUND`
+    const restW = measure(ctx, rest, mono(21, 500), track(21))
+    text(ctx, rest, RIGHT, 1292, { font: mono(21, 500), fill: C.muted, align: 'right', tracking: track(21) })
+    text(ctx, rank, RIGHT - restW, 1292, { font: mono(30, 700), fill: C.ink, align: 'right' })
   }
 }
 

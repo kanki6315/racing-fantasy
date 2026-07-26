@@ -11,7 +11,8 @@ import {
 } from '../api/queries'
 import { classMeta } from '../lib/classMeta'
 import { modMeta } from '../lib/modifierMeta'
-import { fmtMoney, fmtPts, fmtTotal, hasScored, sourceLabel } from '../lib/scoreFormat'
+import { fmtMoney, fmtPts, fmtTotal, hasScored, sourceLabel, sourceLabelLong } from '../lib/scoreFormat'
+import { fmtRaceDate } from '../lib/datetime'
 import { deriveEventStatus, deriveRoundStatus, EVENT_STATUS_META } from '../lib/eventStatus'
 import { lastName } from '../lib/driverName'
 import type { ShareCardModel, ShareCardPick } from '../lib/shareCard'
@@ -85,10 +86,12 @@ export function TeamPicks() {
 
     // What the card is *about*: after the flag, the pick that delivered; before it, the pick the
     // player staked their modifier on. Same mark, same meaning — "the one I'm betting on".
+    // Spelled out, not `C` / `2×`. Those are the page's marks, where the reader is a player and the
+    // row is narrow; on the card the reader has never seen the app and the row has width to spare.
     const bonusTargets = new Map(
       data.modifiers
         .filter((m) => m.target)
-        .map((m) => [key(m.target!), m.kind === 'CAPTAIN' ? 'C' : '2×'] as const),
+        .map((m) => [key(m.target!), m.kind === 'CAPTAIN' ? 'CAPTAIN' : '2× POINTS'] as const),
     )
     const bestKey = scoredData
       ? data.main.reduce<{ k: string; p: number } | null>(
@@ -121,7 +124,7 @@ export function TeamPicks() {
         figure: scoredData ? (p.scores.length > 0 ? fmtTotal(p.points) : '—') : fmtMoney(p.price),
         breakdown:
           scoredData && p.scores.length > 0
-            ? p.scores.map((s) => `${sourceLabel(s, data.raceCount)} ${fmtPts(s.points)}`).join('   ')
+            ? p.scores.map((s) => `${sourceLabelLong(s, data.raceCount)} ${fmtPts(s.points)}`).join('   ')
             : null,
         chips,
         marked: scoredData ? k === bestKey : bonusTargets.has(k),
@@ -140,7 +143,14 @@ export function TeamPicks() {
       variant,
       championship: champName ?? 'Endurance Fantasy',
       roundName: round.data.name,
-      circuit: round.data.circuit,
+      // The circuit line becomes the card's "where and when". The date belongs here rather than on
+      // the championship line above it, which already needs a 16px step to hold the longest real
+      // series-plus-round string and has no room left. `startsAt` is nullable, so fall back to the
+      // quali time — a weekend's qualifying is on the same date or the day before, which is close
+      // enough for an artifact whose job is to say *which year* this was.
+      circuit: [round.data.circuit, fmtRaceDate(round.data.startsAt ?? round.data.qualiStart)]
+        .filter(Boolean)
+        .join(' · '),
       teamName: data.teamName,
       heroValue: scoredData ? fmtTotal(data.total) : fmtMoney(spend),
       heroUnit: scoredData ? 'PTS' : `OF ${fmtMoney(cap)}`,

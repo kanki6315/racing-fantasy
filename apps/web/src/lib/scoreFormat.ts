@@ -20,6 +20,30 @@ export function sourceLabel(s: { source: string; raceNumber?: number | null }, r
   }
 }
 
+/**
+ * The same label, spelled out, for the share card.
+ *
+ * `Q` and `R` are fine in the app: the reader is a player, the column is narrow, and they learn the
+ * shorthand in one round. A share card is the opposite case on both counts — its whole audience is
+ * people who have never opened the app (that is what sharing *is*), and its rows have a wide empty
+ * middle column. To that reader `Q +48.0  R +364.0` is unreadable, so the card pays the width and
+ * says the words. Kept beside `sourceLabel` so the two vocabularies can't drift apart.
+ */
+export function sourceLabelLong(s: { source: string; raceNumber?: number | null }, raceCount: number): string {
+  switch (s.source) {
+    case 'QualifyingPosition':
+      return 'QUALI'
+    case 'RacePosition':
+      return raceCount > 1 ? `RACE ${s.raceNumber ?? 1}` : 'RACE'
+    case 'RaceFastestLap':
+      return 'FASTEST LAP'
+    case 'Bonus':
+      return 'BONUS'
+    default:
+      return s.source
+  }
+}
+
 /** A points contribution, signed — a delta reads as a delta. */
 export const fmtPts = (n: number) => (n > 0 ? `+${n.toFixed(1)}` : n.toFixed(1))
 

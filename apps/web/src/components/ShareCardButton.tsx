@@ -63,12 +63,19 @@ export function ShareCardButton({ model, fileSlug, className = '' }: Props) {
   const deliver = useCallback(
     async (blob: Blob) => {
       const file = new File([blob], fileName, { type: 'image/png' })
+      // THIS TEXT IS THE IMAGE'S ONLY ALT TEXT. Once the PNG leaves the app it is pure pixels — a
+      // share sheet has no field for alt text, and a recipient using a screen reader gets nothing
+      // from the file itself. So the accompanying text is written as a standalone summary of what
+      // the card shows, not as a caption that assumes you can see it.
+      const where = `${model?.roundName}`
       const shareData = {
         files: [file],
         title: model?.teamName ?? 'Endurance Fantasy',
         text: lineup
-          ? `${model?.teamName} — lineup locked for ${model?.roundName}`
-          : `${model?.teamName} — ${model?.heroValue} pts at ${model?.roundName}`,
+          ? `${model?.teamName} — lineup locked for ${where}, ${model?.heroValue} of the salary cap spent. Endurance Fantasy.`
+          : `${model?.teamName} scored ${model?.heroValue} points at ${where}${
+              model?.roundRank ? `, P${model.roundRank.rank} of ${model.roundRank.of} this round` : ''
+            }. Endurance Fantasy.`,
       }
       if (navigator.canShare?.(shareData)) {
         try {
@@ -90,7 +97,10 @@ export function ShareCardButton({ model, fileSlug, className = '' }: Props) {
       a.click()
       URL.revokeObjectURL(url)
       setState('saved')
-      setMessage(`${noun[0].toUpperCase()}${noun.slice(1)} saved as ${fileName}.`)
+      // Not the filename. It is 60-odd characters of slug, set in 11px mono, that wraps to three
+      // lines and tells the reader nothing they can act on — the file is already in the one place
+      // their browser puts files.
+      setMessage(`${noun[0].toUpperCase()}${noun.slice(1)} saved to your downloads.`)
     },
     [fileName, lineup, model, noun],
   )
