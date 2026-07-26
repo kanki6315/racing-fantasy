@@ -237,11 +237,9 @@ export function Pick() {
           })}
           {modifierRules.length > 0 && (
             <div
-              className="flex flex-col items-center gap-[2px] rounded-[3px] border px-[10px] py-[6px]"
-              style={{
-                borderColor: modifiers.size > 0 ? '#ffc23d' : '#3a3f47',
-                background: modifiers.size > 0 ? 'rgba(255,194,61,.1)' : 'transparent',
-              }}
+              className={`flex flex-col items-center gap-[2px] rounded-[3px] border px-[10px] py-[6px] ${
+                modifiers.size > 0 ? 'border-success/45 bg-success/10' : 'border-line-3'
+              }`}
             >
               <span className="font-mono text-[10px] font-semibold text-ink-2">BONUS</span>
               <span className="font-mono text-[11px] text-ink">{modifiers.size}/{modifierRules.length}</span>
@@ -466,8 +464,11 @@ function PitLane({
       {/* bonuses — a selector per available bonus rule (ADR-0006). Pick which team gets the bonus. */}
       {modifierRules.length > 0 && (
         <div className="mt-5 rounded-[4px] border border-line bg-surface-3 p-4">
+          {/* Bonuses speak `success` teal, not the old `#ffc23d` — that was GTD PRO's own amber on
+              something that is not a class (The Class-Color Reserve). A bonus the player has
+              assigned is a state they've achieved, which is teal by The Confirmed-Is-Teal Rule. */}
           <div className="mb-3 flex items-center gap-2">
-            <svg width="15" height="15" viewBox="0 0 24 24" fill="#ffc23d"><path d="M13 2 3 14h7l-1 8 10-12h-7z" /></svg>
+            <svg width="15" height="15" viewBox="0 0 24 24" fill="currentColor" className="text-success" aria-hidden="true"><path d="M13 2 3 14h7l-1 8 10-12h-7z" /></svg>
             <span className="font-display text-[15px] font-bold uppercase tracking-[0.04em] text-ink">Bonuses</span>
           </div>
           <div className="flex flex-col gap-3">
@@ -493,14 +494,10 @@ function PitLane({
                             type="button"
                             disabled={locked}
                             onClick={() => onToggleModifier(rule.kind, p)}
+                            aria-pressed={sel}
                             className={`rounded-[3px] border px-3 py-[6px] font-display text-[12px] font-semibold uppercase tracking-[0.03em] ${
                               locked ? 'cursor-not-allowed opacity-60' : 'cursor-pointer'
-                            }`}
-                            style={
-                              sel
-                                ? { borderColor: '#ffc23d', background: 'rgba(255,194,61,.12)', color: '#fff' }
-                                : { borderColor: '#3a3f47', color: '#8a8f98' }
-                            }
+                            } ${sel ? 'border-success/50 bg-success/15 text-ink' : 'border-line-3 text-muted'}`}
                           >
                             {p.displayName}
                           </button>

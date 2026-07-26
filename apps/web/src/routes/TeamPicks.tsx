@@ -3,29 +3,11 @@ import { Link, useParams } from 'react-router-dom'
 import { usePlayerPicks, usePrices, useRosterRules, useRound } from '../api/queries'
 import { classMeta } from '../lib/classMeta'
 import { modMeta } from '../lib/modifierMeta'
+import { fmtPts, fmtTotal, hasScored, sourceLabel } from '../lib/scoreFormat'
 import { EntityThumb } from '../components/EntityThumb'
 import { DriverLineup } from '../components/DriverLineup'
 
 const key = (p: { entityType: string; entityId: number }) => `${p.entityType}:${p.entityId}`
-
-// Per-source short labels for the points breakdown on each pick (MAIN = Quali + Race(s)).
-// On a multi-race weekend (raceCount > 1) race scores are numbered R1/R2 by the score's raceNumber.
-const srcLabel = (s: { source: string; raceNumber?: number | null }, raceCount: number) => {
-  switch (s.source) {
-    case 'QualifyingPosition':
-      return 'Q'
-    case 'RacePosition':
-      return raceCount > 1 ? `R${s.raceNumber ?? 1}` : 'R'
-    case 'RaceFastestLap':
-      return 'FL'
-    case 'Bonus':
-      return 'B'
-    default:
-      return s.source
-  }
-}
-
-const fmtPts = (n: number) => (n > 0 ? `+${n.toFixed(1)}` : n.toFixed(1))
 
 /**
  * Read-only disclosure of another player's lineup for a scored round, reached by clicking a row on the
@@ -83,7 +65,7 @@ export function TeamPicks() {
   const classes = rules.data?.classes ?? []
   const picksByClass = new Map<number, typeof data.main>()
   for (const p of data.main) picksByClass.set(p.classId, [...(picksByClass.get(p.classId) ?? []), p])
-  const scored = data.main.some((p) => p.scores.length > 0) || data.total !== 0
+  const scored = hasScored(data)
 
   return (
     <div className="mx-auto max-w-[760px] px-4 py-7 sm:px-[26px]">
@@ -102,7 +84,7 @@ export function TeamPicks() {
         <div className="text-right">
           <div className="font-mono text-[10px] uppercase tracking-[0.12em] text-muted">Round points</div>
           <div className="font-mono text-[28px] font-bold leading-none text-ink">
-            {scored ? data.total.toFixed(1) : '—'}
+            {scored ? fmtTotal(data.total) : '—'}
           </div>
         </div>
         <div
@@ -167,7 +149,7 @@ export function TeamPicks() {
                             <div className="mt-[7px] flex flex-wrap gap-x-3 gap-y-1 font-mono text-[11px] text-muted">
                               {pick.scores.map((s) => (
                                 <span key={`${s.source}:${s.raceNumber ?? 0}`}>
-                                  {srcLabel(s, data.raceCount)} {fmtPts(s.points)}
+                                  {sourceLabel(s, data.raceCount)} {fmtPts(s.points)}
                                 </span>
                               ))}
                             </div>
@@ -175,7 +157,7 @@ export function TeamPicks() {
                         </div>
                         <div className="shrink-0 text-right">
                           <div className="font-mono text-[18px] font-bold leading-none text-ink">
-                            {pick.scores.length > 0 ? pick.points.toFixed(1) : '—'}
+                            {pick.scores.length > 0 ? fmtTotal(pick.points) : '—'}
                           </div>
                           <div className="mt-[3px] font-mono text-[9px] uppercase tracking-[0.1em] text-muted">pts</div>
                         </div>
@@ -192,8 +174,12 @@ export function TeamPicks() {
       {/* bonuses applied — read-only, mirroring the pick page's Bonuses panel */}
       {data.modifiers.length > 0 && (
         <div className="mt-5 rounded-[4px] border border-line bg-surface-3 p-4">
+          {/* The bolt and the points below were `#ffc23d` — GTD PRO's own amber, spent on something
+              that is not a class. Bonuses are `success` teal now: a modifier the player chose, which
+              has since paid out, is what The Confirmed-Is-Teal Rule describes, and it leaves the
+              class palette meaning only class (The Class-Color Reserve). */}
           <div className="mb-3 flex items-center gap-2">
-            <svg width="15" height="15" viewBox="0 0 24 24" fill="#ffc23d"><path d="M13 2 3 14h7l-1 8 10-12h-7z" /></svg>
+            <svg width="15" height="15" viewBox="0 0 24 24" fill="currentColor" className="text-success" aria-hidden="true"><path d="M13 2 3 14h7l-1 8 10-12h-7z" /></svg>
             <span className="font-display text-[15px] font-bold uppercase tracking-[0.04em] text-ink">Bonuses</span>
           </div>
           <div className="flex flex-col gap-2">
@@ -211,7 +197,7 @@ export function TeamPicks() {
                       <div className="mt-[2px] truncate font-sans text-[12px] text-muted">{target.displayName}</div>
                     )}
                   </div>
-                  <div className="shrink-0 font-mono text-[14px] font-bold" style={{ color: '#ffc23d' }}>
+                  <div className="shrink-0 font-mono text-[14px] font-bold text-success">
                     {fmtPts(mod.points)}
                   </div>
                 </div>

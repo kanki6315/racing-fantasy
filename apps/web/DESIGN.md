@@ -178,9 +178,16 @@ so a status signal can never be mistaken for class wayfinding.
 
 ### Named Rules
 **The Confirmed-Is-Teal Rule.** A state the player has already achieved — a pick in the lineup, a
-series joined, a budget still inside the cap — is `success` teal, never brand red. Red marks the
-thing still to do (SAVE ROSTER) and the thing happening now (the live lock). A board where every
-selected row glowed red left the actual action with nowhere to stand out.
+series joined, a budget still inside the cap, **a bonus assigned or paid out** — is `success` teal,
+never brand red. Red marks the thing still to do (SAVE ROSTER) and the thing happening now (the live
+lock). A board where every selected row glowed red left the actual action with nowhere to stand out.
+
+*Bonuses are the case this rule had to be extended to cover.* Roster modifiers wore `#ffc23d` on all
+three surfaces that show them (the pick page's Bonuses panel and cap strip, the standings drill-in,
+the dashboard's pick chips) — which is `gtdpro-2`, GTD PRO's own amber, spent on something that is
+not a class. That is a straight Class-Color Reserve breach, and the fix is not a new hue: the
+palette has no free one, and inventing a fifth accent for a fourth concept is how a system stops
+being a system. A bonus the player chose, which has now scored, is a confirmed state. It is teal.
 
 **The One Red Rule.** Endurance red is the only brand accent and appears on ≤10% of any screen. A view
 gets **two solid-red spends: the primary action and the live state** (plus the nav's 2px edge, which

@@ -315,6 +315,27 @@ export type RosterResponse = components['schemas']['RosterResponse']
 export type RosterError = components['schemas']['RosterErrorResponse']
 export type PutRosterRequest = components['schemas']['PutRosterRequest']
 export type PlayerPicks = components['schemas']['PlayerPicksResponse']
+export type ClassDto = components['schemas']['ClassDto']
+
+/**
+ * Every racing class in the app, keyed by id — the cheap way to resolve class identity (name +
+ * admin-set color) for a screen that shows picks from several championships at once.
+ *
+ * The per-round `useRosterRules` also carries classes, but it is scoped to one round, so a surface
+ * listing N rounds would pay N requests for what is a small, near-static catalog. This is ~650
+ * bytes for the whole app, fetched once and shared. Public read (catalog GETs are unauthenticated).
+ */
+export function useClasses() {
+  return useQuery({
+    queryKey: ['classes'],
+    staleTime: 10 * 60 * 1000,
+    queryFn: async () => {
+      const { data, error, response } = await api.GET('/classes')
+      assertOk(response, error)
+      return data ?? []
+    },
+  })
+}
 
 export function useRounds(seasonId: number | undefined) {
   return useQuery({

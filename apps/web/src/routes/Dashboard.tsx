@@ -4,17 +4,22 @@ import { useAuth, type Me } from '../auth/AuthContext'
 import {
   useAllSeasons,
   useChampionships,
+  useClasses,
   useDiscoverLeagues,
   useEvents,
   useJoinLeague,
   useLeagueLeaderboard,
   useMyLeagues,
+  usePlayerPicks,
   usePrices,
   useRoster,
   useUpdateEmailPreference,
   ApiError,
+  type ClassDto,
   type League,
 } from '../api/queries'
+import { classMeta } from '../lib/classMeta'
+import { fmtMoney, fmtPts, fmtSeasonPoints, fmtTotal, hasScored, sourceLabel } from '../lib/scoreFormat'
 import { useCountdown } from '../lib/useCountdown'
 import { CreateLeagueModal, JoinByCodeModal } from '../components/LeagueModals'
 import { RegisterModal } from '../components/RegisterModal'
@@ -45,11 +50,19 @@ export function Dashboard() {
   const seasons = useAllSeasons()
   const myLeagues = useMyLeagues()
   const events = useEvents()
+  const classes = useClasses()
   const updatePref = useUpdateEmailPreference()
   const [rateLimited, setRateLimited] = useState(false)
   const [createOpen, setCreateOpen] = useState(false)
   const [joinOpen, setJoinOpen] = useState(false)
   const [joinSeasonId, setJoinSeasonId] = useState<number | null>(null)
+
+  // One lookup for every racing class in the app — a hub showing picks from several championships
+  // resolves class identity from this rather than paying a per-round roster-rules request per row.
+  const classById = useMemo(
+    () => new Map((classes.data ?? []).map((c) => [c.id, c])),
+    [classes.data],
+  )
 
   const seasonInfo = useMemo(() => {
     return (seasonId: number) => {
@@ -206,7 +219,7 @@ export function Dashboard() {
           {picksCards.length === 0 ? (
             <EmptyPicks />
           ) : (
-            picksCards.map((card) => <PicksCard key={card.eventId} card={card} />)
+            picksCards.map((card) => <PicksCard key={card.eventId} card={card} classById={classById} />)
           )}
         </div>
 
@@ -267,7 +280,7 @@ function EmptyPicks() {
 
 // ---- Your-picks card: one weekend (ADR-0008), a row per championship the user is registered in. The
 // header badge reflects the live lifecycle status (Picks Open → In Progress at first quali → Scored). ----
-function PicksCard({ card }: { card: PickCard }) {
+function PicksCard({ card, classById }: { card: PickCard; classById: Map<number, ClassDto> }) {
   // Tick every second so the badge flips from Picks Open → In Progress exactly at the first round's quali.
   useCountdown(card.firstQuali ?? undefined)
   const status = deriveEventStatus(
@@ -275,6 +288,9 @@ function PicksCard({ card }: { card: PickCard }) {
     Date.now(),
   )
   const badge = EVENT_STATUS_META[status]
+  // Results are in for this weekend, so its rows report points rather than lock state. Taken from
+  // the derived status rather than `card.scored` so a row can never disagree with the badge above it.
+  const scored = status === 'SCORED'
   // Hairline all round — a thick red left edge is a banned side-stripe, and it was also a third
   // solid red on this view. The weekend is already marked by its header band and status badge.
   return (
@@ -288,31 +304,88 @@ function PicksCard({ card }: { card: PickCard }) {
       </div>
       <div className="flex flex-col divide-y divide-line">
         {card.rows.map((row) => (
-          <PicksRow key={row.reg.id} reg={row.reg} round={row.round} champName={row.champName} />
+          <PicksRow
+            key={row.reg.id}
+            reg={row.reg}
+            round={row.round}
+            champName={row.champName}
+            scored={scored}
+            classById={classById}
+          />
         ))}
       </div>
     </div>
   )
 }
 
-// ---- A single championship row within an event card (resolves roster + names for that round). ----
-function PicksRow({ reg, round, champName }: { reg: Registration; round: PickRound; champName: string }) {
-  const roster = useRoster(reg.id, round.id)
+/** A pick as this row renders it, whichever endpoint supplied it. `points`/`scores` are scored-only. */
+type RowPick = {
+  entityType: 'Car' | 'Driver'
+  entityId: number
+  classId: number
+  price: number
+  points?: number
+  scores?: { source: string; points: number; raceNumber?: null | number }[]
+}
+
+// ---- A single championship row within an event card (resolves picks + names for that round). ----
+//
+// Two endpoints back this row, because a weekend before the flag and a weekend after it are asking
+// different questions. Before: the roster GET, whose salary figures answer "can I still afford a
+// change?". After: the player-picks GET, which is the only source of what each pick actually scored.
+// Both hooks are always called and one is disabled by passing `undefined`, so hook order is stable
+// and exactly one request goes out. Should the scored read fail — a `409 not_locked` if an admin
+// flags a weekend early — the roster read re-enables and the row degrades to the lineup-only view
+// rather than erroring.
+function PicksRow({
+  reg,
+  round,
+  champName,
+  scored,
+  classById,
+}: {
+  reg: Registration
+  round: PickRound
+  champName: string
+  scored: boolean
+  classById: Map<number, ClassDto>
+}) {
+  const results = usePlayerPicks(scored ? reg.id : undefined, scored ? round.id : undefined)
+  const roster = useRoster(!scored || results.isError ? reg.id : undefined, round.id)
   const prices = usePrices(round.id)
   const cd = useCountdown(round.qualiStart)
 
-  const locked = cd.locked || roster.data?.locked === true
-  const picks = roster.data ? roster.data.main.length : 0
+  const showResults = scored && !results.isError
+  const source = showResults ? results : roster
+  const main: RowPick[] = (showResults ? results.data?.main : roster.data?.main) ?? []
+  const picks = main.length
+
+  const locked = scored || cd.locked || roster.data?.locked === true
+  // A round can be locked and flagged scored before the scoring job has run; its picks come back with
+  // no source rows. That must read as "results pending", never as a real zero.
+  const totalled = showResults && results.data != null && hasScored(results.data)
   const status = locked ? { t: 'LOCKED', c: 'text-muted' } : picks > 0 ? { t: 'SET', c: 'text-success' } : { t: 'TO DO', c: 'text-warn' }
 
   const itemOf = (p: { entityType: string; entityId: number }) =>
     prices.data?.find((x) => x.entityType === p.entityType && x.entityId === p.entityId)
 
-  // Bonus modifiers targeting each pick, keyed by entity (ADR-0006). Shown as a small gold badge.
+  // Bonus modifiers targeting each pick, keyed by entity (ADR-0006). The scored endpoint's modifier
+  // additionally carries the points it contributed, which is the number worth showing; the roster's
+  // does not, hence the widened element type rather than a union the `in` operator can't narrow.
+  // What the weekend's bonuses added on top of the picks themselves. Untargeted modifiers count too,
+  // so this sums the list rather than the per-pick badges.
+  const bonusPoints = (results.data?.modifiers ?? []).reduce((sum, m) => sum + m.points, 0)
+
   const bonusLabel: Record<string, string> = { DOUBLE_POINTS_TEAM: '2×', CAPTAIN: 'C' }
-  const bonusByPick = new Map<string, string>()
-  for (const m of roster.data?.modifiers ?? [])
-    if (m.target) bonusByPick.set(`${m.target.entityType}:${m.target.entityId}`, bonusLabel[m.kind] ?? '★')
+  const rawMods: { kind: string; target: { entityType: string; entityId: number } | null; points?: number }[] =
+    (showResults ? results.data?.modifiers : roster.data?.modifiers) ?? []
+  const bonusByPick = new Map<string, { label: string; points?: number }>()
+  for (const m of rawMods)
+    if (m.target)
+      bonusByPick.set(`${m.target.entityType}:${m.target.entityId}`, {
+        label: bonusLabel[m.kind] ?? '★',
+        points: m.points,
+      })
 
   return (
     <div className="flex flex-col items-stretch sm:flex-row">
@@ -328,61 +401,175 @@ function PicksRow({ reg, round, champName }: { reg: Registration; round: PickRou
           <span className="font-mono text-[9px] uppercase tracking-[0.1em] text-muted">Team</span>
           <span className="truncate font-sans text-[12px] font-medium text-ink-2">{reg.teamName}</span>
         </div>
-        <div className={`mt-[9px] font-mono text-[11px] font-semibold ${status.c}`}>
-          {locked ? 'LOCKED' : picks > 0 ? `LOCKS ${cd.text}` : 'NOT SET'}
-        </div>
+        {showResults ? (
+          // The scored state's headline. A weekend with results in is asking one question, and
+          // "LOCKED" was not an answer to it.
+          //
+          // A round with no lineup gets no figure at all. Its total is a truthful zero, but a bold
+          // `0.0` in the slot that holds `1196.0` one row up invites the comparison "did I score
+          // nothing, or did something break?" — and `pts pending` would be a straight lie, since the
+          // results are in. The row's own "Round missed" is the honest answer, so let it be the only one.
+          picks > 0 && (
+            <div className="mt-[10px]">
+              <div className="flex items-baseline gap-1.5">
+                <span className="font-mono text-[24px] font-bold leading-none text-ink">
+                  {totalled ? fmtTotal(results.data!.total) : '—'}
+                </span>
+                <span className="font-mono text-[9px] uppercase tracking-[0.1em] text-muted">
+                  {totalled ? 'pts' : 'pts pending'}
+                </span>
+              </div>
+              {/* Bonus points sit outside every pick's own score, which makes this total the only
+                  figure they belong under — and a quarter of a weekend is too much to leave
+                  unexplained once it has been taken out of the pick that earned it. */}
+              {totalled && bonusPoints > 0 && (
+                <div className="mt-[4px] font-mono text-[10px] text-muted">
+                  incl. bonus <span className="text-success">{fmtPts(bonusPoints)}</span>
+                </div>
+              )}
+            </div>
+          )
+        ) : (
+          <>
+            <div className={`mt-[9px] font-mono text-[11px] font-semibold ${status.c}`}>
+              {locked ? 'LOCKED' : picks > 0 ? `LOCKS ${cd.text}` : 'NOT SET'}
+            </div>
+            {/* Before the flag the meaningful figure is spend, not points — and the roster response
+                already carries it, so the budget costs no extra request.
+                Headroom against the cap, not spent/cap/left: every figure is rounded to one decimal
+                for display, so a real roster (22.75 spent, 2.25 left, 25 cap) prints "$22.8M",
+                "$2.3M" and "$25.0M" — three numbers on one line that visibly don't reconcile. Show
+                the number a player acts on and the bound it acts against, and there is no sum to
+                fail. `muted` is the floor for both (The Contrast Floor Rule). */}
+            {!locked && picks > 0 && roster.data && (
+              <div className="mt-[6px] font-mono text-[11px] text-muted">
+                <span className={roster.data.remaining < 0 ? 'text-danger' : 'text-success'}>
+                  {fmtMoney(roster.data.remaining)} left
+                </span>{' '}
+                of {fmtMoney(roster.data.salaryCap)}
+              </div>
+            )}
+          </>
+        )}
       </div>
 
       <div className="flex flex-1 flex-wrap items-center gap-2 p-[15px]">
-        {roster.isLoading ? (
+        {source.isLoading ? (
           <span className="font-sans text-[13px] text-muted">Loading lineup…</span>
-        ) : roster.isError ? (
-          <span className="font-sans text-[13px] text-danger">Couldn't load this lineup.</span>
+        ) : source.isError ? (
+          <span className="flex items-center gap-3 font-sans text-[13px] text-danger">
+            Couldn't load this lineup.
+            <button
+              type="button"
+              onClick={() => void source.refetch()}
+              className="rounded-[3px] border border-line-2 px-[10px] py-[3px] font-display text-[11px] font-semibold uppercase tracking-[0.06em] text-ink-2 transition-colors hover:border-line-3 hover:text-ink cursor-pointer"
+            >
+              Retry
+            </button>
+          </span>
         ) : picks > 0 ? (
-          (roster.data?.main ?? []).map((p) => {
+          main.map((p) => {
             const pi = itemOf(p)
             const badge = bonusByPick.get(`${p.entityType}:${p.entityId}`)
+            const cls = classById.get(p.classId)
+            const m = classMeta(cls?.name, cls?.color)
+            const name = pi?.displayName ?? `#${p.entityId}`
             return (
-              <div key={`${p.entityType}:${p.entityId}`} className="flex items-center gap-2 rounded-[3px] border border-line-2 bg-surface-2 p-1.5 pr-2.5">
+              <div
+                key={`${p.entityType}:${p.entityId}`}
+                // Full width in a single column below `sm`, so the points land in a column and can be
+                // compared at a glance. Content-sized chips put three totals at three different x
+                // positions, which is the alignment The Tabular-Numeral Rule exists to protect.
+                className="flex w-full items-center gap-2 rounded-[3px] border border-line-2 bg-surface-2 p-1.5 pr-2.5 sm:w-auto"
+              >
+                {/* Class identity leads the chip as a broadcast slash, the same mark the pick page
+                    and the standings drill-in use. Class is wayfinding; the hub was the one player
+                    surface showing a lineup without it. */}
+                <span
+                  className="h-[26px] w-[3px] flex-none [transform:skewX(-14deg)]"
+                  style={{ background: m.hex }}
+                  aria-hidden="true"
+                />
                 <EntityThumb
-                  entityType={p.entityType as 'Car' | 'Driver'}
+                  entityType={p.entityType}
                   entityId={p.entityId}
                   roundId={round.id}
                   shape={p.entityType === 'Car' ? 'wide' : 'square'}
+                  tintHex={m.hex}
                   className="w-11"
                 />
-                <div className="min-w-0 max-w-[150px]">
+                {/* Grows to fill the full-width mobile chip so the points stay pinned right; capped
+                    again at `sm`, where chips size to their content and sit side by side. */}
+                <div className="min-w-0 flex-1 sm:max-w-[150px] sm:flex-none">
                   <div className="flex items-center gap-1.5">
-                    <span className="truncate font-sans text-[12px] font-medium text-ink-2">{pi?.displayName ?? '—'}</span>
+                    <span className="truncate font-sans text-[12px] font-medium text-ink-2" title={name}>
+                      {name}
+                    </span>
                     {badge && (
-                      <span
-                        className="flex h-[16px] flex-none items-center rounded-[2px] px-[5px] font-mono text-[10px] font-bold text-[#1a1206]"
-                        style={{ background: '#ffc23d' }}
-                        title="Bonus applied"
-                      >
-                        {badge}
+                      // Teal, not gold: the old `#ffc23d` was GTD PRO's own hue spent on a
+                      // non-class meaning. A bonus the player chose, which has now paid out, is
+                      // precisely what The Confirmed-Is-Teal Rule describes.
+                      <span className="flex h-[16px] flex-none items-center rounded-[2px] border border-success/45 bg-success/15 px-[5px] font-mono text-[10px] font-bold text-success">
+                        <span className="sr-only">Bonus applied: </span>
+                        {badge.label}
+                        <span className="sr-only">{badge.label === '2×' ? ' double points' : ' captain'}</span>
                       </span>
                     )}
                   </div>
                   <DriverLineup drivers={pi?.drivers} variant="compact" className="mt-0.5" />
+                  {/* Q/R only. A modifier's points are NOT part of `pick.points` — the API adds them
+                      to the round total separately — so listing one here put three figures summing
+                      to 660 under a headline of 330. The bonus is reported against the total it
+                      actually moved, below. */}
+                  {showResults && p.scores && p.scores.length > 0 && (
+                    <div className="mt-[3px] flex flex-wrap gap-x-2 font-mono text-[10px] text-muted">
+                      {p.scores.map((s) => (
+                        <span key={`${s.source}:${s.raceNumber ?? 0}`}>
+                          {sourceLabel(s, results.data?.raceCount ?? 1)} {fmtPts(s.points)}
+                        </span>
+                      ))}
+                    </div>
+                  )}
                 </div>
+                {showResults && (
+                  <div className="ml-1 shrink-0 text-right">
+                    <div className="font-mono text-[15px] font-bold leading-none text-ink">
+                      {p.scores && p.scores.length > 0 ? fmtTotal(p.points ?? 0) : '—'}
+                    </div>
+                    <div className="mt-[2px] font-mono text-[8px] uppercase tracking-[0.1em] text-muted">pts</div>
+                  </div>
+                )}
               </div>
             )
           })
         ) : (
-          <span className="font-sans text-[13px] text-muted">No picks yet for {round.name}.</span>
+          <span className="font-sans text-[13px] text-muted">
+            {locked ? `No lineup was set for ${round.name}.` : `No picks yet for ${round.name}.`}
+          </span>
         )}
       </div>
 
       <div className="flex flex-none items-center border-t border-line p-[15px] sm:border-t-0">
-        <Link
-          to={`/pick/${round.id}`}
-          className={`flex h-[38px] w-full items-center justify-center rounded-[3px] px-[18px] font-display text-[14px] font-semibold uppercase tracking-[0.04em] sm:w-auto ${
-            status.t === 'TO DO' ? 'bg-brand font-bold italic text-ink' : 'border border-line-2 text-ink-2'
-          }`}
-        >
-          {locked ? 'View Lineup' : picks > 0 ? 'Edit Picks' : 'Make Picks →'}
-        </Link>
+        {picks === 0 && locked ? (
+          // Nothing was picked and the round is gone. A button labelled "View Lineup" pointing at a
+          // lineup that was never set is a promise the destination can't keep; say what happened.
+          // `muted`, not `muted-2`: this is text a player reads, and the ramp below `muted` is
+          // decoration only (The Contrast Floor Rule — muted-2 measures 3.03:1 here).
+          <span className="font-mono text-[11px] uppercase tracking-[0.08em] text-muted">Round missed</span>
+        ) : (
+          <Link
+            // A scored round's lineup belongs on the results page, which shows what each pick earned
+            // and its Q/R breakdown — not on the pick board, which is an editor with nothing to edit.
+            to={showResults ? `/standings/team/${reg.id}/round/${round.id}` : `/pick/${round.id}`}
+            className={`flex h-[38px] w-full items-center justify-center rounded-[3px] px-[18px] font-display text-[14px] font-semibold uppercase tracking-[0.04em] transition-colors sm:w-auto ${
+              status.t === 'TO DO'
+                ? 'bg-brand font-bold italic text-ink hover:bg-brand-2'
+                : 'border border-line-2 text-ink-2 hover:border-line-3 hover:text-ink'
+            }`}
+          >
+            {showResults ? 'View Results →' : locked ? 'View Lineup' : picks > 0 ? 'Edit Picks' : 'Make Picks →'}
+          </Link>
+        )}
       </div>
     </div>
   )
@@ -396,7 +583,14 @@ function LeagueRow({ league, me }: { league: League; me: Me }) {
   const rank = myRow?.rank
   // Real round-over-round movement from the season league board (null until two rounds are scored).
   const trend = myRow?.movement ?? null
+  // The board this row summarises already carries the player's points; the row was fetching them and
+  // showing only the rank. A position is a comparison — the total is what it's a comparison of.
+  const points = myRow?.points
   const initials = league.name.split(/\s+/).map((w) => w[0]).join('').slice(0, 2).toUpperCase()
+
+  // No entry on the board means no round has scored for this team yet. That is a different thing
+  // from "position unknown", and a bare em-dash was letting it read as a bug in the data.
+  const unranked = !lb.isLoading && rank == null
 
   return (
     <>
@@ -409,8 +603,13 @@ function LeagueRow({ league, me }: { league: League; me: Me }) {
             <div className="mt-[3px] font-sans text-[11px] text-muted">{league.visibility} · {league.memberCount} players</div>
           </div>
         </div>
-        <span className="text-center font-mono text-[16px] font-bold text-ink">
-          {rank ?? '—'}<span className="text-[11px] text-muted">/{league.memberCount}</span>
+        <span className="block text-center">
+          <span className="font-mono text-[16px] font-bold text-ink">
+            {rank ?? '—'}<span className="text-[11px] text-muted">/{league.memberCount}</span>
+          </span>
+          <span className="mt-[2px] block font-mono text-[10px] tracking-[0.04em] text-muted">
+            {points != null ? `${fmtSeasonPoints(points)} pts` : unranked ? 'Not scored yet' : ''}
+          </span>
         </span>
         <span
           aria-label={trend == null ? 'Trend unavailable' : `Trend ${trend > 0 ? `up ${trend}` : trend < 0 ? `down ${-trend}` : 'unchanged'}`}
@@ -433,8 +632,13 @@ function LeagueRow({ league, me }: { league: League; me: Me }) {
           <div className="mt-[3px] font-sans text-[11px] text-muted">{league.visibility} · {league.memberCount} players</div>
         </div>
         <div className="flex shrink-0 flex-col items-end gap-1">
-          <span className="font-mono text-[15px] font-bold text-ink">
-            {rank ?? '—'}<span className="text-[10px] text-muted">/{league.memberCount}</span>
+          <span className="text-right">
+            <span className="font-mono text-[15px] font-bold text-ink">
+              {rank ?? '—'}<span className="text-[10px] text-muted">/{league.memberCount}</span>
+            </span>
+            <span className="mt-[1px] block font-mono text-[10px] text-muted">
+              {points != null ? `${fmtSeasonPoints(points)} pts` : unranked ? 'Not scored yet' : ''}
+            </span>
           </span>
           <Link to={`/leagues/${league.id}`} className="rounded-[3px] border border-line-2 px-[10px] py-[4px] font-display text-[11px] font-semibold uppercase tracking-[0.04em] text-ink-2">
             Standings
