@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { useCallback, useEffect, useState, useSyncExternalStore } from 'react'
 
 /**
  * The current time as render-safe state, refreshed every `stepMs`.
@@ -17,6 +17,31 @@ export function useNow(stepMs: number): number {
     return () => clearInterval(t)
   }, [stepMs])
   return now
+}
+
+/**
+ * Whether the lock moment has passed — a boolean that re-renders its caller only when it *flips*.
+ *
+ * `useCountdown` re-renders every second by design; it has a ticking string to show. A caller that
+ * only needs "locked or not" was paying that cost for its whole subtree: on the pick screen the
+ * countdown drove a ~1,250-node reconcile once a second in order to change one text node, for the
+ * hours a player might leave the board open before a lock.
+ *
+ * `useSyncExternalStore` compares snapshots with `Object.is`, so the interval still fires each
+ * second but React only re-renders on the false → true transition. Pair it with a leaf component
+ * that owns `useCountdown` for the visible ticking text, and the per-second work stays in the leaf.
+ */
+export function useIsLocked(target: string | undefined): boolean {
+  const at = target ? new Date(target).getTime() : null
+  const subscribe = useCallback(
+    (onChange: () => void) => {
+      if (at === null) return () => {}
+      const id = setInterval(onChange, 1000)
+      return () => clearInterval(id)
+    },
+    [at],
+  )
+  return useSyncExternalStore(subscribe, () => at !== null && Date.now() >= at)
 }
 
 /** Client-side lock countdown from the round's quali_start (ADR-0002). Server stays authoritative. */

@@ -13,16 +13,19 @@ export type ModifierFormat = {
 }
 
 export const MODIFIER_FORMATS: ModifierFormat[] = [
+  // Hints are parallel by design: same shape, same scope word. A player reading two bonuses in a
+  // list compares them, and "added as bonus points" (the API's scoring source) told them nothing
+  // they could act on while "your captain driver" named a thing that doesn't exist.
   {
     kind: 'DOUBLE_POINTS_TEAM',
     label: 'Double Points Team',
-    hint: 'One of your teams scores double — added as bonus points.',
+    hint: 'One of your teams scores double this round.',
     appliesTo: 'MainPick',
   },
   {
     kind: 'CAPTAIN',
     label: 'Captain',
-    hint: 'Your captain driver scores double.',
+    hint: 'One of your drivers scores double this round.',
     appliesTo: 'Driver',
   },
 ]
