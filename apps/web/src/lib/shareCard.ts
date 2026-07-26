@@ -52,7 +52,12 @@ const RIGHT = CARD_W - PAD
  *  Wide enough that "GTD PRO" — the longest class label, three characters past every other — clears
  *  the row's left edge instead of sitting on it. */
 const ROW_L = 150
-const HEADER_BOTTOM = 346
+/** Right edge of the figure column. Inset from the page margin so the marked row's tinted box has
+ *  padding on the right instead of the number sitting on its border — the box runs to `RIGHT`, and
+ *  the row's left padding is already 44px, so a 0px right padding read as a misprint. Every row's
+ *  figure uses it, marked or not, so the column stays aligned to the digit. */
+const FIG_R = RIGHT - 20
+const HEADER_BOTTOM = 360
 const FOOTER_TOP = 1186
 
 export type ShareCardVariant = 'lineup' | 'scorecard'
@@ -278,9 +283,14 @@ function drawHeader(ctx: Ctx, m: ShareCardModel) {
 
   // The hero figure claims the right edge first, so the team name knows how much room is left. Both
   // sit on one baseline: the card's subject and its result, read as a single line.
+  //
+  // That baseline moved from 272 to 288, and the label above it from 198 to 190. The gap between the
+  // two was being measured from the label's baseline rather than from the hero's cap-top, and an
+  // 88px numeral has ~63px of cap above its baseline: the figure's top landed at y≈209 against
+  // descenders reaching y≈203. Six pixels, which read as the two lines colliding. It is ~30px now.
   const heroFont = mono(88, 700)
-  text(ctx, m.heroValue, RIGHT, 272, { font: heroFont, fill: C.ink, align: 'right' })
-  text(ctx, m.heroUnit, RIGHT, 308, { font: mono(20, 500), fill: C.muted, align: 'right', tracking: track(20) })
+  text(ctx, m.heroValue, RIGHT, 288, { font: heroFont, fill: C.ink, align: 'right' })
+  text(ctx, m.heroUnit, RIGHT, 324, { font: mono(20, 500), fill: C.muted, align: 'right', tracking: track(20) })
   const heroW = Math.max(measure(ctx, m.heroValue, heroFont), measure(ctx, m.heroUnit, mono(20, 500), track(20)))
 
   // "WeatherTech SportsCar Championship · Sahlen's Six Hours of the Glen" is 68 characters; a real
@@ -289,7 +299,7 @@ function drawHeader(ctx: Ctx, m: ShareCardModel) {
   // The floor is set by the real worst case, not a guess: "WeatherTech SportsCar Championship ·
   // Motul SportsCar Endurance Grand Prix" is 71 characters and needs the 16px step to survive whole.
   const head = fitStepped(ctx, label, [22, 20, 18, 16], (s) => mono(s, 500), CARD_W - PAD * 2, 0.08)
-  text(ctx, head.value, PAD, 198, { font: head.font, fill: C.muted, tracking: head.tracking })
+  text(ctx, head.value, PAD, 190, { font: head.font, fill: C.muted, tracking: head.tracking })
 
   // The ladder runs to 34px. It used to stop at 44, where a 29-character team name — "Bartholomew
   // Racing Collective", nothing exotic — still needed 638px against the 611px the hero figure left
@@ -298,10 +308,10 @@ function drawHeader(ctx: Ctx, m: ShareCardModel) {
   // hierarchy holds long before legibility does.
   const nameMax = RIGHT - heroW - 40 - PAD
   const name = fitStepped(ctx, m.teamName.toUpperCase(), [66, 58, 50, 44, 38, 34], (s) => display(s), nameMax)
-  text(ctx, name.value, PAD, 272, { font: name.font, fill: C.ink })
+  text(ctx, name.value, PAD, 288, { font: name.font, fill: C.ink })
 
   if (m.circuit) {
-    text(ctx, fit(ctx, m.circuit, sans(24), nameMax), PAD, 312, { font: sans(24), fill: C.muted })
+    text(ctx, fit(ctx, m.circuit, sans(24), nameMax), PAD, 328, { font: sans(24), fill: C.muted })
   }
 
   hairline(ctx, PAD, RIGHT, HEADER_BOTTOM)
@@ -374,7 +384,7 @@ function drawPitLane(ctx: Ctx, m: ShareCardModel, top: number, bottom: number) {
     const figureFont = mono(compact ? 34 : 44, 700)
     const figureW = measure(ctx, p.figure, figureFont)
     const textL = ROW_L + 44
-    const textR = RIGHT - figureW - 42
+    const textR = FIG_R - figureW - 28
     const maxText = textR - textL
 
     // Lines are collected first, then centred as a block — a lineup card has no breakdown line, and
@@ -394,7 +404,9 @@ function drawPitLane(ctx: Ctx, m: ShareCardModel, top: number, bottom: number) {
     // has chips, since that row is the one whose text width was just reduced to make room for them —
     // and it is also the row the card is about, so it is the worst one to truncate.
     const lines: { value: string; font: string; fill: string; lh: number; tracking?: number }[] = []
-    const nameSizes = compact ? [32, 29, 26] : [40, 36, 32]
+    // The 28px step exists for the two-chip row specifically: `2× POINTS` + `TOP` reserve ~222px,
+    // which leaves a 29-character entrant name about 412px and no way to fit it at 32.
+    const nameSizes = compact ? [32, 29, 26] : [40, 36, 32, 28]
     const name = fitStepped(ctx, p.name.toUpperCase(), nameSizes, (s) => display(s, 800), nameMax)
     // Line height stays keyed to the base size, not the chosen one, so a shrunk name doesn't change
     // the row's vertical rhythm relative to its neighbours.
@@ -428,7 +440,7 @@ function drawPitLane(ctx: Ctx, m: ShareCardModel, top: number, bottom: number) {
 
     // No per-row unit. The header states it once, and eight stacked `PTS` labels under eight figures
     // in the same column is a caption repeated for every row of a table that has one heading.
-    text(ctx, p.figure, RIGHT, ty + rowH / 2 + (compact ? 11 : 15), {
+    text(ctx, p.figure, FIG_R, ty + rowH / 2 + (compact ? 11 : 15), {
       font: figureFont,
       fill: C.ink,
       align: 'right',
