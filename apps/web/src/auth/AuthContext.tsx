@@ -37,6 +37,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       return data ?? null
     },
     staleTime: 60_000,
+    // Overrides the app-wide `refetchOnWindowFocus: false`, deliberately and only here. Identity is
+    // the one query whose staleness is a correctness problem rather than a freshness one: the app
+    // gates /admin/* on a cached `isAdmin`, so a session that changed in another tab left the
+    // console rendering its full chrome — governance screens and all — for someone who no longer
+    // had the claim. The server 403s every call regardless, so this is about not lying on screen.
+    refetchOnWindowFocus: true,
   })
 
   const user = data ?? null

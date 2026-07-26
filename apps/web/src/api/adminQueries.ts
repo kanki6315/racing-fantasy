@@ -1,5 +1,5 @@
 import { useMutation, useQuery, useQueryClient, type QueryClient } from '@tanstack/react-query'
-import { api } from './client'
+import { api, unwrap } from './client'
 import type { components } from './schema'
 
 /**
@@ -104,9 +104,7 @@ export function useAdminClasses(championshipId?: number) {
     queryKey: ak.classes(championshipId),
     enabled: championshipId != null,
     queryFn: async () => {
-      const { data, error } = await api.GET('/classes', { params: { query: { championshipId } } })
-      if (error) throw error
-      return data ?? []
+      return unwrap(await api.GET('/classes', { params: { query: { championshipId } } })) ?? []
     },
   })
 }
@@ -239,9 +237,7 @@ export function useAdminSessions(roundId?: number) {
     queryKey: ak.sessions(roundId),
     enabled: roundId != null,
     queryFn: async () => {
-      const { data, error } = await api.GET('/sessions', { params: { query: { roundId } } })
-      if (error) throw error
-      return data ?? []
+      return unwrap(await api.GET('/sessions', { params: { query: { roundId } } })) ?? []
     },
   })
 }
@@ -287,9 +283,7 @@ export function useCarEntries(seasonId?: number, classId?: number) {
     queryKey: ak.carEntries(seasonId, classId),
     enabled: seasonId != null,
     queryFn: async () => {
-      const { data, error } = await api.GET('/car-entries', { params: { query: { seasonId, classId } } })
-      if (error) throw error
-      return data ?? []
+      return unwrap(await api.GET('/car-entries', { params: { query: { seasonId, classId } } })) ?? []
     },
   })
 }
@@ -377,13 +371,19 @@ export function useDeleteDriver() {
 }
 
 // ---- Lineups (entry-drivers) ----
-export function useEntryDrivers(carEntryId?: number) {
+
+/**
+ * The endpoint filters by car or driver only, so the unfiltered call returns every lineup row in
+ * the database. That's fine for the Prices board, which needs them all — but `enabled` lets a
+ * screen that only *might* need them (the Overview, for a driver-priced series) hold the request
+ * until it knows. Same cache key either way, so whoever asks first warms it for the other.
+ */
+export function useEntryDrivers(carEntryId?: number, opts?: { enabled?: boolean }) {
   return useQuery({
     queryKey: ['admin', 'entry-drivers', carEntryId ?? 'all'] as const,
+    enabled: opts?.enabled ?? true,
     queryFn: async () => {
-      const { data, error } = await api.GET('/entry-drivers', { params: { query: { carEntryId } } })
-      if (error) throw error
-      return data ?? []
+      return unwrap(await api.GET('/entry-drivers', { params: { query: { carEntryId } } })) ?? []
     },
   })
 }
@@ -554,9 +554,7 @@ export function useScores(roundId: number) {
     enabled: roundId > 0,
     retry: false,
     queryFn: async () => {
-      const { data, error } = await api.GET('/rounds/{roundId}/scores', { params: { path: { roundId } } })
-      if (error) throw error
-      return data!
+      return unwrap(await api.GET('/rounds/{roundId}/scores', { params: { path: { roundId } } }))!
     },
   })
 }
@@ -583,11 +581,11 @@ export function useScoringRulesets(seasonId?: number) {
     queryKey: ['admin', 'scoring-rulesets', seasonId ?? 'all'] as const,
     enabled: seasonId != null,
     queryFn: async () => {
-      const { data, error } = await api.GET('/seasons/{seasonId}/scoring-rulesets', {
-        params: { path: { seasonId: seasonId! } },
-      })
-      if (error) throw error
-      return data ?? []
+      return (
+        unwrap(
+          await api.GET('/seasons/{seasonId}/scoring-rulesets', { params: { path: { seasonId: seasonId! } } }),
+        ) ?? []
+      )
     },
   })
 }
@@ -731,5 +729,81 @@ export function useDeleteModifierRule() {
       if (error) throw error
     },
     onSuccess: () => invalidate(qc, ['admin', 'modifier-rules']),
+  })
+}
+
+// ---- API liveness ----
+
+/**
+ * Polls `GET /health` so the console's status dot reports something it actually checked — it used
+ * to be a hardcoded green dot reading "all systems go", which is the worst thing an ops console can
+ * put on screen. It is a liveness probe and nothing more (the API answered), so its label must not
+ * overclaim. One retry, because a dropped request on a laptop waking from sleep is not an outage.
+ */
+export function useApiHealth() {
+  return useQuery({
+    queryKey: ['admin', 'health'] as const,
+    queryFn: async () => {
+      unwrap(await api.GET('/health'))
+      return true
+    },
+    retry: 1,
+    refetchInterval: 30_000,
+    staleTime: 15_000,
+  })
+}
+
+// ---- Cross-championship board ----
+
+/**
+ * Unfiltered reads, for the one screen that has to answer a question about *every* championship at
+ * once rather than the selected one.
+ *
+ * These exist as separate hooks rather than as relaxed `enabled` guards on the filtered versions,
+ * and the distinction matters more than it looks. `useAdminRounds(seasonId)` is disabled until a
+ * season resolves — but a disabled query still *reads its cache key*. Had these written to
+ * `['admin','rounds','all']`, `AdminContext` would have picked up every round in the database
+ * during the window before its season healed and handed them to the topbar as one season's rounds.
+ * The `board` segment keeps the two sets of data in separate cache entries that can never be
+ * mistaken for each other.
+ *
+ * Five requests cover the whole console. The list endpoints all return unfiltered when given no
+ * filter, so the board costs a handful of calls rather than one set per championship — which is why
+ * this needed no new API surface.
+ */
+const boardKey = (kind: string) => ['admin', 'board', kind] as const
+
+export function useAllSeasons() {
+  return useQuery({
+    queryKey: boardKey('seasons'),
+    queryFn: async () => unwrap(await api.GET('/seasons', { params: { query: {} } })) ?? [],
+  })
+}
+
+export function useAllRounds() {
+  return useQuery({
+    queryKey: boardKey('rounds'),
+    queryFn: async () => unwrap(await api.GET('/rounds', { params: { query: {} } })) ?? [],
+  })
+}
+
+export function useAllClasses() {
+  return useQuery({
+    queryKey: boardKey('classes'),
+    queryFn: async () => unwrap(await api.GET('/classes', { params: { query: {} } })) ?? [],
+  })
+}
+
+export function useAllCarEntries() {
+  return useQuery({
+    queryKey: boardKey('car-entries'),
+    queryFn: async () => unwrap(await api.GET('/car-entries', { params: { query: {} } })) ?? [],
+  })
+}
+
+export function useAllSessions() {
+  return useQuery({
+    queryKey: boardKey('sessions'),
+    queryFn: async () => unwrap(await api.GET('/sessions', { params: { query: {} } })) ?? [],
   })
 }

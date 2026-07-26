@@ -22,7 +22,7 @@ colors:
   class-gtd: "#4ade80"
   success: "#2dd4bf"
   warn: "#ff9e2c"
-  danger: "#ff5d5d"
+  danger: "#ff689b"
 typography:
   display:
     fontFamily: "Saira Semi Condensed, sans-serif"
@@ -161,7 +161,12 @@ Status hues are deliberately offset from the class hues (teal ≠ GTD green, ora
 so a status signal can never be mistaken for class wayfinding.
 - **Success Teal** (`#2dd4bf`): positive deltas, confirmed states.
 - **Warn Orange** (`#ff9e2c`): caution — not-registered, lock-approaching, attention-needed.
-- **Danger Red** (`#ff5d5d`): errors, destructive actions, lockouts.
+- **Danger Rose** (`#ff689b`): errors, destructive actions, lockouts. Rose rather than red on
+  purpose — it was `#ff5d5d`, the identical value to `brand-3`, so an error was the same colour as
+  a brand accent and the two could sit side by side unreadable as different things. In a
+  red-accented brand no *red* separates: every candidate holding the hue measured within 37 of
+  `brand-3`, and the one that did separate failed AA on `surface`. Rose clears both bars (7.22:1 on
+  the void, 6.83:1 on surface) and stays unmistakably an alarm colour.
 - **Flag White** (ink on `ink/10`, or solid `ink` fill with dark text): results posted — the SCORED
   lifecycle pill; the checkered-flag moment, distinct from FINAL's dim neutral.
 
@@ -333,7 +338,7 @@ the primary action always wins the eye.
 - **Style:** recessed near-black well (`#070809`), `line-2` hairline border, 4px radius, Spline Sans
   Mono value text — inputs read like a data field, not a form box.
 - **Focus:** border shifts toward `line-3`/brand and the global focus ring applies; no glow.
-- **Error / Disabled:** error border + helper text in `danger` (`#ff5d5d`); disabled drops to `muted-2`.
+- **Error / Disabled:** error border + helper text in `danger` (`#ff689b`); disabled drops to `muted-2`.
 
 ### Navigation
 - **Style:** pure-black top bar with a 2px Endurance-red bottom border — the broadcast lower-third edge.

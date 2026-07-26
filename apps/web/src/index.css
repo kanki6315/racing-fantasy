@@ -9,6 +9,15 @@
 @custom-variant pointer-fine (@media (pointer: fine));
 
 /*
+ * Short-viewport variant. A phone turned landscape is ~375px tall, and a screen whose chrome was
+ * budgeted against portrait height ends up with almost nothing left for content — the roster
+ * builder measured 86% chrome and a 54px content window there. `short:` trims the paddings that
+ * are comfortable in portrait and merely expensive in landscape. Keyed on height, not orientation,
+ * so a small desktop window gets the same relief.
+ */
+@custom-variant short (@media (max-height: 500px));
+
+/*
  * Endurance Fantasy design tokens. The canonical spec is DESIGN.md at the app root — these values
  * and its frontmatter must agree.
  * Tailwind v4 turns each token into utilities, e.g. --color-surface → bg-surface / text-surface,
@@ -52,7 +61,13 @@
      so a status signal can never be mistaken for class wayfinding (The Class-Color Reserve). */
   --color-success: #2dd4bf;
   --color-warn: #ff9e2c;
-  --color-danger: #ff5d5d;
+  /* Rose, not red, and deliberately so. This was #ff5d5d — the exact value of `brand-3` — which
+     meant "something failed" and "brand accent" were the same pixel colour, and an error band was
+     indistinguishable from the lock band sitting beside it. In a brand whose accent *is* red there
+     is no error red that reads as distinct: every candidate holding the red hue measured within 37
+     of brand-3, and the one that separated properly (#e2314e) failed AA on `surface` at 4.24:1.
+     Rose separates (distance 63) and improves contrast: 7.22:1 on bg, 6.83:1 on surface. */
+  --color-danger: #ff689b;
 }
 
 html,
@@ -66,6 +81,15 @@ body {
   background: var(--color-bg);
   color: var(--color-ink);
   font-family: var(--font-sans);
+  /*
+   * `viewport-fit=cover` (index.html) lets the page paint under the notch and rounded corners, which
+   * is what makes env(safe-area-inset-*) report real values for the pick page's sticky action bar.
+   * The trade is that landscape content would otherwise run beneath the notch, so every route is
+   * inset horizontally here — one place rather than per-surface. Vertical insets stay with whatever
+   * chrome actually sits against an edge.
+   */
+  padding-left: env(safe-area-inset-left);
+  padding-right: env(safe-area-inset-right);
 }
 
 @keyframes blink {
@@ -102,6 +126,24 @@ body {
 
 .row-flash {
   animation: row-flash 900ms cubic-bezier(0.165, 0.84, 0.44, 1);
+}
+
+/*
+ * The skeleton-to-content handoff in the admin console — the most-repeated transition in an ops
+ * screen someone opens twenty times a weekend. The element's *resting* style is fully opaque and
+ * the keyframe supplies the transparent start, so a headless renderer or a background tab that
+ * never runs the animation shows the content rather than a blank panel. Reduced motion collapses
+ * it to ~0ms via the block below, which lands on the same resting state.
+ */
+@keyframes settle-in {
+  from {
+    opacity: 0;
+    transform: translateY(3px);
+  }
+}
+
+.settle-in {
+  animation: settle-in 180ms cubic-bezier(0.25, 1, 0.5, 1);
 }
 
 /*

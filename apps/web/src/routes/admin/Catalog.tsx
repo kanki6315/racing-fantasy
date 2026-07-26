@@ -1,6 +1,8 @@
 import { useState } from 'react'
+import { useSearchParams } from 'react-router-dom'
 import { useAdmin } from '../../admin/AdminContext'
 import { AdminPageHeader } from '../../admin/AdminPageHeader'
+import { useParamWriter } from '../../lib/urlState'
 import {
   Field,
   TextInput,
@@ -54,6 +56,7 @@ const TABS = [
   { id: 'sessions', label: 'Sessions' },
   { id: 'roster-rules', label: 'Roster Rules' },
 ]
+const TAB_IDS = new Set(TABS.map((t) => t.id))
 
 // ---- datetime-local <-> ISO helpers ----
 function isoToLocalInput(iso: string | null | undefined): string {
@@ -67,14 +70,24 @@ function localInputToIso(v: string): string {
 }
 
 export function Catalog() {
-  const [tab, setTab] = useState('championships')
+  // The tab is in the URL, the same way the standings and stats boards keep their filters there
+  // (lib/urlState.ts). Two of the Overview's pipeline steps live in *tabs* of this screen — Catalog
+  // means Classes and Sessions means Sessions — so without an addressable tab both of those links
+  // would land the operator on Championships and make them find the rest themselves. `replace`
+  // because a tab is a view of one screen, not a place: Back should leave Catalog, not walk the
+  // tabs the operator flicked through on the way.
+  const [search] = useSearchParams()
+  const write = useParamWriter()
+  const requested = search.get('tab')
+  const tab = requested && TAB_IDS.has(requested) ? requested : 'championships'
+
   return (
     <>
       <AdminPageHeader
         title="Catalog"
         subtitle="Championships, seasons, classes, rounds, sessions and the per-season roster rules that govern picks."
       />
-      <Tabs tabs={TABS} active={tab} onChange={setTab} />
+      <Tabs tabs={TABS} active={tab} onChange={(id) => write({ tab: id }, 'replace')} />
       {tab === 'championships' && <ChampionshipsTab />}
       {tab === 'classes' && <ClassesTab />}
       {tab === 'rounds' && <RoundsTab />}

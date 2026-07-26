@@ -43,13 +43,17 @@ export function Select({ children, ...props }: SelectHTMLAttributes<HTMLSelectEl
   )
 }
 
+/**
+ * The primary action's look, as a string, because the console needs it on both a `<button>` and a
+ * `<Link>` — the Overview's one call to action is a navigation, not a submit. Two hand-copied class
+ * lists is how the same action ends up two different sizes on two screens.
+ */
+export const PRIMARY_ACTION_CLASS =
+  'inline-flex h-9 items-center gap-2 rounded-[4px] bg-brand px-4 font-display text-[12px] font-semibold uppercase tracking-[0.05em] text-ink transition-colors hover:bg-brand-2 disabled:cursor-not-allowed disabled:opacity-40'
+
 export function PrimaryButton({ children, ...props }: React.ButtonHTMLAttributes<HTMLButtonElement>) {
   return (
-    <button
-      type="button"
-      {...props}
-      className={`inline-flex h-9 items-center gap-2 rounded-[4px] bg-brand px-4 font-display text-[12px] font-semibold uppercase tracking-[0.05em] text-ink transition-colors hover:bg-brand-2 disabled:cursor-not-allowed disabled:opacity-40 ${props.className ?? ''}`}
-    >
+    <button type="button" {...props} className={`${PRIMARY_ACTION_CLASS} ${props.className ?? ''}`}>
       {children}
     </button>
   )
@@ -129,6 +133,31 @@ export function EmptyState({ children }: { children: ReactNode }) {
   return (
     <div className="rounded-[6px] border border-dashed border-line-2 bg-surface/40 px-6 py-10 text-center font-mono text-[11px] tracking-[0.08em] uppercase text-muted">
       {children}
+    </div>
+  )
+}
+
+/**
+ * A failed fetch and an empty result render as the same screen unless something says otherwise.
+ * This says which it is, and gives the operator the one thing an error state owes them: a way to
+ * try again. Shared, because the second surface that needed it — the cross-championship band —
+ * initially skipped it and returned `null`, which is exactly the silence this exists to prevent.
+ */
+export function ErrorPanel({ message, onRetry }: { message: string; onRetry: () => void }) {
+  return (
+    <div
+      role="alert"
+      className="flex items-center justify-between gap-4 rounded-[6px] border border-danger/40 bg-danger/[0.07] px-5 py-4"
+    >
+      <div className="min-w-0">
+        <div className="font-display text-[13px] font-semibold uppercase tracking-[0.04em] text-ink">
+          Data didn't load
+        </div>
+        <div className="mt-[2px] font-sans text-[12px] text-ink-2">{message}</div>
+      </div>
+      <GhostButton onClick={onRetry} className="shrink-0">
+        Retry
+      </GhostButton>
     </div>
   )
 }

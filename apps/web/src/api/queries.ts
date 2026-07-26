@@ -1,5 +1,5 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
-import { api } from './client'
+import { api, unwrap } from './client'
 import type { components } from './schema'
 
 /** Query keys, centralized so mutations can invalidate precisely. */
@@ -372,16 +372,22 @@ export function useRosterRules(roundId: number) {
   })
 }
 
-export function usePrices(roundId: number) {
-  return useQuery({
-    queryKey: ['prices', roundId],
+/**
+ * The prices query as options rather than a hook, so a caller with a *list* of rounds can batch it
+ * through `useQueries`. The admin board needs six rounds' prices resolved before it can sort by
+ * urgency, and hooks can't be called in a loop — extracting the options is what lets one definition
+ * serve both the single-round hook and the batch, instead of two copies of the same fetch drifting.
+ */
+export function pricesQuery(roundId: number) {
+  return {
+    queryKey: ['prices', roundId] as const,
     enabled: roundId > 0,
-    queryFn: async () => {
-      const { data, error } = await api.GET('/rounds/{roundId}/prices', { params: { path: { roundId } } })
-      if (error) throw error
-      return data ?? []
-    },
-  })
+    queryFn: async () => unwrap(await api.GET('/rounds/{roundId}/prices', { params: { path: { roundId } } })) ?? [],
+  }
+}
+
+export function usePrices(roundId: number) {
+  return useQuery(pricesQuery(roundId))
 }
 
 export function useRoster(registrationId: number | undefined, roundId: number) {
