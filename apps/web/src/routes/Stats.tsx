@@ -16,7 +16,7 @@ import { classMeta } from '../lib/classMeta'
 import { buildRows, entityKey, sortRows, type Sort, type SortDir, type SortKey } from '../lib/roundStats'
 import { useNow } from '../lib/useCountdown'
 import { param, useParamWriter, type ParamPatch } from '../lib/urlState'
-import { ErrorBox } from './LeagueStandings'
+import { ErrorBox } from '../components/BoardStates'
 
 /** The sort keys the URL will accept; anything else in `?sort=` falls back to the default. */
 const SORT_KEYS: SortKey[] = ['own', 'pts', 'swing']

@@ -2,10 +2,11 @@ import { Fragment, useMemo, useState } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import { Leaderboard } from '../components/Leaderboard'
 import { RegisterModal } from '../components/RegisterModal'
-import { ErrorBox, SkeletonTable } from './LeagueStandings'
+import { ErrorBox, SkeletonTable } from '../components/BoardStates'
 import { useAuth } from '../auth/AuthContext'
 import { useActiveSeason, useSeasonLeaderboard, useRounds, useEvents, useGlobalStats } from '../api/queries'
 import { useCountdown } from '../lib/useCountdown'
+import { fmtLockTime } from '../lib/datetime'
 import { deriveEventStatus, type EventStatus } from '../lib/eventStatus'
 
 /** One weekend on the unified calendar (ADR-0007), driven by the Event API — every series racing it. */
@@ -49,15 +50,6 @@ const statusLabel: Record<EventStatus, string> = {
 /** "Jun 28" from an ISO date. */
 function fmtDate(iso: string) {
   return new Date(iso).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })
-}
-
-/** "SAT · JUL 30 · 11:05 AM" — the absolute wall-clock moment behind a countdown (viewer's timezone). */
-function fmtLockTime(iso: string) {
-  const d = new Date(iso)
-  const wd = d.toLocaleDateString('en-US', { weekday: 'short' })
-  const md = d.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })
-  const t = d.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' })
-  return `${wd} · ${md} · ${t}`.toUpperCase()
 }
 
 /**

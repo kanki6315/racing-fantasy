@@ -12,7 +12,7 @@ import { BoardStatus, Leaderboard } from '../components/Leaderboard'
 import { FilterRow, FilterTab, RoundFilter } from '../components/StandingsFilters'
 import { YourPosition } from '../components/YourPosition'
 import { param, useParamWriter } from '../lib/urlState'
-import { ErrorBox, SkeletonTable } from './LeagueStandings'
+import { ErrorBox, SkeletonTable } from '../components/BoardStates'
 
 /**
  * F3 season standings, multi-championship. Three filter levels — Championship → Year → Total/round —
