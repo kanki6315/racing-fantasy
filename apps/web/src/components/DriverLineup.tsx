@@ -1,15 +1,8 @@
 import { useState } from 'react'
 import { headshotUrl } from '../lib/images'
+import { initials, lastName } from '../lib/driverName'
 
 type Driver = { id: number; fullName: string }
-
-const lastName = (full: string) => full.trim().split(/\s+/).slice(-1)[0] ?? full
-const initials = (full: string) => {
-  const parts = full.trim().split(/\s+/).filter(Boolean)
-  const first = parts[0]?.[0] ?? '?'
-  const last = parts.length > 1 ? parts[parts.length - 1][0] : ''
-  return (first + last).toUpperCase()
-}
 
 /**
  * Circular driver headshot, with initials underneath rather than instead.

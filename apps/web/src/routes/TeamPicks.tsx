@@ -1,11 +1,23 @@
 import { useMemo } from 'react'
 import { Link, useParams } from 'react-router-dom'
-import { usePlayerPicks, usePrices, useRosterRules, useRound } from '../api/queries'
+import {
+  useEvents,
+  usePlayerPicks,
+  usePrices,
+  useRosterRules,
+  useRound,
+  useRoundLeaderboard,
+  useSeasonLeaderboard,
+} from '../api/queries'
 import { classMeta } from '../lib/classMeta'
 import { modMeta } from '../lib/modifierMeta'
-import { fmtPts, fmtTotal, hasScored, sourceLabel } from '../lib/scoreFormat'
+import { fmtMoney, fmtPts, fmtTotal, hasScored, sourceLabel } from '../lib/scoreFormat'
+import { deriveEventStatus, deriveRoundStatus, EVENT_STATUS_META } from '../lib/eventStatus'
+import { lastName } from '../lib/driverName'
+import type { ShareCardModel, ShareCardPick } from '../lib/shareCard'
 import { EntityThumb } from '../components/EntityThumb'
 import { DriverLineup } from '../components/DriverLineup'
+import { ShareCardButton } from '../components/ShareCardButton'
 
 const key = (p: { entityType: string; entityId: number }) => `${p.entityType}:${p.entityId}`
 
@@ -24,12 +36,150 @@ export function TeamPicks() {
   const rules = useRosterRules(rid)
   const prices = usePrices(rid)
   const picks = usePlayerPicks(regId, rid)
+  // Season context for the share card's footer. Both are public boards the standings page already
+  // caches, and both are optional — if either fails its line simply drops off the card.
+  const events = useEvents()
+  const roundBoard = useRoundLeaderboard(rid)
+  const seasonBoard = useSeasonLeaderboard(round.data?.seasonId)
 
   // Join picks (entity refs + scores) with the price board for display names + lineups + thumbnails,
   // exactly as the pick page does.
   const priceByKey = useMemo(
     () => new Map((prices.data ?? []).map((p) => [key(p), p])),
     [prices.data],
+  )
+
+  // The weekend this round belongs to. Needed for the championship name on the card, and — more
+  // importantly — for the `finalized` flag, which lives on the event and has no round-level
+  // equivalent. The events list is already cached app-wide by the Landing calendar, so it costs no
+  // extra request.
+  const event = useMemo(
+    () => events.data?.find((e) => e.rounds.some((r) => r.roundId === rid)) ?? null,
+    [events.data, rid],
+  )
+  const champName = event?.rounds.find((r) => r.roundId === rid)?.championshipName ?? null
+
+  const scoredData = picks.data != null && hasScored(picks.data)
+  // The page and the share card name the stage from the same derivation, so the pill and the exported
+  // image can never disagree about what moment this is. The binary FINAL / AWAITING SCORING this
+  // replaces was a fifth dialect, and it could not tell a race still running from one already run.
+  //
+  // Derived from the EVENT wherever we have one, because that is the object the calendar and the
+  // dashboard derive from — deriving from the round alone cannot see `finalized`, and a weekend the
+  // calendar calls FINAL would read SCORED here. The round-level fallback covers a round whose event
+  // isn't in the list; it can only ever under-report a finalized weekend as scored.
+  //
+  // Note this asks a different question from `scoredData`, deliberately: the stage is a property of
+  // the weekend, while the card variant is a property of *this* roster's data.
+  const stage = event
+    ? deriveEventStatus(event)
+    : round.data
+      ? deriveRoundStatus(round.data, scoredData)
+      : 'AWAITING'
+  const stageMeta = EVENT_STATUS_META[stage]
+
+  const shareModel = useMemo<ShareCardModel | null>(() => {
+    const data = picks.data
+    if (!data || !round.data || data.main.length === 0) return null
+    const variant = scoredData ? 'scorecard' : 'lineup'
+
+    // What the card is *about*: after the flag, the pick that delivered; before it, the pick the
+    // player staked their modifier on. Same mark, same meaning — "the one I'm betting on".
+    const bonusTargets = new Map(
+      data.modifiers
+        .filter((m) => m.target)
+        .map((m) => [key(m.target!), m.kind === 'CAPTAIN' ? 'C' : '2×'] as const),
+    )
+    const bestKey = scoredData
+      ? data.main.reduce<{ k: string; p: number } | null>(
+          (best, p) => (p.scores.length > 0 && (!best || p.points > best.p) ? { k: key(p), p: p.points } : best),
+          null,
+        )?.k
+      : undefined
+
+    // Ordered by the round's own class order, so the card reads GTP-down like every board in the app
+    // rather than in whatever order the picks were saved.
+    const order = new Map((rules.data?.classes ?? []).map((c, i) => [c.classId, i]))
+    const ordered = [...data.main].sort(
+      (a, b) => (order.get(a.classId) ?? 99) - (order.get(b.classId) ?? 99),
+    )
+
+    const cardPicks: ShareCardPick[] = ordered.map((p) => {
+      const cls = rules.data?.classes.find((c) => c.classId === p.classId)
+      const m = classMeta(cls?.name, cls?.color)
+      const info = priceByKey.get(key(p))
+      const k = key(p)
+      const bonus = bonusTargets.get(k)
+      const chips: ShareCardPick['chips'] = []
+      if (bonus) chips.push({ text: bonus, tone: 'bonus' })
+      if (k === bestKey) chips.push({ text: 'TOP', tone: 'top' })
+      return {
+        classLabel: m.label,
+        classHex: m.hex,
+        name: info?.displayName ?? `#${p.entityId}`,
+        drivers: (info?.drivers ?? []).map((d) => lastName(d.fullName)),
+        figure: scoredData ? (p.scores.length > 0 ? fmtTotal(p.points) : '—') : fmtMoney(p.price),
+        breakdown:
+          scoredData && p.scores.length > 0
+            ? p.scores.map((s) => `${sourceLabel(s, data.raceCount)} ${fmtPts(s.points)}`).join('   ')
+            : null,
+        chips,
+        marked: scoredData ? k === bestKey : bonusTargets.has(k),
+      }
+    })
+
+    // Before the flag the committed number is spend, not points — and it comes straight off the picks,
+    // so the lineup card needs no request the page wasn't already making.
+    const spend = data.main.reduce((s, p) => s + p.price, 0)
+    const cap = rules.data?.salaryCap ?? round.data.salaryCap
+
+    const myRound = roundBoard.data?.entries.find((e) => e.registrationId === regId)
+    const mySeason = seasonBoard.data?.entries.find((e) => e.registrationId === regId)
+
+    return {
+      variant,
+      championship: champName ?? 'Endurance Fantasy',
+      roundName: round.data.name,
+      circuit: round.data.circuit,
+      teamName: data.teamName,
+      heroValue: scoredData ? fmtTotal(data.total) : fmtMoney(spend),
+      heroUnit: scoredData ? 'PTS' : `OF ${fmtMoney(cap)}`,
+      stageLabel: stageMeta.label.toUpperCase(),
+      stageHex: stageMeta.hex,
+      picks: cardPicks,
+      bonuses: data.modifiers.map((mod) => ({
+        label: modMeta(mod.kind).label,
+        target: mod.target ? (priceByKey.get(key(mod.target))?.displayName ?? null) : null,
+        points: scoredData ? fmtPts(mod.points) : null,
+      })),
+      // Movement is null on single-round boards by design (the API only computes it for cumulative
+      // ones), so the round line is rank-only and the season line carries the arrow.
+      roundRank: myRound ? { rank: myRound.rank, of: roundBoard.data!.entries.length } : null,
+      seasonRank: mySeason ? { rank: mySeason.rank, movement: mySeason.movement ?? null } : null,
+      siteUrl: window.location.host,
+    }
+  }, [
+    picks.data,
+    round.data,
+    rules.data,
+    priceByKey,
+    scoredData,
+    champName,
+    stageMeta,
+    roundBoard.data,
+    seasonBoard.data,
+    regId,
+  ])
+
+  const fileSlug = useMemo(
+    () =>
+      [picks.data?.teamName, round.data?.name]
+        .filter(Boolean)
+        .join('-')
+        .toLowerCase()
+        .replace(/[^a-z0-9]+/g, '-')
+        .replace(/^-|-$/g, '') || 'round',
+    [picks.data?.teamName, round.data?.name],
   )
 
   if (round.isLoading || rules.isLoading || prices.isLoading || picks.isLoading) {
@@ -65,7 +215,7 @@ export function TeamPicks() {
   const classes = rules.data?.classes ?? []
   const picksByClass = new Map<number, typeof data.main>()
   for (const p of data.main) picksByClass.set(p.classId, [...(picksByClass.get(p.classId) ?? []), p])
-  const scored = hasScored(data)
+  const scored = scoredData
 
   return (
     <div className="mx-auto max-w-[760px] px-4 py-7 sm:px-[26px]">
@@ -87,16 +237,20 @@ export function TeamPicks() {
             {scored ? fmtTotal(data.total) : '—'}
           </div>
         </div>
-        <div
-          className={`flex items-center gap-[7px] rounded-[3px] border px-3 py-[6px] ${
-            scored ? 'border-success/40 bg-success/10' : 'border-line-2'
-          }`}
-        >
-          <span className={`h-[6px] w-[6px] rounded-full ${scored ? 'bg-success' : 'bg-muted-2'}`} />
-          <span className={`font-mono text-[12px] font-semibold ${scored ? 'text-success' : 'text-muted'}`}>
-            {scored ? 'FINAL' : 'AWAITING SCORING'}
-          </span>
+        {/* The lifecycle's own words, uppercased into this surface's dialect. It was a binary
+            FINAL / AWAITING SCORING — a fifth vocabulary for a state machine that already has one,
+            and one that called a race still running "awaiting scoring". */}
+        <div className={`flex items-center gap-[7px] rounded-[3px] border px-3 py-[6px] ${stageMeta.className}`}>
+          <span className={`h-[6px] w-[6px] rounded-full ${stageMeta.dotClassName}`} />
+          <span className="font-mono text-[12px] font-semibold">{stageMeta.label.toUpperCase()}</span>
         </div>
+        {/* Full-width on a phone, inline on the right at `sm`. The band is flex-wrap, so this is the
+            fourth item and takes its own row rather than crowding the total. */}
+        <ShareCardButton
+          model={shareModel}
+          fileSlug={fileSlug}
+          className="basis-full sm:ml-auto sm:basis-auto"
+        />
       </div>
 
       {/* read-only pit lane */}

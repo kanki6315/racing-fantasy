@@ -1,0 +1,535 @@
+/**
+ * The round share card — a 1080×1350 PNG a player can post to a group chat, drawn on a canvas in the
+ * browser from data the standings drill-in already has. No API, no server renderer, no image bucket:
+ * the whole feature ships with a `pnpm deploy:web`.
+ *
+ * WHY IT IS DRAWN AND NOT SCREENSHOTTED. The obvious move is to point html-to-image at the existing
+ * DOM, and it is the wrong one here. Those libraries inline computed styles into an SVG foreignObject,
+ * which loses Tailwind v4's `@custom-variant` rules, resolves `color-mix()` inconsistently across
+ * engines, and needs every webfont re-embedded as base64 — it fails differently in every browser, and
+ * the failure is a subtly wrong image rather than an error. Drawing explicitly costs more lines and
+ * returns the same pixels everywhere.
+ *
+ * WHY THERE ARE NO PHOTOS ON IT. Liveries and headshots live behind CloudFront, and reading canvas
+ * pixels back after drawing a cross-origin image requires CORS headers the bucket does not send
+ * (it is OAC-locked to CloudFront). Rather than gate the feature on an AWS change, the card is built
+ * from the things that need no network at all: class colour, condensed caps, and tabular numerals.
+ * That lands closer to DESIGN.md's "The Timing Screen" north star than a photo collage would have.
+ *
+ * THE RED BUDGET. A static image has no primary action and no live state, which are the only two
+ * solid-red spends The One Red Rule allows. So the card carries *no* content red at all: the
+ * `FANTASY` half of the wordmark and the rule beneath the header are chrome, and the marked row takes
+ * the sanctioned tinted wash. A scorecard that glowed red would read as a betting slip — precisely
+ * the DraftKings anti-reference PRODUCT.md rules out.
+ */
+
+/** Token values mirrored from index.css. Canvas cannot read CSS custom properties, so these are the
+ *  one place the palette is duplicated — they must agree with `@theme` and DESIGN.md's frontmatter. */
+const C = {
+  bg: '#0a0b0d',
+  black: '#000000',
+  surface2: '#16181c',
+  line: '#1f242a',
+  line3: '#3a3f47',
+  ink: '#ffffff',
+  ink2: '#c8ccd2',
+  muted: '#8a8f98',
+  brand: '#e10600',
+  success: '#2dd4bf',
+  danger: '#ff689b',
+} as const
+
+const DISPLAY = '"Saira Semi Condensed", sans-serif'
+const SANS = '"Saira", sans-serif'
+const MONO = '"Spline Sans Mono", monospace'
+
+export const CARD_W = 1080
+export const CARD_H = 1350
+
+const PAD = 56
+const RIGHT = CARD_W - PAD
+/** The pit lane's rows start after the class rail column; the label itself lives in the gutter.
+ *  Wide enough that "GTD PRO" — the longest class label, three characters past every other — clears
+ *  the row's left edge instead of sitting on it. */
+const ROW_L = 150
+const HEADER_BOTTOM = 346
+const FOOTER_TOP = 1186
+
+export type ShareCardVariant = 'lineup' | 'scorecard'
+
+export type ShareCardPick = {
+  classLabel: string
+  classHex: string
+  name: string
+  drivers: string[]
+  /** Right-hand figure: points once scored, price before. Pre-formatted by the caller so the card
+   *  and the page beneath it can never print the same value in two dialects. */
+  figure: string
+  /** `Q +48.0   R +364.0` — scorecard only. */
+  breakdown: string | null
+  /** Short marks on the row: the bonus applied (`2×`, `C`) and/or `TOP` for the round's best pick. */
+  chips: { text: string; tone: 'bonus' | 'top' }[]
+  /** The pick this card is *about* — the modifier target before the race, the best pick after it. */
+  marked: boolean
+}
+
+export type ShareCardModel = {
+  variant: ShareCardVariant
+  championship: string
+  roundName: string
+  circuit: string | null
+  teamName: string
+  /** `1196.0` / `$34.5M` */
+  heroValue: string
+  /** `PTS` / `OF $35.0M` */
+  heroUnit: string
+  stageLabel: string
+  stageHex: string
+  picks: ShareCardPick[]
+  bonuses: { label: string; target: string | null; points: string | null }[]
+  roundRank: { rank: number; of: number } | null
+  seasonRank: { rank: number; movement: number | null } | null
+  siteUrl: string
+}
+
+/* ---------------------------------------------------------------- drawing helpers */
+
+type Ctx = CanvasRenderingContext2D
+
+const display = (size: number, weight = 800) => `${weight} ${size}px ${DISPLAY}`
+const sans = (size: number, weight = 400) => `${weight} ${size}px ${SANS}`
+const mono = (size: number, weight = 500) => `${weight} ${size}px ${MONO}`
+
+/**
+ * `ctx.letterSpacing` is the only way to track canvas text and is missing on older Safari. Tracking
+ * is a refinement here, never load-bearing, so an engine without it simply draws at 0 — set through
+ * one helper so no call site has to remember the guard.
+ */
+function withTracking(ctx: Ctx, px: number, draw: () => void) {
+  const supported = 'letterSpacing' in ctx
+  if (supported) ctx.letterSpacing = `${px}px`
+  draw()
+  if (supported) ctx.letterSpacing = '0px'
+}
+
+function text(
+  ctx: Ctx,
+  value: string,
+  x: number,
+  baseline: number,
+  o: { font: string; fill: string; align?: CanvasTextAlign; tracking?: number } ,
+) {
+  ctx.font = o.font
+  ctx.fillStyle = o.fill
+  ctx.textAlign = o.align ?? 'left'
+  withTracking(ctx, o.tracking ?? 0, () => ctx.fillText(value, x, baseline))
+  ctx.textAlign = 'left'
+}
+
+/**
+ * Truncate to fit, with a real ellipsis. Team and entrant names are user/catalog data of any length.
+ *
+ * Tracking is part of the width and must be passed in. Measuring without it under-reports by a pixel
+ * per character, which on the header's 68-character championship line came to ~165px — the string
+ * measured as fitting and then ran off the edge of the canvas, clipped rather than ellipsised, with
+ * no error anywhere. Canvas will happily draw past its own bounds.
+ */
+function fit(ctx: Ctx, value: string, font: string, maxWidth: number, tracking = 0): string {
+  if (measure(ctx, value, font, tracking) <= maxWidth) return value
+  let lo = 0
+  let hi = value.length
+  while (lo < hi) {
+    const mid = Math.ceil((lo + hi) / 2)
+    if (measure(ctx, `${value.slice(0, mid).trimEnd()}…`, font, tracking) <= maxWidth) lo = mid
+    else hi = mid - 1
+  }
+  return `${value.slice(0, lo).trimEnd()}…`
+}
+
+/**
+ * Shrink through a ladder of sizes before resorting to an ellipsis, and return the size that won.
+ * A team name is chosen by its owner and is the card's subject — "THE VERY LONG TE…" is a worse
+ * outcome than the same name set two steps smaller. Only a string that overflows even the floor gets
+ * cut. The same applies to the class label, where "GTD PRO" is three characters longer than every
+ * other label and is the only one that has to shrink to clear the gutter.
+ */
+function fitStepped(ctx: Ctx, value: string, fonts: string[], maxWidth: number, tracking = 0) {
+  for (const font of fonts) {
+    if (measure(ctx, value, font, tracking) <= maxWidth) return { value, font }
+  }
+  const font = fonts[fonts.length - 1]
+  return { value: fit(ctx, value, font, maxWidth, tracking), font }
+}
+
+function measure(ctx: Ctx, value: string, font: string, tracking = 0): number {
+  ctx.font = font
+  let w = 0
+  withTracking(ctx, tracking, () => {
+    w = ctx.measureText(value).width
+  })
+  return w
+}
+
+/** The Broadcast Slash — a skewX(-14deg) parallelogram. `tan(14°) ≈ 0.2493`. */
+function slash(ctx: Ctx, x: number, y: number, w: number, h: number, fill: string) {
+  const dx = h * 0.2493
+  ctx.fillStyle = fill
+  ctx.beginPath()
+  ctx.moveTo(x + dx, y)
+  ctx.lineTo(x + dx + w, y)
+  ctx.lineTo(x + w, y + h)
+  ctx.lineTo(x, y + h)
+  ctx.closePath()
+  ctx.fill()
+}
+
+function hairline(ctx: Ctx, x1: number, x2: number, y: number, fill = C.line) {
+  ctx.fillStyle = fill
+  ctx.fillRect(x1, y, x2 - x1, 2)
+}
+
+/** `#rrggbb` at an alpha, since canvas has no `color-mix()`. */
+function alpha(hex: string, a: number): string {
+  const n = parseInt(hex.slice(1), 16)
+  return `rgba(${(n >> 16) & 255}, ${(n >> 8) & 255}, ${n & 255}, ${a})`
+}
+
+/** A movement arrow drawn as a path — Spline Sans Mono has no guaranteed ▲/▼ glyph, and a missing
+ *  one renders as tofu in the middle of the card's only piece of season context. */
+function arrow(ctx: Ctx, x: number, y: number, size: number, up: boolean, fill: string) {
+  ctx.fillStyle = fill
+  ctx.beginPath()
+  if (up) {
+    ctx.moveTo(x + size / 2, y)
+    ctx.lineTo(x + size, y + size)
+    ctx.lineTo(x, y + size)
+  } else {
+    ctx.moveTo(x, y)
+    ctx.lineTo(x + size, y)
+    ctx.lineTo(x + size / 2, y + size)
+  }
+  ctx.closePath()
+  ctx.fill()
+}
+
+function chip(ctx: Ctx, x: number, y: number, label: string, tone: 'bonus' | 'top'): number {
+  // Bonus chips are teal (The Confirmed-Is-Teal Rule — a modifier the player chose and which paid
+  // out is a confirmed state). TOP is not a chosen state but a results fact, so it takes the Flag
+  // White that DESIGN.md reserves for results-posted, rather than a fifth invented hue.
+  const hue = tone === 'bonus' ? C.success : C.ink
+  const font = mono(19, 700)
+  const w = measure(ctx, label, font, 1) + 20
+  const h = 30
+  ctx.fillStyle = alpha(hue, 0.15)
+  ctx.strokeStyle = alpha(hue, 0.45)
+  ctx.lineWidth = 2
+  ctx.beginPath()
+  ctx.roundRect(x, y, w, h, 3)
+  ctx.fill()
+  ctx.stroke()
+  text(ctx, label, x + 10, y + 21, { font, fill: hue, tracking: 1 })
+  return w
+}
+
+/* ---------------------------------------------------------------- bands */
+
+function drawHeader(ctx: Ctx, m: ShareCardModel) {
+  // The nav's own language: a pure-black bar closed by a brand rule (the broadcast lower-third edge).
+  ctx.fillStyle = C.black
+  ctx.fillRect(0, 0, CARD_W, 136)
+  ctx.fillStyle = C.brand
+  ctx.fillRect(0, 136, CARD_W, 4)
+
+  // The wordmark is the colour break, set solid with no space between the halves.
+  const wm = display(46, 800)
+  text(ctx, 'ENDURANCE', PAD, 90, { font: wm, fill: C.ink, tracking: -1 })
+  const endW = measure(ctx, 'ENDURANCE', wm, -1)
+  text(ctx, 'FANTASY', PAD + endW, 90, { font: wm, fill: C.brand, tracking: -1 })
+
+  // The hero figure claims the right edge first, so the team name knows how much room is left. Both
+  // sit on one baseline: the card's subject and its result, read as a single line.
+  const heroFont = mono(88, 700)
+  text(ctx, m.heroValue, RIGHT, 272, { font: heroFont, fill: C.ink, align: 'right' })
+  text(ctx, m.heroUnit, RIGHT, 308, { font: mono(20, 500), fill: C.muted, align: 'right', tracking: 2 })
+  const heroW = Math.max(measure(ctx, m.heroValue, heroFont), measure(ctx, m.heroUnit, mono(20, 500), 2))
+
+  // "WeatherTech SportsCar Championship · Sahlen's Six Hours of the Glen" is 68 characters; a real
+  // championship-plus-round line steps down rather than losing the round name to an ellipsis.
+  const label = `${m.championship} · ${m.roundName}`.toUpperCase()
+  // The floor is set by the real worst case, not a guess: "WeatherTech SportsCar Championship ·
+  // Motul SportsCar Endurance Grand Prix" is 71 characters and needs the 16px step to survive whole.
+  const head = fitStepped(
+    ctx,
+    label,
+    [mono(22, 500), mono(20, 500), mono(18, 500), mono(16, 500)],
+    CARD_W - PAD * 2,
+    3,
+  )
+  text(ctx, head.value, PAD, 198, { font: head.font, fill: C.muted, tracking: 3 })
+
+  const nameMax = RIGHT - heroW - 40 - PAD
+  const name = fitStepped(ctx, m.teamName.toUpperCase(), [display(66), display(58), display(50), display(44)], nameMax)
+  text(ctx, name.value, PAD, 272, { font: name.font, fill: C.ink })
+
+  if (m.circuit) {
+    text(ctx, fit(ctx, m.circuit, sans(24), nameMax), PAD, 312, { font: sans(24), fill: C.muted })
+  }
+
+  hairline(ctx, PAD, RIGHT, HEADER_BOTTOM)
+}
+
+function drawPitLane(ctx: Ctx, m: ShareCardModel, top: number, bottom: number) {
+  const picks = m.picks
+  if (picks.length === 0) return
+  const rowH = (bottom - top) / picks.length
+  // Composition is admin-configurable per round, so a card holds anywhere from four picks to eight.
+  // Past five, the row cannot carry three lines legibly at thumbnail size — the driver lineup is the
+  // line that goes, because it is the one a reader can infer from the entrant name.
+  const compact = picks.length > 5
+
+  // The class label sits once per contiguous group in the gutter, the way the drill-in's rail does.
+  // The colour itself is carried per row by a Broadcast Slash rather than by one continuous bar: a
+  // card is read as a thumbnail before it is read at all, and at that size a mark on every row keeps
+  // each pick self-identifying, where a rail spanning three rows resolves to a single stripe.
+  let i = 0
+  while (i < picks.length) {
+    let j = i
+    while (j + 1 < picks.length && picks[j + 1].classLabel === picks[i].classLabel) j++
+    const gTop = top + i * rowH
+    // Aligned to the centre of the group's FIRST row, not the centre of the group. Centred on the
+    // group, a label for five GTD rows floats beside the third of them with blank gutter above and
+    // below — it reads as a row that failed to render rather than as a heading for the run. Sat on
+    // the first row it lines up with that row's own slash and name, and still heads the whole group.
+    const big = compact ? 18 : 21
+    const cl = fitStepped(
+      ctx,
+      picks[i].classLabel,
+      [mono(big, 700), mono(big - 3, 700), mono(big - 6, 700)],
+      ROW_L - PAD - 20,
+    )
+    text(ctx, cl.value, (PAD + ROW_L - 14) / 2, gTop + rowH / 2 + (compact ? 6 : 8), {
+      font: cl.font,
+      fill: picks[i].classHex,
+      align: 'center',
+    })
+    i = j + 1
+  }
+
+  picks.forEach((p, idx) => {
+    const ty = top + idx * rowH
+
+    if (p.marked) {
+      // The wash + inset hairline the leaderboard uses to mark the viewer's own row — a tinted spend,
+      // which is the form The One Red Rule sanctions, drawn inset so the row gains an edge without
+      // shifting a pixel.
+      //
+      // Lighter here than the board's 14%, and deliberately. That figure was calibrated for a 40px
+      // row inside a 65-row table, where it has to survive being scanned past. A card row is 186px
+      // tall and there is exactly one marked row on the whole image: at 14% it became a filled red
+      // panel occupying a fifth of the card, read as an alert band at thumbnail size, and put the
+      // DraftKings look right back on a card built to avoid it. The chips carry the mark; the wash
+      // only has to seat it.
+      ctx.fillStyle = alpha(C.brand, 0.08)
+      ctx.beginPath()
+      ctx.roundRect(ROW_L, ty + 6, RIGHT - ROW_L, rowH - 12, 4)
+      ctx.fill()
+      ctx.strokeStyle = alpha(C.brand, 0.3)
+      ctx.lineWidth = 2
+      ctx.beginPath()
+      ctx.roundRect(ROW_L + 1, ty + 7, RIGHT - ROW_L - 2, rowH - 14, 4)
+      ctx.stroke()
+    }
+
+    const slashH = compact ? 30 : 44
+    slash(ctx, ROW_L + 14, ty + (rowH - slashH) / 2, 5, slashH, p.classHex)
+
+    const figureFont = mono(compact ? 34 : 44, 700)
+    const figureW = measure(ctx, p.figure, figureFont)
+    const textL = ROW_L + 44
+    const textR = RIGHT - figureW - 42
+    const maxText = textR - textL
+
+    // Lines are collected first, then centred as a block — a lineup card has no breakdown line, and
+    // laying rows out from a fixed top would leave every row on it visibly bottom-light.
+    const lines: { value: string; font: string; fill: string; lh: number; tracking?: number }[] = []
+    const nameFont = display(compact ? 32 : 40, 800)
+    lines.push({ value: fit(ctx, p.name.toUpperCase(), nameFont, maxText), font: nameFont, fill: C.ink, lh: compact ? 34 : 42 })
+    if (!compact && p.drivers.length > 0) {
+      const d = mono(21, 400)
+      lines.push({ value: fit(ctx, p.drivers.join(' · ').toUpperCase(), d, maxText, 1), font: d, fill: C.muted, lh: 32, tracking: 1 })
+    }
+    if (p.breakdown) {
+      const b = mono(compact ? 19 : 23, 500)
+      lines.push({ value: fit(ctx, p.breakdown, b, maxText, 1), font: b, fill: C.ink2, lh: compact ? 28 : 34, tracking: 1 })
+    }
+
+    const blockH = lines.reduce((s, l) => s + l.lh, 0)
+    let baseline = ty + (rowH - blockH) / 2 + lines[0].lh * 0.78
+    lines.forEach((l, li) => {
+      text(ctx, l.value, textL, baseline, { font: l.font, fill: l.fill, tracking: l.tracking })
+      if (li === 0 && p.chips.length > 0) {
+        // Chips trail the name rather than sitting in a column: the name's width varies per row, and
+        // a fixed chip column would leave a ragged empty channel down the card on most lineups.
+        let cx = textL + measure(ctx, l.value, l.font) + 14
+        for (const c of p.chips) {
+          if (cx + 70 > textR) break
+          cx += chip(ctx, cx, baseline - (compact ? 24 : 28), c.text, c.tone) + 8
+        }
+      }
+      baseline += lines[li + 1]?.lh ?? 0
+    })
+
+    // No per-row unit. The header states it once, and eight stacked `PTS` labels under eight figures
+    // in the same column is a caption repeated for every row of a table that has one heading.
+    text(ctx, p.figure, RIGHT, ty + rowH / 2 + (compact ? 11 : 15), {
+      font: figureFont,
+      fill: C.ink,
+      align: 'right',
+    })
+
+    if (idx < picks.length - 1) hairline(ctx, ROW_L, RIGHT, ty + rowH - 1)
+  })
+}
+
+function drawBonuses(ctx: Ctx, m: ShareCardModel, top: number) {
+  hairline(ctx, PAD, RIGHT, top)
+  m.bonuses.forEach((b, i) => {
+    const y = top + 16 + i * 62
+    // The bolt, teal — a modifier the player chose is a confirmed state, and gold here would be
+    // GTD PRO's own hue spent on something that is not a class (The Class-Color Reserve).
+    ctx.fillStyle = C.success
+    ctx.beginPath()
+    const bx = PAD
+    const by = y + 14
+    const s = 30
+    ctx.moveTo(bx + s * 0.54, by)
+    ctx.lineTo(bx + s * 0.12, by + s * 0.5)
+    ctx.lineTo(bx + s * 0.42, by + s * 0.5)
+    ctx.lineTo(bx + s * 0.38, by + s)
+    ctx.lineTo(bx + s * 0.86, by + s * 0.44)
+    ctx.lineTo(bx + s * 0.54, by + s * 0.44)
+    ctx.closePath()
+    ctx.fill()
+
+    const pointsW = b.points ? measure(ctx, b.points, mono(30, 700)) + 24 : 0
+    const labelFont = display(28, 700)
+    let x = PAD + 46
+    const label = fit(ctx, b.label.toUpperCase(), labelFont, RIGHT - x - pointsW, 1)
+    text(ctx, label, x, y + 38, { font: labelFont, fill: C.ink, tracking: 1 })
+    x += measure(ctx, label, labelFont, 1) + 14
+    if (b.target) {
+      text(ctx, fit(ctx, b.target, sans(23), RIGHT - x - pointsW), x, y + 38, { font: sans(23), fill: C.muted })
+    }
+    if (b.points) {
+      text(ctx, b.points, RIGHT, y + 40, { font: mono(30, 700), fill: C.success, align: 'right' })
+    }
+  })
+}
+
+function drawFooter(ctx: Ctx, m: ShareCardModel) {
+  hairline(ctx, PAD, RIGHT, FOOTER_TOP)
+
+  // Stage pill — the same words the page beneath it uses, from the same derivation.
+  const pillFont = mono(20, 700)
+  const pw = measure(ctx, m.stageLabel, pillFont, 2) + 54
+  ctx.fillStyle = alpha(m.stageHex, 0.12)
+  ctx.strokeStyle = alpha(m.stageHex, 0.4)
+  ctx.lineWidth = 2
+  ctx.beginPath()
+  ctx.roundRect(PAD, 1212, pw, 44, 3)
+  ctx.fill()
+  ctx.stroke()
+  ctx.fillStyle = m.stageHex
+  ctx.beginPath()
+  ctx.arc(PAD + 22, 1234, 6, 0, Math.PI * 2)
+  ctx.fill()
+  text(ctx, m.stageLabel, PAD + 38, 1241, { font: pillFont, fill: m.stageHex, tracking: 2 })
+
+  text(ctx, m.siteUrl, PAD, 1316, { font: mono(21, 500), fill: C.muted, tracking: 1 })
+
+  // Season context, right-aligned so the two figures stack into a column rather than a sentence. A
+  // lineup card has no round rank — there is no round board until scoring runs — so the season line
+  // takes the first line's baseline rather than leaving a visible hole above itself.
+  if (m.roundRank) {
+    const rank = `P${m.roundRank.rank}`
+    const rest = ` / ${m.roundRank.of} THIS ROUND`
+    const restW = measure(ctx, rest, mono(21, 500), 1.5)
+    text(ctx, rest, RIGHT, 1242, { font: mono(21, 500), fill: C.muted, align: 'right', tracking: 1.5 })
+    text(ctx, rank, RIGHT - restW, 1242, { font: mono(30, 700), fill: C.ink, align: 'right' })
+  }
+  if (m.seasonRank) {
+    const row = m.roundRank ? 1290 : 1246
+    let x = RIGHT
+    const mv = m.seasonRank.movement
+    if (mv != null && mv !== 0) {
+      // Colour is never the only signal: the arrow shape carries the direction on its own.
+      const tone = mv > 0 ? C.success : C.danger
+      const n = String(Math.abs(mv))
+      text(ctx, n, x, row, { font: mono(24, 700), fill: tone, align: 'right' })
+      x -= measure(ctx, n, mono(24, 700)) + 22
+      arrow(ctx, x, row - 18, 16, mv > 0, tone)
+      x -= 10
+    }
+    const label = `P${m.seasonRank.rank} OVERALL`
+    text(ctx, label, x, row, { font: mono(22, 500), fill: C.ink2, align: 'right', tracking: 1.5 })
+  }
+}
+
+/* ---------------------------------------------------------------- entry point */
+
+/**
+ * Every family/weight the card draws. Canvas does not trigger font loads and does not wait for them:
+ * `fillText` with an unloaded face silently substitutes a system fallback, producing a card that is
+ * wrong rather than one that errors. These must be awaited before the first draw.
+ */
+const FACES = [
+  `800 66px ${DISPLAY}`,
+  `700 28px ${DISPLAY}`,
+  `400 24px ${SANS}`,
+  `400 21px ${MONO}`,
+  `500 22px ${MONO}`,
+  `700 88px ${MONO}`,
+]
+
+export async function renderShareCard(model: ShareCardModel): Promise<Blob> {
+  if (document.fonts?.load) {
+    await Promise.all(FACES.map((f) => document.fonts.load(f).catch(() => undefined)))
+  }
+
+  const canvas = document.createElement('canvas')
+  canvas.width = CARD_W
+  canvas.height = CARD_H
+  const ctx = canvas.getContext('2d')
+  if (!ctx) throw new Error('Canvas 2D is unavailable')
+
+  ctx.textBaseline = 'alphabetic'
+  ctx.fillStyle = C.bg
+  ctx.fillRect(0, 0, CARD_W, CARD_H)
+
+  drawHeader(ctx, model)
+
+  const bonusH = model.bonuses.length > 0 ? 32 + model.bonuses.length * 62 : 0
+  const laneBottom = FOOTER_TOP - bonusH
+  if (model.picks.length > 0) {
+    drawPitLane(ctx, model, HEADER_BOTTOM, laneBottom)
+  } else {
+    text(ctx, 'NO LINEUP SET', CARD_W / 2, (HEADER_BOTTOM + laneBottom) / 2, {
+      font: display(40, 800),
+      fill: C.line3,
+      align: 'center',
+      tracking: 3,
+    })
+  }
+  if (bonusH > 0) drawBonuses(ctx, model, laneBottom)
+  drawFooter(ctx, model)
+
+  // A surface-2 hairline frame, so the card keeps an edge against a white chat background — without
+  // it the void bleeds into nothing and the image loses its boundary in a light-themed client.
+  ctx.strokeStyle = C.surface2
+  ctx.lineWidth = 4
+  ctx.strokeRect(2, 2, CARD_W - 4, CARD_H - 4)
+
+  return new Promise((resolve, reject) => {
+    canvas.toBlob((b) => (b ? resolve(b) : reject(new Error('Canvas export failed'))), 'image/png')
+  })
+}

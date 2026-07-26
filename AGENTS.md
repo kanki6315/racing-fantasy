@@ -76,6 +76,54 @@ display has begun (F5):** the **Pick page** shows liveries/headshots via the sha
 component (class-tinted placeholder fallback). Remaining display surfaces (Dashboard, standings,
 admin) still pending.
 
+## Share cards (client-side canvas, no API)
+
+A player can export their round as a **1080×1350 PNG** and hand it to the native share sheet
+(`navigator.share({files})`), falling back to a download where file-sharing is unsupported. Lives on
+the standings drill-in (`/standings/team/{regId}/round/{roundId}`), rendered by
+`apps/web/src/lib/shareCard.ts` and driven by `components/ShareCardButton.tsx`.
+
+**Frontend-only, deliberately.** Nothing touches the API, so the whole feature ships with
+`pnpm deploy:web` and carries none of the merge-to-`main` release risk above. Two consequences worth
+knowing before "improving" it:
+
+- **It is drawn, not screenshotted.** `html-to-image` and friends inline computed styles into an SVG
+  `foreignObject`, which loses Tailwind v4 `@custom-variant` rules, resolves `color-mix()`
+  differently per engine, and needs webfonts re-embedded — failing as a *subtly wrong image* rather
+  than an error. The imperative draw returns the same pixels everywhere.
+- **No liveries or headshots on it.** Reading canvas pixels back after drawing a cross-origin image
+  needs CORS headers the image bucket does not send (it is OAC-locked to CloudFront). The card is
+  built from class colour, condensed caps and tabular numerals instead. *If you ever add the S3 CORS
+  rule + `Origin` forwarding, photos become possible — but they are not required.*
+
+**Two variants, one layout.** The skeleton never forks; only what fills each slot changes:
+
+| | **LINEUP** (locked, unscored) | **SCORECARD** (scored) |
+|---|---|---|
+| Hero | `$34.5M` / `OF $35.0M` | `1196.0` / `PTS` |
+| Row figure | price | points (+ `Q`/`R` breakdown line) |
+| Marked row | the bonus target | the best pick (`TOP`) |
+
+Density steps at **>5 picks** (composition is admin-configurable, so a card holds 4–8+), and the
+team name, championship line and class label each **shrink through a size ladder before** they
+ellipsise. Canvas draws happily past its own bounds, so every string is measured **with its
+letter-spacing** — measuring without it silently clipped the 68-character championship line.
+
+The card carries **no content red**: a static image has neither a primary action nor a live state,
+the only two solid-red spends The One Red Rule allows. Red is the wordmark and the header rule, both
+chrome.
+
+**Lifecycle naming.** The drill-in used to speak a binary `FINAL` / `AWAITING SCORING` — a fifth
+dialect that could not tell a race still running from one already run. It now derives from the
+**event** via `deriveEventStatus` (the same source the calendar and dashboard use), so the pill and
+the exported image can never disagree with the calendar. `deriveRoundStatus` in `lib/eventStatus.ts`
+is the round-level fallback for a round whose event isn't loaded; it cannot see `finalized`.
+
+**Reaching it.** The dashboard's row now routes to the drill-in as soon as a round is **locked**, not
+only once it is scored (`View Lineup →` / `View Results →`). That link is load-bearing, not a
+nicety: a standings round board does not exist until scoring runs, so before it a locked-but-unscored
+weekend had **no route at all** to its own lineup page.
+
 ## Email (SES): picks reminders + bounce handling
 
 **Shipped + deployed 2026-07-03** ([ADR-0009](docs/adr/0009-picks-reminder-emails.md) reminders + its
