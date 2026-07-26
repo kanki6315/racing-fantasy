@@ -41,7 +41,7 @@ export function EmailPreferenceControls({
         onClick={setBoth}
         disabled={pending}
         aria-pressed={bothOn}
-        className={`flex w-full items-center justify-between gap-2 rounded-[3px] border px-[13px] py-[10px] text-left cursor-pointer ${
+        className={`flex min-h-[42px] w-full items-center justify-between gap-2 rounded-[3px] border px-[13px] py-[10px] text-left pointer-coarse:min-h-11 cursor-pointer ${
           bothOn ? 'border-success/50 bg-success/[0.06]' : 'border-dotted border-line-3 bg-surface-2'
         }`}
       >
@@ -65,7 +65,7 @@ export function EmailPreferenceControls({
               onClick={() => onChange(kind, !on)}
               disabled={pending}
               aria-pressed={on}
-              className={`flex w-full items-center justify-between gap-2 rounded-[3px] border px-[13px] py-[8px] text-left cursor-pointer ${
+              className={`flex min-h-[42px] w-full items-center justify-between gap-2 rounded-[3px] border px-[13px] py-[8px] text-left pointer-coarse:min-h-11 cursor-pointer ${
                 on ? 'border-success/50 bg-success/[0.06]' : 'border-dotted border-line-3 bg-surface-2'
               }`}
             >

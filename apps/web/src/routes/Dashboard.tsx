@@ -126,6 +126,29 @@ export function Dashboard() {
     return cards
   }, [user?.registrations, events.data])
 
+  /**
+   * The round whose lock comes first, across every weekend on the page — the page's one urgent action.
+   *
+   * The One Red Rule allows a view two solid-red spends, and this page had four: one per unset row
+   * plus Create League, a count that grows with weekends x registered series. So exactly one row may
+   * wear solid red, and it is the one with the least time left. Derived from quali time alone rather
+   * than from whether each row is set, because "is it set" is per-row async state and coordinating it
+   * across cards would cost more than the signal is worth; the row itself still declines the red when
+   * it turns out to have a lineup already.
+   */
+  const urgentRoundId = useMemo(() => {
+    const now = Date.now()
+    let best: { id: number; at: number } | null = null
+    for (const card of picksCards) {
+      for (const row of card.rows) {
+        const at = Date.parse(row.round.qualiStart)
+        if (Number.isNaN(at) || at <= now) continue
+        if (!best || at < best.at) best = { id: row.round.id, at }
+      }
+    }
+    return best?.id ?? null
+  }, [picksCards])
+
   if (!user) return null
   const regs = user.registrations
   const leagues = myLeagues.data ?? []
@@ -163,7 +186,7 @@ export function Dashboard() {
               // A series you could join is an attention state, so it speaks warn orange — the same
               // hue as the nav's NOT REGISTERED pill. It used to be #a855f7 purple, a color that
               // exists nowhere in the palette and read as the loudest thing on the page.
-              className="flex items-center justify-between gap-2 rounded-[3px] border border-dotted border-warn/50 bg-warn/[0.06] px-[13px] py-[10px] text-left transition-colors hover:border-warn/70 hover:bg-warn/[0.1] cursor-pointer"
+              className="flex min-h-[42px] items-center justify-between gap-2 rounded-[3px] border border-dotted border-warn/50 bg-warn/[0.06] px-[13px] py-[10px] text-left transition-colors hover:border-warn/70 hover:bg-warn/[0.1] pointer-coarse:min-h-11 cursor-pointer"
             >
               <span className="flex items-center gap-2 font-display text-[13px] font-semibold uppercase tracking-[0.04em] text-ink-2">
                 <span className="h-[15px] w-[4px] flex-none bg-warn [transform:skewX(-14deg)]" />
@@ -184,10 +207,17 @@ export function Dashboard() {
           <Row label="Private" value={leagues.filter((l) => l.visibility === 'Private').length} />
         </div>
 
-        <button onClick={() => setCreateOpen(true)} className="mt-6 flex h-[46px] w-full items-center justify-center gap-2 rounded-[3px] bg-brand font-display text-[16px] font-bold italic uppercase tracking-[0.05em] text-ink cursor-pointer">
+        {/* Tinted, not solid. This page's one red belongs to the lineup that locks first — creating a
+            league is a thing you do once a season, not the reason anyone opens the hub on race
+            morning. The wash keeps it the loudest control in the rail without spending the page's
+            accent (The One Red Rule). */}
+        <button
+          onClick={() => setCreateOpen(true)}
+          className="mt-6 flex h-[46px] w-full items-center justify-center gap-2 rounded-[3px] border border-brand/40 bg-brand/15 font-display text-[16px] font-bold uppercase tracking-[0.05em] text-brand-3 transition-colors hover:border-brand/70 hover:bg-brand/20 cursor-pointer"
+        >
           + Create League
         </button>
-        <button onClick={() => setJoinOpen(true)} className="mt-[10px] flex h-[42px] w-full items-center justify-center rounded-[3px] border border-line-2 font-display text-[15px] font-semibold uppercase tracking-[0.05em] text-ink-2 cursor-pointer">
+        <button onClick={() => setJoinOpen(true)} className="mt-[10px] flex h-[42px] w-full items-center justify-center rounded-[3px] border border-line-2 font-display text-[15px] font-semibold uppercase tracking-[0.05em] text-ink-2 transition-colors hover:border-line-3 hover:text-ink cursor-pointer">
           Join with Code
         </button>
 
@@ -228,7 +258,9 @@ export function Dashboard() {
           ) : picksCards.length === 0 ? (
             <EmptyPicks registered={regs.length > 0} />
           ) : (
-            picksCards.map((card) => <PicksCard key={card.eventId} card={card} classById={classById} />)
+            picksCards.map((card) => (
+              <PicksCard key={card.eventId} card={card} classById={classById} urgentRoundId={urgentRoundId} />
+            ))
           )}
         </div>
 
@@ -384,7 +416,15 @@ function EmptyPicks({ registered }: { registered: boolean }) {
 
 // ---- Your-picks card: one weekend (ADR-0008), a row per championship the user is registered in. The
 // header badge reflects the live lifecycle status (Picks Open → In Progress at first quali → Scored). ----
-function PicksCard({ card, classById }: { card: PickCard; classById: Map<number, ClassDto> }) {
+function PicksCard({
+  card,
+  classById,
+  urgentRoundId,
+}: {
+  card: PickCard
+  classById: Map<number, ClassDto>
+  urgentRoundId: number | null
+}) {
   // Tick every second so the badge flips from Picks Open → In Progress exactly at the first round's quali.
   useCountdown(card.firstQuali ?? undefined)
   const status = deriveEventStatus(
@@ -415,6 +455,7 @@ function PicksCard({ card, classById }: { card: PickCard; classById: Map<number,
             champName={row.champName}
             scored={scored}
             classById={classById}
+            isUrgent={row.round.id === urgentRoundId}
           />
         ))}
       </div>
@@ -447,12 +488,14 @@ function PicksRow({
   champName,
   scored,
   classById,
+  isUrgent,
 }: {
   reg: Registration
   round: PickRound
   champName: string
   scored: boolean
   classById: Map<number, ClassDto>
+  isUrgent: boolean
 }) {
   const results = usePlayerPicks(scored ? reg.id : undefined, scored ? round.id : undefined)
   const roster = useRoster(!scored || results.isError ? reg.id : undefined, round.id)
@@ -469,6 +512,11 @@ function PicksRow({
   // no source rows. That must read as "results pending", never as a real zero.
   const totalled = showResults && results.data != null && hasScored(results.data)
   const status = locked ? { t: 'LOCKED', c: 'text-muted' } : picks > 0 ? { t: 'SET', c: 'text-success' } : { t: 'TO DO', c: 'text-warn' }
+
+  // This row owns the page's one solid red only if it is BOTH the soonest to lock and actually
+  // unset. Every other to-do row takes the tinted wash the One Red Rule sanctions instead, so the
+  // count of solid reds is 1 regardless of how many series the player follows.
+  const isPrimary = isUrgent && !locked && picks === 0
 
   const itemOf = (p: { entityType: string; entityId: number }) =>
     prices.data?.find((x) => x.entityType === p.entityType && x.entityId === p.entityId)
@@ -665,10 +713,12 @@ function PicksRow({
             // A scored round's lineup belongs on the results page, which shows what each pick earned
             // and its Q/R breakdown — not on the pick board, which is an editor with nothing to edit.
             to={showResults ? `/standings/team/${reg.id}/round/${round.id}` : `/pick/${round.id}`}
-            className={`flex h-[38px] w-full items-center justify-center rounded-[3px] px-[18px] font-display text-[14px] font-semibold uppercase tracking-[0.04em] transition-colors sm:w-auto ${
-              status.t === 'TO DO'
+            className={`flex h-[38px] w-full items-center justify-center rounded-[3px] px-[18px] font-display text-[14px] font-semibold uppercase tracking-[0.04em] transition-colors pointer-coarse:h-11 sm:w-auto ${
+              isPrimary
                 ? 'bg-brand font-bold italic text-ink hover:bg-brand-2'
-                : 'border border-line-2 text-ink-2 hover:border-line-3 hover:text-ink'
+                : status.t === 'TO DO'
+                  ? 'border border-brand/40 bg-brand/15 text-brand-3 hover:border-brand/70 hover:bg-brand/20'
+                  : 'border border-line-2 text-ink-2 hover:border-line-3 hover:text-ink'
             }`}
           >
             {showResults ? 'View Results →' : locked ? 'View Lineup' : picks > 0 ? 'Edit Picks' : 'Make Picks →'}
@@ -722,7 +772,10 @@ function LeagueRow({ league, me }: { league: League; me: Me }) {
           {trend == null ? '—' : trend > 0 ? `▲ ${trend}` : trend < 0 ? `▼ ${-trend}` : '— 0'}
         </span>
         <span className="text-right">
-          <Link to={`/leagues/${league.id}`} className="rounded-[3px] border border-line-2 px-[14px] py-[7px] font-display text-[13px] font-semibold uppercase tracking-[0.04em] text-ink-2">
+          <Link
+            to={`/leagues/${league.id}`}
+            className="inline-flex min-h-9 items-center rounded-[3px] border border-line-2 px-[14px] font-display text-[13px] font-semibold uppercase tracking-[0.04em] text-ink-2 transition-colors hover:border-line-3 hover:text-ink pointer-coarse:min-h-11"
+          >
             Standings
           </Link>
         </span>
@@ -744,7 +797,10 @@ function LeagueRow({ league, me }: { league: League; me: Me }) {
               {points != null ? `${fmtSeasonPoints(points)} pts` : unranked ? 'Not scored yet' : ''}
             </span>
           </span>
-          <Link to={`/leagues/${league.id}`} className="rounded-[3px] border border-line-2 px-[10px] py-[4px] font-display text-[11px] font-semibold uppercase tracking-[0.04em] text-ink-2">
+          <Link
+            to={`/leagues/${league.id}`}
+            className="inline-flex min-h-9 items-center rounded-[3px] border border-line-2 px-[10px] font-display text-[11px] font-semibold uppercase tracking-[0.04em] text-ink-2 pointer-coarse:min-h-11"
+          >
             Standings
           </Link>
         </div>
@@ -757,6 +813,12 @@ function LeagueRow({ league, me }: { league: League; me: Me }) {
 function DiscoverLeagues({ seasonId }: { seasonId: number | undefined }) {
   const discover = useDiscoverLeagues(seasonId)
   const join = useJoinLeague()
+  // Which league the player actually clicked. `join.isPending` alone is a mutation-wide flag, so it
+  // disabled every Join button at once and named none of them — five buttons greying out to report
+  // one action. Tracking the id lets the pressed button own both the pending and the failed state.
+  const [pendingId, setPendingId] = useState<number | null>(null)
+  const [failedId, setFailedId] = useState<number | null>(null)
+
   // The list endpoint reports real membership, so hide leagues we're already in.
   const leagues = (discover.data ?? []).filter((l) => !l.isMember)
   if (leagues.length === 0) return null
@@ -773,13 +835,31 @@ function DiscoverLeagues({ seasonId }: { seasonId: number | undefined }) {
             <div className="min-w-0">
               <div className="truncate font-display text-[15px] font-bold uppercase text-ink">{l.name}</div>
               <div className="font-sans text-[11px] text-muted">{l.memberCount} players · Public</div>
+              {failedId === l.id && (
+                <div role="alert" className="mt-[3px] font-sans text-[11px] text-danger">
+                  Couldn't join — try again.
+                </div>
+              )}
             </div>
             <button
-              onClick={() => join.mutate({ id: l.id })}
-              disabled={join.isPending}
-              className="flex-none rounded-[3px] border border-line-2 px-3 py-[6px] font-display text-[12px] font-semibold uppercase text-ink cursor-pointer"
+              onClick={() => {
+                setFailedId(null)
+                setPendingId(l.id)
+                join.mutate(
+                  { id: l.id },
+                  {
+                    // On success the league moves into "Your Leagues" and disappears from this list,
+                    // which is the confirmation — no toast needed for a state change you can see.
+                    onError: () => setFailedId(l.id),
+                    onSettled: () => setPendingId(null),
+                  },
+                )
+              }}
+              disabled={pendingId === l.id}
+              aria-label={`Join ${l.name}`}
+              className="inline-flex min-h-9 flex-none items-center rounded-[3px] border border-line-2 px-3 font-display text-[12px] font-semibold uppercase text-ink transition-colors hover:border-line-3 disabled:text-muted pointer-coarse:min-h-11 cursor-pointer"
             >
-              Join
+              {pendingId === l.id ? 'Joining…' : failedId === l.id ? 'Retry' : 'Join'}
             </button>
           </div>
         ))}
