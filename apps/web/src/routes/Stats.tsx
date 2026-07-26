@@ -1,4 +1,5 @@
-import { useMemo, useState, type ReactNode } from 'react'
+import { useEffect, useMemo, type ReactNode } from 'react'
+import { useSearchParams } from 'react-router-dom'
 import {
   useChampionships,
   usePlayerPicks,
@@ -12,9 +13,13 @@ import { BoardStatus } from '../components/Leaderboard'
 import { FilterRow, FilterTab } from '../components/StandingsFilters'
 import { StatsBoard, StatsBoardSkeleton } from '../components/StatsBoard'
 import { classMeta } from '../lib/classMeta'
-import { buildRows, entityKey, sortRows, type Sort, type SortKey } from '../lib/roundStats'
+import { buildRows, entityKey, sortRows, type Sort, type SortDir, type SortKey } from '../lib/roundStats'
 import { useNow } from '../lib/useCountdown'
+import { param, useParamWriter, type ParamPatch } from '../lib/urlState'
 import { ErrorBox } from './LeagueStandings'
+
+/** The sort keys the URL will accept; anything else in `?sort=` falls back to the default. */
+const SORT_KEYS: SortKey[] = ['own', 'pts', 'swing']
 
 /** "DOUBLE_POINTS_TEAM" / "DoublePointsTeam" → "Double Points Team". */
 function prettyKind(kind: string): string {
@@ -36,19 +41,47 @@ export function Stats() {
   const champs$ = useChampionships()
   const champs = useMemo(() => champs$.data ?? [], [champs$.data])
 
-  // Each selector holds only what the *user* picked, and the effective value is derived: the pick
-  // when it still exists in the loaded list, otherwise the default. The four heal-in-an-effect
-  // versions this replaces each cost a second render pass, and the champion one had a real symptom —
-  // `champs` is `[]` while the request is in flight, so "no championships found" rendered as a red
-  // error box for the length of the fetch, then vanished.
-  const [champPick, setChampPick] = useState<number | null>(null)
-  const champId = champs.some((c) => c.id === champPick) ? champPick : (champs[0]?.id ?? null)
+  /*
+   * `?champ=&season=&round=&class=&sort=` is the state, not a seed for it.
+   *
+   * The page previously derived every level from local state, which meant the URL stayed `/stats`
+   * no matter what you were looking at: a refresh or a Back press threw the round away, and a
+   * breakdown you'd clicked three levels into could not be sent to anyone. The param names match
+   * the standings board deliberately — a player who learns `?round=` on one board should find it
+   * works on the other, and the Landing calendar already deep-links weekends by round id.
+   */
+  const [search] = useSearchParams()
+  const setParams = useParamWriter()
+
+  const champId = param(search.get('champ'))
+  const seasonId = param(search.get('season'))
+  const roundId = param(search.get('round'))
+
+  // Championship — heal to the first (lowest sort order). It heals `champ` and nothing else: a
+  // hand-written `?round=13` with no champ is still a deep link, and clearing its siblings here to
+  // tidy up would destroy it before the levels below ever validated it.
+  useEffect(() => {
+    if (champs.length === 0) return
+    if (champId == null || !champs.some((c) => c.id === champId)) {
+      setParams({ champ: champs[0].id }, 'replace')
+    }
+  }, [champs, champId, setParams])
 
   const seasons$ = useSeasons(champId ?? undefined)
   const seasons = useMemo(() => seasons$.data ?? [], [seasons$.data])
   const sortedSeasons = useMemo(() => [...seasons].sort((a, b) => b.year - a.year), [seasons])
-  const [seasonPick, setSeasonPick] = useState<number | null>(null)
-  const seasonId = seasons.some((s) => s.id === seasonPick) ? seasonPick : (sortedSeasons[0]?.id ?? null)
+  useEffect(() => {
+    // Only heal once the list has arrived — an in-flight query looks identical to "this series has
+    // no seasons", and clearing the selection mid-load throws away a `?season=` seed.
+    if (!seasons$.isSuccess) return
+    if (seasons.length === 0) {
+      if (seasonId != null) setParams({ season: null }, 'replace')
+      return
+    }
+    if (seasonId == null || !seasons.some((s) => s.id === seasonId)) {
+      setParams({ season: sortedSeasons[0].id }, 'replace')
+    }
+  }, [seasons$.isSuccess, seasons, sortedSeasons, seasonId, setParams])
 
   const rounds$ = useRounds(seasonId ?? undefined)
   const roundList = useMemo(
@@ -60,26 +93,34 @@ export function Stats() {
   // its own instead of going stale until a reload.
   const now = useNow(60_000)
 
-  // Default to the latest *locked* round — the newest one whose stats actually exist.
+  // Default to the latest *locked* round — the newest one whose stats actually exist. Returns a
+  // primitive, so a minute passing without the locked set changing leaves this referentially equal
+  // and the heal effect below doesn't re-fire.
   const defaultRoundId = useMemo(() => {
     if (roundList.length === 0) return null
     const locked = roundList.filter((r) => new Date(r.qualiStart).getTime() <= now)
     return (locked.length ? locked : roundList).at(-1)!.id
   }, [roundList, now])
-  const [roundPick, setRoundPick] = useState<number | null>(null)
-  const roundId = roundList.some((r) => r.id === roundPick) ? roundPick : defaultRoundId
+
+  // Round — unlike the standings board there is no "season total" fallback here, so a missing or
+  // stale `?round=` heals to the default rather than resolving to a valid alternative view. Writing
+  // it back is what makes the address bar shareable: `/stats` alone would give the recipient *their*
+  // latest locked round, not the one being linked.
+  useEffect(() => {
+    if (!rounds$.isSuccess) return
+    if (roundList.length === 0) {
+      if (roundId != null) setParams({ round: null }, 'replace')
+      return
+    }
+    if (roundId == null || !roundList.some((r) => r.id === roundId)) {
+      setParams({ round: defaultRoundId, class: null }, 'replace')
+    }
+  }, [rounds$.isSuccess, roundList, roundId, defaultRoundId, setParams])
 
   const stats$ = useRoundStats(roundId ?? undefined)
   const rules = useRosterRules(roundId ?? 0)
 
-  // The class filter is scoped to the round it was chosen on, so changing rounds resets it to "All"
-  // without an effect — a class present in one round often isn't in the next.
-  const [classSel, setClassSel] = useState<{ round: number | null; value: number | 'all' }>({
-    round: null,
-    value: 'all',
-  })
-  const classId = classSel.round === roundId ? classSel.value : 'all'
-  const setClassId = (value: number | 'all') => setClassSel({ round: roundId, value })
+  const classId: number | 'all' = param(search.get('class')) ?? 'all'
 
   const colorFor = (cid: number) => {
     const c = rules.data?.classes.find((x) => x.classId === cid)
@@ -103,6 +144,21 @@ export function Stats() {
     return [...ordered, ...[...present].filter((id) => !ordered.includes(id))]
   }, [entities, rules.data])
 
+  // A `?class=` that this round doesn't run gets dropped once the field has arrived. The board has
+  // already fallen back to showing every class; leaving the param in the address bar would have the
+  // URL describing a view nobody is looking at, and copying it would pass the lie on.
+  useEffect(() => {
+    if (!stats$.isSuccess || classId === 'all' || classIds.length === 0) return
+    if (!classIds.includes(classId)) setParams({ class: null }, 'replace')
+  }, [stats$.isSuccess, classIds, classId, setParams])
+
+  // Changing a level clears the levels below it: a round id belongs to exactly one season, a season
+  // to one series, and a class only exists within a round.
+  const pickChamp = (id: number) => setParams({ champ: id, season: null, round: null, class: null }, 'push')
+  const pickSeason = (id: number) => setParams({ season: id, round: null, class: null }, 'push')
+  const pickRound = (id: number) => setParams({ round: id, class: null }, 'push')
+  const setClassId = (v: number | 'all') => setParams({ class: v === 'all' ? null : v }, 'push')
+
   // The signed-in player's own picks for this round, so their rows can be marked and their score put
   // next to the field's. `usePlayerPicks` is the same endpoint the standings drill-in already uses;
   // it needs no API change, and it only resolves once the round is locked — which is exactly when
@@ -121,16 +177,40 @@ export function Stats() {
   // Scoring is all-or-nothing for a round, so one entity carrying points means the round is scored.
   const scored = entities.some((e) => e.points != null)
 
-  const [sort, setSort] = useState<Sort>({ key: 'swing', dir: 'desc' })
+  // Sort is in the URL too, so a shared link reproduces the order it was read in — otherwise you
+  // send someone "look at this" and they open it sorted by something else. Both keys are omitted at
+  // their default, which keeps the common link short: `?champ=1&season=1&round=2`.
+  const sortParam = search.get('sort')
+  const dirParam = search.get('dir')
+  const sortKey: SortKey = SORT_KEYS.includes(sortParam as SortKey) ? (sortParam as SortKey) : 'swing'
+  const sortDir: SortDir = dirParam === 'asc' ? 'asc' : 'desc'
+  const sort: Sort = useMemo(() => ({ key: sortKey, dir: sortDir }), [sortKey, sortDir])
+
+  // An unreadable `?sort=` or `?dir=` is ignored above, but ignoring it isn't enough: left in the
+  // address bar it makes the URL describe an ordering the board isn't using, and copying it passes
+  // that on. Same rule the round and class levels follow — if the view fell back, the URL says so.
+  useEffect(() => {
+    const patch: ParamPatch = {}
+    if (sortParam != null && !SORT_KEYS.includes(sortParam as SortKey)) patch.sort = null
+    if (dirParam != null && dirParam !== 'asc') patch.dir = null
+    if (Object.keys(patch).length > 0) setParams(patch, 'replace')
+  }, [sortParam, dirParam, setParams])
+
   // Before scoring there is no swing to sort by; fall back to the one column that has values. Not
-  // held in state — a round change would otherwise leave the previous round's sort key stranded on a
-  // column of em-dashes.
+  // written to the URL — a round change would otherwise leave the previous round's sort key stranded
+  // on a column of em-dashes.
   const activeSort: Sort = useMemo(
     () => (scored ? sort : { key: 'own', dir: sort.dir }),
     [scored, sort],
   )
-  const onSort = (key: SortKey) =>
-    setSort((s) => (s.key === key ? { key, dir: s.dir === 'desc' ? 'asc' : 'desc' } : { key, dir: 'desc' }))
+
+  // `replace`, not `push`: re-ordering the same board is not a new destination, and clicking three
+  // headers while reading would otherwise bury the round you came from three entries deep in history.
+  const onSort = (key: SortKey) => {
+    const dir: SortDir = key === sortKey && sortDir === 'desc' ? 'asc' : 'desc'
+    const isDefault = key === 'swing' && dir === 'desc'
+    setParams({ sort: isDefault ? null : key, dir: dir === 'asc' ? 'asc' : null }, 'replace')
+  }
 
   const rows = useMemo(() => {
     const inClass = entities.filter((e) => classId === 'all' || e.classId === classId)
@@ -221,7 +301,7 @@ export function Stats() {
       <div className="mt-[22px] flex flex-col gap-[10px] border-b border-line pb-5">
         <FilterRow label="Series">
           {champs.map((c) => (
-            <FilterTab key={c.id} active={c.id === champId} onClick={() => setChampPick(c.id)}>
+            <FilterTab key={c.id} active={c.id === champId} onClick={() => pickChamp(c.id)}>
               {c.name}
             </FilterTab>
           ))}
@@ -229,7 +309,7 @@ export function Stats() {
         {sortedSeasons.length > 0 && (
           <FilterRow label="Year">
             {sortedSeasons.map((s) => (
-              <FilterTab key={s.id} active={s.id === seasonId} onClick={() => setSeasonPick(s.id)}>
+              <FilterTab key={s.id} active={s.id === seasonId} onClick={() => pickSeason(s.id)}>
                 {s.year}
               </FilterTab>
             ))}
@@ -253,7 +333,7 @@ export function Stats() {
                 <FilterTab
                   key={r.id}
                   active={r.id === roundId}
-                  onClick={() => setRoundPick(r.id)}
+                  onClick={() => pickRound(r.id)}
                   title={locked ? `${r.name} — locked until qualifying` : r.name}
                   label={locked ? `${chipLabel}, locked until qualifying` : undefined}
                 >
@@ -274,6 +354,11 @@ export function Stats() {
       <BoardStatus text={boardStatus} />
 
       <div className="mt-7">
+        {/* Names the results region so a screen-reader user can jump to it. The page had exactly one
+            heading — the h1 — which made the filters and thirty rows a single undifferentiated run.
+            Outside the state branches, so it labels the board, the empty panels and the error alike,
+            and worded to match the standings boards' own `sr-only` heading. */}
+        <h2 className="sr-only">Round board</h2>
         {/*
          * Order matters here, and it is the fix for the page's worst state bug: loading is checked
          * before emptiness, so an in-flight request can no longer render as "nothing found".

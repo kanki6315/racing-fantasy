@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo } from 'react'
+import { useEffect, useMemo } from 'react'
 import { Link, useSearchParams } from 'react-router-dom'
 import { useAuth } from '../auth/AuthContext'
 import {
@@ -11,13 +11,8 @@ import {
 import { BoardStatus, Leaderboard } from '../components/Leaderboard'
 import { FilterRow, FilterTab, RoundFilter } from '../components/StandingsFilters'
 import { YourPosition } from '../components/YourPosition'
+import { param, useParamWriter } from '../lib/urlState'
 import { ErrorBox, SkeletonTable } from './LeagueStandings'
-
-/** `?champ=&season=&round=` → a number, when it's actually a number. */
-function param(v: string | null): number | null {
-  const n = Number(v)
-  return v != null && v !== '' && Number.isInteger(n) ? n : null
-}
 
 /**
  * F3 season standings, multi-championship. Three filter levels — Championship → Year → Total/round —
@@ -32,33 +27,14 @@ function param(v: string | null): number | null {
 export function Standings() {
   const { user } = useAuth()
   const { data: champs = [] } = useChampionships()
-  const [search, setSearch] = useSearchParams()
+  const [search] = useSearchParams()
 
   const champId = param(search.get('champ'))
   const seasonId = param(search.get('season'))
   const tab: 'season' | number = param(search.get('round')) ?? 'season'
 
-  /**
-   * `replace` for values the app resolved on the user's behalf, `push` for ones they picked — so the
-   * history stack holds the boards a person actually chose and Back walks back through exactly
-   * those, rather than through every default the page settled on along the way.
-   */
-  const setParams = useCallback(
-    (next: Record<string, number | null>, mode: 'push' | 'replace') => {
-      setSearch(
-        (prev) => {
-          const p = new URLSearchParams(prev)
-          for (const [k, v] of Object.entries(next)) {
-            if (v == null) p.delete(k)
-            else p.set(k, String(v))
-          }
-          return p
-        },
-        { replace: mode === 'replace' },
-      )
-    },
-    [setSearch],
-  )
+  // Push/replace semantics live in the shared writer (see lib/urlState).
+  const setParams = useParamWriter()
 
   // Championship — default/heal to the first (lowest sort order). It heals `champ` and nothing else:
   // a hand-written `?round=13` with no champ is still a deep link, and clearing its siblings here to
