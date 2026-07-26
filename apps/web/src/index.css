@@ -9,6 +9,15 @@
 @custom-variant pointer-fine (@media (pointer: fine));
 
 /*
+ * Short-viewport variant. A phone turned landscape is ~375px tall, and a screen whose chrome was
+ * budgeted against portrait height ends up with almost nothing left for content — the roster
+ * builder measured 86% chrome and a 54px content window there. `short:` trims the paddings that
+ * are comfortable in portrait and merely expensive in landscape. Keyed on height, not orientation,
+ * so a small desktop window gets the same relief.
+ */
+@custom-variant short (@media (max-height: 500px));
+
+/*
  * Endurance Fantasy design tokens. The canonical spec is DESIGN.md at the app root — these values
  * and its frontmatter must agree.
  * Tailwind v4 turns each token into utilities, e.g. --color-surface → bg-surface / text-surface,
@@ -66,6 +75,15 @@ body {
   background: var(--color-bg);
   color: var(--color-ink);
   font-family: var(--font-sans);
+  /*
+   * `viewport-fit=cover` (index.html) lets the page paint under the notch and rounded corners, which
+   * is what makes env(safe-area-inset-*) report real values for the pick page's sticky action bar.
+   * The trade is that landscape content would otherwise run beneath the notch, so every route is
+   * inset horizontally here — one place rather than per-surface. Vertical insets stay with whatever
+   * chrome actually sits against an edge.
+   */
+  padding-left: env(safe-area-inset-left);
+  padding-right: env(safe-area-inset-right);
 }
 
 @keyframes blink {
