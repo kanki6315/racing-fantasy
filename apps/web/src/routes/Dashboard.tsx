@@ -20,7 +20,7 @@ import {
 } from '../api/queries'
 import { classMeta } from '../lib/classMeta'
 import { fmtMoney, fmtPts, fmtSeasonPoints, fmtTotal, hasScored, sourceLabel } from '../lib/scoreFormat'
-import { useCountdown } from '../lib/useCountdown'
+import { useCountdown, useNow } from '../lib/useCountdown'
 import { CreateLeagueModal, JoinByCodeModal } from '../components/LeagueModals'
 import { RegisterModal } from '../components/RegisterModal'
 import { RateLimitModal } from '../components/RateLimitModal'
@@ -135,9 +135,15 @@ export function Dashboard() {
    * than from whether each row is set, because "is it set" is per-row async state and coordinating it
    * across cards would cost more than the signal is worth; the row itself still declines the red when
    * it turns out to have a lineup already.
+   *
+   * `now` comes from state and MUST stay in the dep list. Read straight from `Date.now()` the
+   * timestamp froze at first render, so on a tab left open across a race weekend — which is how this
+   * page is actually used — urgency never moved. Worse, once the frozen favourite locked, its row
+   * declined the red on its own and nothing else could claim it: the page quietly ended up with no
+   * primary action at all. A minute's granularity is plenty for a deadline measured in hours.
    */
+  const now = useNow(60_000)
   const urgentRoundId = useMemo(() => {
-    const now = Date.now()
     let best: { id: number; at: number } | null = null
     for (const card of picksCards) {
       for (const row of card.rows) {
@@ -147,11 +153,18 @@ export function Dashboard() {
       }
     }
     return best?.id ?? null
-  }, [picksCards])
+  }, [picksCards, now])
 
   if (!user) return null
   const regs = user.registrations
   const leagues = myLeagues.data ?? []
+  // A count is a claim, and `?? []` turns a failed request into the claim "zero". The main column
+  // already says "Couldn't load your leagues" in that case, so leaving these at 0 had one screen
+  // telling a player two different things about one failed request. An em-dash says "unknown",
+  // which is the truth.
+  const leagueCount: number | string = myLeagues.isError ? '—' : leagues.length
+  const countBy = (v: 'Public' | 'Private'): number | string =>
+    myLeagues.isError ? '—' : leagues.filter((l) => l.visibility === v).length
   const primarySeason = regs[0]?.seasonId
 
   return (
@@ -160,7 +173,7 @@ export function Dashboard() {
       <aside className="order-last w-full flex-none border-t border-line bg-surface-3 p-[18px] pt-6 lg:order-first lg:w-[268px] lg:border-r lg:border-t-0">
         <div className="font-display text-[26px] font-extrabold uppercase text-ink">My Team</div>
         <div className="mb-5 font-sans text-[12px] text-muted">
-          {regs.length} series · {leagues.length} leagues · {regs[0] ? seasonInfo(regs[0].seasonId).year : '—'}
+          {regs.length} series · {leagueCount} leagues · {regs[0] ? seasonInfo(regs[0].seasonId).year : '—'}
         </div>
 
         <div className="mb-[11px] font-display text-[11px] tracking-[0.12em] uppercase text-muted">Championships</div>
@@ -202,9 +215,9 @@ export function Dashboard() {
         <div className="my-5 h-px bg-line" />
         <div className="mb-[11px] font-display text-[11px] tracking-[0.12em] uppercase text-muted">Leagues</div>
         <div className="flex flex-col gap-1 font-display text-[13px] font-semibold uppercase tracking-[0.04em]">
-          <Row label="All Leagues" value={leagues.length} strong />
-          <Row label="Public" value={leagues.filter((l) => l.visibility === 'Public').length} />
-          <Row label="Private" value={leagues.filter((l) => l.visibility === 'Private').length} />
+          <Row label="All Leagues" value={leagueCount} strong />
+          <Row label="Public" value={countBy('Public')} />
+          <Row label="Private" value={countBy('Private')} />
         </div>
 
         {/* Tinted, not solid. This page's one red belongs to the lineup that locks first — creating a
@@ -321,7 +334,7 @@ export function Dashboard() {
   )
 }
 
-function Row({ label, value, strong }: { label: string; value: number; strong?: boolean }) {
+function Row({ label, value, strong }: { label: string; value: number | string; strong?: boolean }) {
   return (
     <div className="flex items-center justify-between rounded-[3px] px-[13px] py-[10px]">
       <span className={strong ? 'text-ink' : 'text-ink-2'}>{label}</span>
@@ -828,7 +841,33 @@ function DiscoverLeagues({ seasonId }: { seasonId: number | undefined }) {
   const [failedId, setFailedId] = useState<number | null>(null)
 
   // The list endpoint reports real membership, so hide leagues we're already in.
-  const leagues = (discover.data ?? []).filter((l) => !l.isMember)
+  const leagues = discover.data ?? []
+
+  // An empty discover list is genuinely nothing to show — every public league is one the player has
+  // already joined — so the section still collapses. A *failed* one is not the same thing, and used
+  // to take the identical `return null` path: the section vanished with no trace, which is worse
+  // than the empty state it was imitating, because nothing marked that anything was missing.
+  if (discover.isError) {
+    return (
+      <div className="px-4 py-6 sm:px-[26px]">
+        <h2 className="mb-[14px] font-display text-[18px] font-extrabold uppercase text-ink">Discover Public Leagues</h2>
+        <div className="flex flex-wrap items-center gap-x-4 gap-y-2 rounded-[3px] border border-line-2 bg-surface px-[15px] py-[13px]">
+          <span className="font-sans text-[13px] text-muted">
+            Couldn't load public leagues. Your own leagues above are unaffected.
+          </span>
+          <button
+            type="button"
+            onClick={() => void discover.refetch()}
+            disabled={discover.isFetching}
+            className="inline-flex min-h-9 items-center rounded-[3px] border border-line-2 px-3 font-display text-[12px] font-semibold uppercase tracking-[0.05em] text-ink-2 transition-colors hover:border-line-3 hover:text-ink disabled:text-muted pointer-coarse:min-h-11 cursor-pointer"
+          >
+            {discover.isFetching ? 'Retrying…' : 'Try again'}
+          </button>
+        </div>
+      </div>
+    )
+  }
+
   if (leagues.length === 0) return null
 
   return (
