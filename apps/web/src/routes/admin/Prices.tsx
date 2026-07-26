@@ -19,9 +19,10 @@ import {
   type Spacing,
 } from '../../lib/priceSuggest'
 import { parsePointsFile, normName, normNumber } from '../../lib/pointsImport'
+import { inferPriceMode, roundLineup, type PriceMode } from '../../lib/pricing'
 
 /** Which entity type this series prices (ADR-0012): teams price cars, driver series (MX-5) price drivers. */
-type Mode = 'Car' | 'Driver'
+type Mode = PriceMode
 
 type Row = {
   entityType: Mode
@@ -93,9 +94,9 @@ export function Prices() {
 
   // Teams | Drivers mode. Defaults from the board itself (same rule as the player Pick page):
   // driver prices with no car prices ⇒ a driver-based series. The toggle overrides per visit.
+  // The rule lives in lib/pricing so the admin Overview counts the same universe this board shows.
   const [modeOverride, setModeOverride] = useState<Mode | null>(null)
-  const inferredMode: Mode =
-    prices.some((p) => p.entityType === 'Driver') && !prices.some((p) => p.entityType === 'Car') ? 'Driver' : 'Car'
+  const inferredMode: Mode = inferPriceMode(prices)
   const mode = modeOverride ?? inferredMode
 
   // edits: rowKey -> raw input string. Absent ⇒ untouched (shows the saved value).
@@ -143,43 +144,21 @@ export function Prices() {
     [cars, priceByKey, lastByKey, classes],
   )
 
-  // Driver rows: the season's lineups, car by car. Round-scoped lineup rows win over season-wide
-  // ones (ADR-0011); a driver sharing two cars appears once, under the first car that lists them.
+  // Driver rows: the season's lineups, car by car (roundLineup owns the round-scoped-wins and
+  // shared-driver rules, ADR-0011). Only the presentation lives here.
   const driverRows: Row[] = useMemo(() => {
-    const carById = new Map(cars.map((c) => [c.id, c]))
     const nameById = new Map(allDrivers.map((d) => [d.id, d.fullName]))
-    const byCar = new Map<number, typeof entryDrivers>()
-    for (const ed of entryDrivers) {
-      if (!carById.has(ed.carEntryId)) continue
-      const list = byCar.get(ed.carEntryId)
-      if (list) list.push(ed)
-      else byCar.set(ed.carEntryId, [ed])
-    }
-    const rows: Row[] = []
-    const seen = new Set<number>()
-    for (const car of cars) {
-      const list = byCar.get(car.id) ?? []
-      const roundRows = list.filter((ed) => ed.roundId === roundId)
-      const chosen = (roundRows.length ? roundRows : list.filter((ed) => ed.roundId == null)).sort(
-        (a, b) => (a.slotOrder ?? a.id) - (b.slotOrder ?? b.id),
-      )
-      for (const ed of chosen) {
-        if (seen.has(ed.driverId)) continue
-        seen.add(ed.driverId)
-        rows.push({
-          entityType: 'Driver',
-          entityId: ed.driverId,
-          carId: car.id,
-          number: car.number,
-          label: nameById.get(ed.driverId) ?? `#${ed.driverId}`,
-          classId: car.classId,
-          className: className(car.classId),
-          original: priceByKey.get(`Driver:${ed.driverId}`) ?? null,
-          lastRound: lastByKey.get(`Driver:${ed.driverId}`) ?? null,
-        })
-      }
-    }
-    return rows
+    return roundLineup(cars, entryDrivers, roundId).map(({ car, entry: ed }) => ({
+      entityType: 'Driver' as const,
+      entityId: ed.driverId,
+      carId: car.id,
+      number: car.number,
+      label: nameById.get(ed.driverId) ?? `#${ed.driverId}`,
+      classId: car.classId,
+      className: className(car.classId),
+      original: priceByKey.get(`Driver:${ed.driverId}`) ?? null,
+      lastRound: lastByKey.get(`Driver:${ed.driverId}`) ?? null,
+    }))
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [cars, entryDrivers, allDrivers, roundId, priceByKey, lastByKey, classes])
 

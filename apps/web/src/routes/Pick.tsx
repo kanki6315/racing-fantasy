@@ -259,12 +259,12 @@ export function Pick() {
           >
             <span
               className={`h-[6px] w-[6px] rounded-full ${
-                notOpen ? 'bg-muted-2' : locked ? 'bg-danger' : 'bg-brand [animation:blink_1.4s_infinite]'
+                notOpen ? 'bg-muted-2' : locked ? 'bg-muted' : 'bg-brand [animation:blink_1.4s_infinite]'
               }`}
             />
             <span
               className={`font-mono text-[12px] font-semibold ${
-                notOpen ? 'text-muted' : locked ? 'text-danger' : 'text-brand-3'
+                notOpen ? 'text-muted' : locked ? 'text-muted' : 'text-brand-3'
               }`}
             >
               {notOpen ? 'PICKS NOT OPEN' : locked ? 'LOCKED' : `LOCKS ${cd.text}`}
