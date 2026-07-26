@@ -11,30 +11,39 @@ const initials = (full: string) => {
   return (first + last).toUpperCase()
 }
 
-/** Circular driver headshot with an initials fallback (no image / unset env / broken object). */
+/**
+ * Circular driver headshot, with initials underneath rather than instead.
+ *
+ * The initials used to be an alternative branch taken only when the URL was null or the object had
+ * already failed, so a headshot still in flight rendered an empty disc — and a lineup of four
+ * rendered four. They are the slot's resting state now, and the photo covers them once it decodes.
+ *
+ * The name is carried by the wrapper (`role="img"` + `aria-label`) rather than by the `<img>`'s alt,
+ * so it is announced once and identically whether or not the photo ever arrives; the initials and the
+ * photo are both decorative in that arrangement.
+ */
 function DriverAvatar({ driver, px }: { driver: Driver; px: number }) {
   const [broken, setBroken] = useState(false)
   const url = headshotUrl(driver.id)
   const style = { width: px, height: px }
-  if (url && !broken) {
-    return (
-      <img
-        src={url}
-        alt={driver.fullName}
-        loading="lazy"
-        onError={() => setBroken(true)}
-        style={style}
-        className="shrink-0 rounded-full bg-surface-3 object-cover ring-1 ring-line-2"
-      />
-    )
-  }
   return (
     <span
+      role="img"
+      aria-label={driver.fullName}
       title={driver.fullName}
       style={{ ...style, fontSize: px * 0.4 }}
-      className="flex shrink-0 items-center justify-center rounded-full bg-surface-2 font-display font-bold text-muted ring-1 ring-line-2"
+      className="relative flex shrink-0 items-center justify-center overflow-hidden rounded-full bg-surface-2 font-display font-bold text-muted ring-1 ring-line-2"
     >
-      {initials(driver.fullName)}
+      <span aria-hidden>{initials(driver.fullName)}</span>
+      {url && !broken && (
+        <img
+          src={url}
+          alt=""
+          loading="lazy"
+          onError={() => setBroken(true)}
+          className="absolute inset-0 h-full w-full rounded-full object-cover"
+        />
+      )}
     </span>
   )
 }
