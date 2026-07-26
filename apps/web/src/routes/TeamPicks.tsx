@@ -11,7 +11,7 @@ import {
 } from '../api/queries'
 import { classMeta } from '../lib/classMeta'
 import { modMeta } from '../lib/modifierMeta'
-import { fmtMoney, fmtPts, fmtTotal, hasScored, sourceLabel, sourceLabelLong } from '../lib/scoreFormat'
+import { fmtMoney, fmtPts, fmtTotal, hasScored, makePointsFormat, sourceLabel, sourceLabelLong } from '../lib/scoreFormat'
 import { fmtRaceDate } from '../lib/datetime'
 import { deriveEventStatus, deriveRoundStatus, EVENT_STATUS_META } from '../lib/eventStatus'
 import { lastName } from '../lib/driverName'
@@ -100,6 +100,20 @@ export function TeamPicks() {
         )?.k
       : undefined
 
+    // The card follows the standings board's number rule rather than the page's always-one-decimal
+    // one: whole points lose the `.0` and gain a thousands separator, unless anything on the card is
+    // fractional, in which case everything keeps one decimal so the column aligns.
+    //
+    // The decision spans EVERY points value the card prints — the round total, each pick's total,
+    // each Q/R contribution and each bonus — because they are read as one set of figures. Deciding
+    // per value would print `1,523` above `385.5`, which is the ragged column the rule exists to
+    // prevent. Money is untouched: `$34.5M` is a different dialect and always carries its decimal.
+    const pf = makePointsFormat([
+      data.total,
+      ...data.main.flatMap((p) => [p.points, ...p.scores.map((s) => s.points)]),
+      ...data.modifiers.map((mo) => mo.points),
+    ])
+
     // Ordered by the round's own class order, so the card reads GTP-down like every board in the app
     // rather than in whatever order the picks were saved.
     const order = new Map((rules.data?.classes ?? []).map((c, i) => [c.classId, i]))
@@ -121,10 +135,10 @@ export function TeamPicks() {
         classHex: m.hex,
         name: info?.displayName ?? `#${p.entityId}`,
         drivers: (info?.drivers ?? []).map((d) => lastName(d.fullName)),
-        figure: scoredData ? (p.scores.length > 0 ? fmtTotal(p.points) : '—') : fmtMoney(p.price),
+        figure: scoredData ? (p.scores.length > 0 ? pf.fmt(p.points) : '—') : fmtMoney(p.price),
         breakdown:
           scoredData && p.scores.length > 0
-            ? p.scores.map((s) => `${sourceLabelLong(s, data.raceCount)} ${fmtPts(s.points)}`).join('   ')
+            ? p.scores.map((s) => `${sourceLabelLong(s, data.raceCount)} ${pf.delta(s.points)}`).join('   ')
             : null,
         chips,
         marked: scoredData ? k === bestKey : bonusTargets.has(k),
@@ -152,7 +166,7 @@ export function TeamPicks() {
         .filter(Boolean)
         .join(' · '),
       teamName: data.teamName,
-      heroValue: scoredData ? fmtTotal(data.total) : fmtMoney(spend),
+      heroValue: scoredData ? pf.fmt(data.total) : fmtMoney(spend),
       heroUnit: scoredData ? 'PTS' : `OF ${fmtMoney(cap)}`,
       stageLabel: stageMeta.label.toUpperCase(),
       stageHex: stageMeta.hex,
@@ -160,7 +174,7 @@ export function TeamPicks() {
       bonuses: data.modifiers.map((mod) => ({
         label: modMeta(mod.kind).label,
         target: mod.target ? (priceByKey.get(key(mod.target))?.displayName ?? null) : null,
-        points: scoredData ? fmtPts(mod.points) : null,
+        points: scoredData ? pf.delta(mod.points) : null,
       })),
       // Movement is null on single-round boards by design (the API only computes it for cumulative
       // ones), so the round line is rank-only and the season line carries the arrow.

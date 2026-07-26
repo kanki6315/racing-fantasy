@@ -2,6 +2,7 @@ import type { ReactNode } from 'react'
 import { Link } from 'react-router-dom'
 import type { LeaderboardEntry } from '../api/queries'
 import { BOARD_COLS, boardColsKey, tiedRanks } from '../lib/standings'
+import { makePointsFormat } from '../lib/scoreFormat'
 import { SM, useMediaQuery } from '../lib/useMediaQuery'
 
 /**
@@ -108,9 +109,9 @@ export function Leaderboard({
   }
 
   // Integer points render without the ".0" — but if ANY row is fractional, every row keeps one
-  // decimal so the column still aligns to the digit (The Tabular-Numeral Rule).
-  const showDecimals = entries.some((e) => !Number.isInteger(e.points))
-  const fmtPoints = (p: number) => (showDecimals ? p.toFixed(1) : p.toLocaleString())
+  // decimal so the column still aligns to the digit (The Tabular-Numeral Rule). The rule now lives
+  // in `scoreFormat` because the share card follows it too, and one convention wants one definition.
+  const { fmt: fmtPoints } = makePointsFormat(entries.map((e) => e.points))
   const tied = tiedRanks(entries)
 
   // The last column is Rounds *or* the destination, never both — and the two never want the same
