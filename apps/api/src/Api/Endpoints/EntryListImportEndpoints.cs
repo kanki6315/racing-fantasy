@@ -1,4 +1,6 @@
+using System.Text.Json;
 using System.Text.Json.Serialization;
+using EnduranceFantasy.Api.Parsing;
 using EnduranceFantasy.Domain;
 using EnduranceFantasy.Infrastructure;
 using Microsoft.EntityFrameworkCore;
@@ -17,10 +19,67 @@ namespace EnduranceFantasy.Api.Endpoints;
 /// </summary>
 public static class EntryListImportEndpoints
 {
+    // Parser stdout is deserialized by hand (unlike /import, where body binding applies web
+    // defaults), so case-insensitivity must be opted into or every single-word property
+    // (team, drivers, entries, ...) silently binds null.
+    private static readonly JsonSerializerOptions WebJson = new(JsonSerializerDefaults.Web);
+
     public static IEndpointRouteBuilder MapEntryListImportEndpoints(this IEndpointRouteBuilder app)
     {
         var group = app.MapGroup("/rounds/{roundId:long}/entry-list").WithTags("EntryList")
             .RequireAuthorization("Admin");
+
+        // PDF front door for /import: runs the pitpass-parser sidecar (parse-entry-list) on the
+        // uploaded entry-list PDF and returns the parser's entries.json verbatim — the client then
+        // feeds it through the same dryRun/commit calls as a hand-supplied JSON file. Pass-through,
+        // not re-serialization: the parser's output is a superset of ParserEntryList (this API binds
+        // only the fields it uses), and rewriting it here would silently drop the rest.
+        group.MapPost("/parse-pdf", async (
+            long roundId, IFormFile file, EntryListParser parser, CancellationToken ct) =>
+        {
+            if (!parser.IsConfigured)
+                return Results.Problem(
+                    "The entry-list PDF parser is not configured (set EntryListParser:Command).",
+                    statusCode: StatusCodes.Status503ServiceUnavailable);
+            if (file.Length == 0 || !file.FileName.EndsWith(".pdf", StringComparison.OrdinalIgnoreCase))
+                return Results.ValidationProblem(new Dictionary<string, string[]>
+                {
+                    ["file"] = ["A non-empty .pdf file is required."]
+                });
+
+            await using var pdf = file.OpenReadStream();
+            ParserRunResult run;
+            try
+            {
+                run = await parser.RunAsync(pdf, file.FileName, ct);
+            }
+            catch (InvalidOperationException e) // configured command missing/unstartable
+            {
+                return Results.Problem(title: "PDF parser could not be started", detail: e.Message,
+                    statusCode: StatusCodes.Status503ServiceUnavailable);
+            }
+
+            if (run.TimedOut)
+                return Results.Problem(title: "PDF parser timed out",
+                    statusCode: StatusCodes.Status504GatewayTimeout);
+            if (run.ExitCode != 0)
+                return Results.Problem(title: "PDF parser failed", detail: run.Stderr.Trim(),
+                    statusCode: StatusCodes.Status422UnprocessableEntity);
+
+            try
+            {
+                var doc = JsonSerializer.Deserialize<ParserEntryList>(run.Stdout, WebJson);
+                if (doc?.Entries is null || doc.Entries.Count == 0) throw new JsonException("no entries");
+            }
+            catch (JsonException)
+            {
+                return Results.Problem(title: "PDF parser produced no readable entries",
+                    detail: run.Stderr.Trim(), statusCode: StatusCodes.Status502BadGateway);
+            }
+            return Results.Text(run.Stdout, "application/json");
+        })
+        .DisableAntiforgery()
+        .Produces<ParserEntryList>();
 
         group.MapPost("/import", async (
             long roundId, ParserEntryList file, FantasyDbContext db,
@@ -43,12 +102,21 @@ public static class EntryListImportEndpoints
             // mismatches (wrong file dropped on the wrong round) instead of guessing.
             if (file.Event is { } ev)
             {
-                if (!string.IsNullOrWhiteSpace(ev.Series)
-                    && !string.Equals(ev.Series, season.Championship.Slug, StringComparison.OrdinalIgnoreCase))
+                if (string.IsNullOrWhiteSpace(ev.Series))
+                    warnings.Add("file carries no series code (renamed PDF? the parser reads it from the " +
+                                 "filename) — could not verify this file belongs to this championship");
+                else if (!string.Equals(ev.Series, season.Championship.Slug, StringComparison.OrdinalIgnoreCase))
                     warnings.Add($"file is for series '{ev.Series}' but the round belongs to " +
                                  $"'{season.Championship.Name}' (slug '{season.Championship.Slug}') — check the target round");
                 if (DateOnly.TryParse(ev.StartDate, out var start) && start.Year != season.Year)
                     warnings.Add($"file event starts {ev.StartDate} but the round's season is {season.Year}");
+                if (ev.TotalEntries is int total && total != file.Entries.Count)
+                    warnings.Add($"file header says {total} entries but {file.Entries.Count} were parsed — " +
+                                 "the parser may have dropped some; compare against the PDF before importing");
+            }
+            else
+            {
+                warnings.Add("file has no event block — could not verify series or season");
             }
 
             // ---- Lookups: classes / cars keyed by class NAME so not-yet-saved classes (id 0) work ----
@@ -102,6 +170,10 @@ public static class EntryListImportEndpoints
                     var d = e.Drivers![j];
                     if (d.IsTbd != true && string.IsNullOrWhiteSpace(d.Name))
                         errors.Add(new(i, $"drivers[{j}] needs a name (or is_tbd)"));
+                    // SCHEMA.md: unparsed lines must fail loud, never import silently.
+                    if (d.Unparsed == true)
+                        errors.Add(new(i, $"drivers[{j}] ('{d.Name ?? "?"}') was not recognized by the " +
+                                        "PDF parser — re-parse or hand-edit the JSON before importing"));
                 }
             }
 
@@ -248,6 +320,10 @@ public static class EntryListImportEndpoints
         {
             if (string.Equals(m, "rookie", StringComparison.OrdinalIgnoreCase)) rookie = true;
             else if (string.Equals(m, "coach", StringComparison.OrdinalIgnoreCase)) coach = true;
+            // Documented markers with no fantasy meaning; per SCHEMA.md, non_series drivers still
+            // score and must NOT be treated as invitational/guest entries.
+            else if (string.Equals(m, "invitational", StringComparison.OrdinalIgnoreCase)) { }
+            else if (string.Equals(m, "non_series", StringComparison.OrdinalIgnoreCase)) { }
             else warnings.Add($"entries[{row}] {driver}: unknown marker '{m}' — ignored");
         }
         return (rookie, coach);
@@ -282,6 +358,10 @@ public record ParserEntry(
     string? Fuel,
     List<ParserDriver>? Drivers);
 
+// A deliberate SUBSET of the parser's contract (see broadcast-helper parser/SCHEMA.md): binding is
+// tolerant, so parser fields this app doesn't use (dealer_trophy, team_nationality, ...) are simply
+// ignored and new ones never require changes here. `unparsed` is the exception every consumer must
+// bind — it flags a driver line the parser couldn't read, and the import fails loud on it.
 public record ParserDriver(
     int? Order,
     string? Rating,
@@ -289,7 +369,8 @@ public record ParserDriver(
     string? Nationality,
     string? Hometown,
     [property: JsonPropertyName("is_tbd")] bool? IsTbd,
-    List<string>? Markers);
+    List<string>? Markers,
+    bool? Unparsed);
 
 // ---- Result (drives the admin preview: dryRun=true returns the same shape, nothing saved) ----
 

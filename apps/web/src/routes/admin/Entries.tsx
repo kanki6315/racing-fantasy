@@ -26,6 +26,7 @@ import {
   useCreateEntryDriver,
   useDeleteEntryDriver,
   useImportEntryList,
+  useParseEntryListPdf,
   type CarEntryDto,
   type DriverDto,
   type ParserEntryList,
@@ -126,7 +127,7 @@ function CarEntriesTab({ seasonId }: { seasonId: number }) {
                 setSel(null)
               }}
             >
-              Import JSON
+              Import PDF/JSON
             </GhostButton>
             <GhostButton
               onClick={() => {
@@ -773,6 +774,7 @@ function BulkGrid<Row extends Record<string, string>>({
 function EntryListImportPanel({ onClose }: { onClose: () => void }) {
   const { championship, season, round, roundId } = useAdmin()
   const imp = useImportEntryList(roundId ?? 0)
+  const parse = useParseEntryListPdf(roundId ?? 0)
   const [fileName, setFileName] = useState<string | null>(null)
   const [file, setFile] = useState<ParserEntryList | null>(null)
   const [preview, setPreview] = useState<EntryListImportResult | null>(null)
@@ -787,7 +789,11 @@ function EntryListImportPanel({ onClose }: { onClose: () => void }) {
     setFile(null)
     if (!f) return
     try {
-      const data = JSON.parse(await f.text()) as ParserEntryList
+      // A PDF goes through the server-side parser sidecar first; either way the panel ends up
+      // holding the same ParserEntryList and the dry-run/commit flow below is identical.
+      const data = f.name.toLowerCase().endsWith('.pdf')
+        ? await parse.mutateAsync(f)
+        : (JSON.parse(await f.text()) as ParserEntryList)
       setFileName(f.name)
       setFile(data)
       setPreview(await imp.mutateAsync({ file: data, dryRun: true }))
@@ -812,7 +818,7 @@ function EntryListImportPanel({ onClose }: { onClose: () => void }) {
     <div className="rounded-[6px] border border-line bg-surface p-4">
       <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
         <h2 className="font-mono text-[10px] tracking-[0.14em] uppercase text-muted">
-          Import Entry List (JSON)
+          Import Entry List (JSON / PDF)
         </h2>
         <span className="font-mono text-[11px] text-muted">
           → {championship?.name ?? '—'} · {season?.year ?? '—'} · {round?.name ?? 'no round selected'}
@@ -825,12 +831,13 @@ function EntryListImportPanel({ onClose }: { onClose: () => void }) {
         <div className="grid gap-3">
           <input
             type="file"
-            accept=".json,application/json"
-            aria-label="Entry list JSON file"
+            accept=".json,application/json,.pdf,application/pdf"
+            aria-label="Entry list JSON or PDF file"
             onChange={(e) => void pick(e.target.files?.[0])}
             className="font-mono text-[11px] text-muted file:mr-3 file:h-7 file:cursor-pointer file:rounded-[3px] file:border file:border-line-2 file:bg-transparent file:px-2 file:font-mono file:text-[11px] file:uppercase file:text-ink-2"
           />
 
+          {parse.isPending && <div className="font-mono text-[11px] text-muted">Parsing PDF…</div>}
           {imp.isPending && (
             <div className="font-mono text-[11px] text-muted">
               {committed ?? preview ? 'Importing…' : 'Running dry-run preview…'}
@@ -903,11 +910,12 @@ function EntryListImportPanel({ onClose }: { onClose: () => void }) {
 /** Flatten the API's error payload (422 row errors or a problem document) to one line. */
 function importError(e: unknown): string {
   if (e && typeof e === 'object') {
-    const anyE = e as { errors?: Array<{ index: number; message: string }> | Record<string, string[]>; title?: string; message?: string }
+    const anyE = e as { errors?: Array<{ index: number; message: string }> | Record<string, string[]>; title?: string; detail?: string; message?: string }
     if (Array.isArray(anyE.errors))
       return anyE.errors.map((x) => `row ${x.index}: ${x.message}`).join(' · ')
     if (anyE.errors) return Object.values(anyE.errors).flat().join(' · ')
-    if (anyE.title) return anyE.title
+    // Problem documents: detail carries the specifics (e.g. the PDF parser's stderr).
+    if (anyE.title) return anyE.detail ? `${anyE.title}: ${anyE.detail}` : anyE.title
     if (anyE.message) return anyE.message
   }
   return 'Import failed — is the file a parser entry-list JSON?'

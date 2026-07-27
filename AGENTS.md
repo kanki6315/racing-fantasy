@@ -209,6 +209,15 @@ ASPNETCORE_ENVIRONMENT=Development dotnet run --project src/Api
 - **OpenAPI doc (Development):** `http://localhost:5239/openapi/v1.json` — the typed frontend client is generated from this.
 - New migration: `dotnet ef migrations add <Name> --project src/Infrastructure --startup-project src/Api`.
 - Reset dev data (it has accumulated test rows): `docker compose down -v && docker compose up -d` then re-run `database update`.
+- **Entry-list PDF parsing (optional):** the parse-pdf endpoint needs the pitpass-parser sidecar;
+  without it the endpoint 503s and JSON import still works. Local setup (editable install, so parser
+  edits in the broadcast-helper checkout are live here):
+  ```bash
+  python3 -m venv ~/.venvs/pitpass-parser
+  ~/.venvs/pitpass-parser/bin/pip install -e ../broadcast-helper/parser   # path to your checkout
+  cd apps/api/src/Api
+  dotnet user-secrets set "EntryListParser:Command" "$HOME/.venvs/pitpass-parser/bin/parse-entry-list"
+  ```
 
 ## Run the frontend locally
 
@@ -335,8 +344,20 @@ pnpm build          # tsc typecheck + production build
   re-sends the identical payload; `?createMissingClasses=true` creates unknown classes from
   `class_code`/`class_order`. Writes **per-round lineup rows** (`entry_driver.round_id` +
   rating/slot_order/rookie/coach; NULL = season-wide, round rows preferred by the price board and
-  scoring) and `car_entry.car_model`/`bronze_cup`. Admin UI: Entries → Car Entries → **Import JSON**
-  (targets the topbar-selected round). TBD seats are skipped; re-import converges.
+  scoring) and `car_entry.car_model`/`bronze_cup`. Admin UI: Entries → Car Entries → **Import PDF/JSON**
+  (targets the topbar-selected round). TBD seats are skipped; re-import converges. Drivers flagged
+  `unparsed` by the parser fail the import with a row error (per the parser's SCHEMA.md).
+- **Entry-list PDF parse (admin):** `POST /rounds/{roundId}/entry-list/parse-pdf` (multipart `file`)
+  runs the **pitpass-parser sidecar** — the `parse-entry-list` console command from the
+  broadcast-helper repo's `parser/` package — as a subprocess (`Api/Parsing/EntryListParser.cs`,
+  config section `EntryListParser` with `Command`/`TimeoutSeconds`) and returns the parser's
+  `entries.json` **verbatim** (this API's DTOs are a deliberate tolerant-reader subset; see the
+  parser repo's SCHEMA.md compatibility policy). The web panel feeds the result through the same
+  dryRun/commit `/import` flow as a hand-supplied JSON. Errors: 503 unconfigured or command
+  unstartable, 504 timeout, 422 parser failure (stderr in `detail`), 502 unreadable output. In prod
+  the Dockerfile bakes a venv and pip-installs the package from broadcast-helper at the `PARSER_REF`
+  tag (needs Railway build variable `GH_PARSER_TOKEN`, a read-only fine-grained PAT); bump
+  `PARSER_REF` to pick up a parser release. Unconfigured environments keep the JSON path working.
 - **Images (admin):** `POST /admin/images/liveries/{roundId}/{entryId}` and
   `POST /admin/images/drivers/{driverId}` → `{ key, uploadUrl }` (presigned S3 PUT; browser converts to
   WebP and PUTs directly). Player UI builds display URLs by convention from `VITE_IMAGE_BASE_URL` (see

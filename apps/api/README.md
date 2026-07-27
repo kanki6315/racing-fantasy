@@ -72,6 +72,14 @@ dotnet user-secrets set "Aws:SecretAccessKey" "<secret-access-key>"
 dotnet user-secrets list
 ```
 
+## Entry-list PDF parser sidecar
+
+The optional pitpass-parser sidecar (entry-list PDF → JSON) is documented in
+[AGENTS.md](../../AGENTS.md) — see "Entry-list PDF parse" in the API surface for
+the endpoint/deploy story and "Run the backend locally" for the venv +
+`EntryListParser:Command` user-secret setup. Unconfigured, the parse-pdf
+endpoint 503s and the JSON import keeps working.
+
 The admin allowlist (`Authentication:AdminSubjects`) is intentionally **not** a secret —
 it's a list of Google `sub`s checked into `appsettings.Development.json`; for production set
 it via host config.
