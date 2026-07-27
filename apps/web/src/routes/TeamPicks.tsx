@@ -153,6 +153,9 @@ export function TeamPicks() {
         name: info?.displayName ?? `#${p.entityId}`,
         drivers: (info?.drivers ?? []).map((d) => lastName(d.fullName)),
         figure: scoredData ? (p.scores.length > 0 ? pf.fmt(p.points) : '—') : fmtMoney(p.price),
+        // Scorecard only. On a lineup card the figure already IS the price, so repeating it under
+        // itself would print the same number twice in the same column.
+        price: scoredData ? fmtMoney(p.price) : null,
         breakdown:
           scoredData && p.scores.length > 0
             ? p.scores.map((s) => `${sourceLabelLong(s, data.raceCount)} ${pf.delta(s.points)}`).join('   ')
@@ -185,6 +188,9 @@ export function TeamPicks() {
       teamName: data.teamName,
       heroValue: scoredData ? pf.fmt(data.total) : fmtMoney(spend),
       heroUnit: scoredData ? 'PTS' : `OF ${fmtMoney(cap)}`,
+      // What the result cost. The lineup card spends its whole hero on this figure already, so it
+      // would only be said twice there.
+      spend: scoredData ? `${fmtMoney(spend)} OF ${fmtMoney(cap)} CAP` : null,
       stageLabel: stageMeta.label.toUpperCase(),
       stageHex: stageMeta.hex,
       picks: cardPicks,

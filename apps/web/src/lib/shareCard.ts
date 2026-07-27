@@ -57,7 +57,9 @@ const ROW_L = 150
  *  the row's left padding is already 44px, so a 0px right padding read as a misprint. Every row's
  *  figure uses it, marked or not, so the column stays aligned to the digit. */
 const FIG_R = RIGHT - 20
-const HEADER_BOTTOM = 360
+/** Divider under the header. The spend line is scorecard-only, so the band grows only when it is
+ *  there rather than reserving a dead 32px strip on every lineup card. */
+const headerBottom = (hasSpend: boolean) => (hasSpend ? 392 : 360)
 const FOOTER_TOP = 1186
 
 export type ShareCardVariant = 'lineup' | 'scorecard'
@@ -70,6 +72,9 @@ export type ShareCardPick = {
   /** Right-hand figure: points once scored, price before. Pre-formatted by the caller so the card
    *  and the page beneath it can never print the same value in two dialects. */
   figure: string
+  /** What the pick cost, under its points — scorecard only, where `figure` is points rather than
+   *  price. Null on a lineup card, whose figure already IS the price. */
+  price: string | null
   /** `QUALI +48.0   RACE +364.0` — scorecard only. Spelled out, not the app's `Q`/`R`: see
    *  `sourceLabelLong`. */
   breakdown: string | null
@@ -89,6 +94,9 @@ export type ShareCardModel = {
   heroValue: string
   /** `PTS` / `OF $35.0M` */
   heroUnit: string
+  /** `$34.5M OF $35.0M CAP` — the budget the result was bought with. Scorecard only: a lineup card
+   *  already spends its hero on exactly this figure, so repeating it there would say it twice. */
+  spend: string | null
   stageLabel: string
   stageHex: string
   picks: ShareCardPick[]
@@ -189,6 +197,24 @@ function fitStepped(
   return { value: fit(ctx, value, font, maxWidth, tracking), font, tracking }
 }
 
+/**
+ * How far a string's glyphs actually reach above and below their baseline.
+ *
+ * Vertical alignment between two columns of different type sizes cannot be done from baselines
+ * alone: an 88px numeral carries ~63px of cap above its baseline where a 24px line carries ~17px, so
+ * two blocks sharing a baseline do not share a centre. `actualBoundingBox*` gives the real inked
+ * extent, which is the optical measure this needs. Falls back to cap/descender ratios on an engine
+ * that doesn't report it, where the alignment degrades to approximate rather than breaking.
+ */
+function vMetrics(ctx: Ctx, value: string, font: string, size: number) {
+  ctx.font = font
+  const m = ctx.measureText(value)
+  return {
+    asc: Number.isFinite(m.actualBoundingBoxAscent) ? m.actualBoundingBoxAscent : size * 0.72,
+    desc: Number.isFinite(m.actualBoundingBoxDescent) ? m.actualBoundingBoxDescent : size * 0.2,
+  }
+}
+
 function measure(ctx: Ctx, value: string, font: string, tracking = 0): number {
   ctx.font = font
   let w = 0
@@ -281,18 +307,6 @@ function drawHeader(ctx: Ctx, m: ShareCardModel) {
   const endW = measure(ctx, 'ENDURANCE', wm, -1)
   text(ctx, 'FANTASY', PAD + endW, 90, { font: wm, fill: C.brand, tracking: -1 })
 
-  // The hero figure claims the right edge first, so the team name knows how much room is left. Both
-  // sit on one baseline: the card's subject and its result, read as a single line.
-  //
-  // That baseline moved from 272 to 288, and the label above it from 198 to 190. The gap between the
-  // two was being measured from the label's baseline rather than from the hero's cap-top, and an
-  // 88px numeral has ~63px of cap above its baseline: the figure's top landed at y≈209 against
-  // descenders reaching y≈203. Six pixels, which read as the two lines colliding. It is ~30px now.
-  const heroFont = mono(88, 700)
-  text(ctx, m.heroValue, RIGHT, 288, { font: heroFont, fill: C.ink, align: 'right' })
-  text(ctx, m.heroUnit, RIGHT, 324, { font: mono(20, 500), fill: C.muted, align: 'right', tracking: track(20) })
-  const heroW = Math.max(measure(ctx, m.heroValue, heroFont), measure(ctx, m.heroUnit, mono(20, 500), track(20)))
-
   // "WeatherTech SportsCar Championship · Sahlen's Six Hours of the Glen" is 68 characters; a real
   // championship-plus-round line steps down rather than losing the round name to an ellipsis.
   const label = `${m.championship} · ${m.roundName}`.toUpperCase()
@@ -301,20 +315,62 @@ function drawHeader(ctx: Ctx, m: ShareCardModel) {
   const head = fitStepped(ctx, label, [22, 20, 18, 16], (s) => mono(s, 500), CARD_W - PAD * 2, 0.08)
   text(ctx, head.value, PAD, 190, { font: head.font, fill: C.muted, tracking: head.tracking })
 
+  // The hero's width is measured before anything is drawn, because the team name's available width
+  // depends on it — but its vertical position depends on the *left* column, so nothing is committed
+  // to the canvas until both are known.
+  const heroSize = 88
+  const unitSize = 20
+  const heroFont = mono(heroSize, 700)
+  const unitFont = mono(unitSize, 500)
+  const heroW = Math.max(measure(ctx, m.heroValue, heroFont), measure(ctx, m.heroUnit, unitFont, track(unitSize)))
+
   // The ladder runs to 34px. It used to stop at 44, where a 29-character team name — "Bartholomew
   // Racing Collective", nothing exotic — still needed 638px against the 611px the hero figure left
   // it, and got cut to "BARTHOLOMEW RACING COLLE…". The team name is the one element that says whose
   // card this is; truncating it defeats the artifact, and 34px is still 1.6× the body size, so the
   // hierarchy holds long before legibility does.
   const nameMax = RIGHT - heroW - 40 - PAD
-  const name = fitStepped(ctx, m.teamName.toUpperCase(), [66, 58, 50, 44, 38, 34], (s) => display(s), nameMax)
+  const nameSizes = [66, 58, 50, 44, 38, 34]
+  const name = fitStepped(ctx, m.teamName.toUpperCase(), nameSizes, (s) => display(s), nameMax)
+  const nameSize = nameSizes.find((s) => display(s) === name.font) ?? 34
+
+  // THE HERO IS CENTRED ON THE LEFT COLUMN, not baselined with the team name.
+  //
+  // Sharing a baseline is right when both sides are one line. The left column is now three — team,
+  // circuit + date, spend — so a two-line hero pinned to the top baseline sat visibly high against
+  // it, top-heavy on the right and bottom-heavy on the left. Centring the hero block against the
+  // full left block fixes it for every case rather than by a tuned constant: the offset falls out of
+  // the real glyph extents, so it self-corrects when the team name steps down a size, when there is
+  // no circuit, and on a lineup card, whose left column is two lines and needs almost no shift.
+  const nameV = vMetrics(ctx, name.value, name.font, nameSize)
+  const leftTop = 288 - nameV.asc
+  let leftBottom = 288 + nameV.desc
+  if (m.circuit) leftBottom = 328 + vMetrics(ctx, m.circuit, sans(24), 24).desc
+  if (m.spend) leftBottom = 360 + vMetrics(ctx, m.spend, mono(21, 500), 21).desc
+
+  const heroTop = 288 - vMetrics(ctx, m.heroValue, heroFont, heroSize).asc
+  const heroBottom = 324 + vMetrics(ctx, m.heroUnit, unitFont, unitSize).desc
+  const dy = Math.round((leftTop + leftBottom) / 2 - (heroTop + heroBottom) / 2)
+
+  text(ctx, m.heroValue, RIGHT, 288 + dy, { font: heroFont, fill: C.ink, align: 'right' })
+  text(ctx, m.heroUnit, RIGHT, 324 + dy, { font: unitFont, fill: C.muted, align: 'right', tracking: track(unitSize) })
+
   text(ctx, name.value, PAD, 288, { font: name.font, fill: C.ink })
 
   if (m.circuit) {
     text(ctx, fit(ctx, m.circuit, sans(24), nameMax), PAD, 328, { font: sans(24), fill: C.muted })
   }
 
-  hairline(ctx, PAD, RIGHT, HEADER_BOTTOM)
+  // The budget the result was bought with, on its own line under the circuit.
+  //
+  // It sits in the left "context" column rather than under the hero, because the right column is
+  // already a stack — figure, then unit — and a third entry there would read as part of the score.
+  // Mono, because it is data; muted, because the points are the headline and this qualifies them.
+  if (m.spend) {
+    text(ctx, m.spend, PAD, 360, { font: mono(21, 500), fill: C.muted, tracking: track(21) })
+  }
+
+  hairline(ctx, PAD, RIGHT, headerBottom(!!m.spend))
 }
 
 function drawPitLane(ctx: Ctx, m: ShareCardModel, top: number, bottom: number) {
@@ -382,7 +438,13 @@ function drawPitLane(ctx: Ctx, m: ShareCardModel, top: number, bottom: number) {
     slash(ctx, ROW_L + 14, ty + (rowH - slashH) / 2, 5, slashH, p.classHex)
 
     const figureFont = mono(compact ? 34 : 44, 700)
-    const figureW = measure(ctx, p.figure, figureFont)
+    // The wider of the two stacked figures reserves the column, so a long price can never be run
+    // into by the text to its left even when the points value above it is short.
+    const priceFont = mono(compact ? 16 : 19, 500)
+    const figureW = Math.max(
+      measure(ctx, p.figure, figureFont),
+      p.price ? measure(ctx, p.price, priceFont, track(compact ? 16 : 19)) : 0,
+    )
     const textL = ROW_L + 44
     const textR = FIG_R - figureW - 28
     const maxText = textR - textL
@@ -438,13 +500,20 @@ function drawPitLane(ctx: Ctx, m: ShareCardModel, top: number, bottom: number) {
       baseline += lines[li + 1]?.lh ?? 0
     })
 
-    // No per-row unit. The header states it once, and eight stacked `PTS` labels under eight figures
-    // in the same column is a caption repeated for every row of a table that has one heading.
-    text(ctx, p.figure, FIG_R, ty + rowH / 2 + (compact ? 11 : 15), {
-      font: figureFont,
-      fill: C.ink,
-      align: 'right',
-    })
+    // The slot under the figure holds the pick's price, not a `PTS` caption. Eight stacked `PTS`
+    // labels were the same word repeated under every row of a column that has one heading; a price
+    // is different data on every row, and it is the other half of the game — a salary-cap league is
+    // played on points per dollar, so a scorecard that shows only points describes half the decision.
+    const figY = ty + rowH / 2 + (compact ? 11 : 15) - (p.price ? (compact ? 8 : 10) : 0)
+    text(ctx, p.figure, FIG_R, figY, { font: figureFont, fill: C.ink, align: 'right' })
+    if (p.price) {
+      text(ctx, p.price, FIG_R, figY + (compact ? 22 : 28), {
+        font: priceFont,
+        fill: C.muted,
+        align: 'right',
+        tracking: track(compact ? 16 : 19),
+      })
+    }
 
     if (idx < picks.length - 1) hairline(ctx, ROW_L, RIGHT, ty + rowH - 1)
   })
@@ -572,12 +641,13 @@ export async function renderShareCard(model: ShareCardModel): Promise<Blob> {
 
   drawHeader(ctx, model)
 
+  const headTop = headerBottom(!!model.spend)
   const bonusH = model.bonuses.length > 0 ? 32 + model.bonuses.length * 62 : 0
   const laneBottom = FOOTER_TOP - bonusH
   if (model.picks.length > 0) {
-    drawPitLane(ctx, model, HEADER_BOTTOM, laneBottom)
+    drawPitLane(ctx, model, headTop, laneBottom)
   } else {
-    text(ctx, 'NO LINEUP SET', CARD_W / 2, (HEADER_BOTTOM + laneBottom) / 2, {
+    text(ctx, 'NO LINEUP SET', CARD_W / 2, (headTop + laneBottom) / 2, {
       font: display(40, 800),
       fill: C.line3,
       align: 'center',
