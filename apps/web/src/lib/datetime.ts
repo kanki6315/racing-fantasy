@@ -16,6 +16,18 @@ export function fmtLockTime(iso: string) {
   return `${wd} · ${md} · ${t}`.toUpperCase()
 }
 
+/**
+ * "Oct 11, 2026" — the calendar date alone, for artifacts that outlive the weekend.
+ *
+ * The share card needs this and the countdown formats above do not supply it: they answer "when is
+ * the deadline?" and deliberately omit the year, which is the one component a shared image cannot do
+ * without. Events recur annually, so a picture captioned "Petit Le Mans" with no year is unreadable
+ * six months later — including to the person who made it.
+ */
+export function fmtRaceDate(iso: string) {
+  return new Date(iso).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })
+}
+
 /** Sentence-case variant for prose and accessible labels: "Sat, Jul 30 at 11:05 AM". */
 export function fmtLockTimeLong(iso: string) {
   const d = new Date(iso)

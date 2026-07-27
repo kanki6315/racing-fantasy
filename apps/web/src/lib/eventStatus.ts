@@ -58,6 +58,21 @@ export function deriveEventStatus(e: StatusEvent, now: number = Date.now()): Eve
   return 'WAITING'
 }
 
+/**
+ * The same derivation for a surface that holds ONE round rather than a whole weekend — the standings
+ * drill-in, and the share card rendered from it. A round reached through that page is already past
+ * its lock (the API gates the endpoint on it), so `picksOpen` is moot and only the quali time and the
+ * scored flag carry information. Routed through `deriveEventStatus` rather than reimplemented, so a
+ * round and the weekend containing it can never name the same moment differently.
+ */
+export function deriveRoundStatus(
+  round: { qualiStart: string },
+  scored: boolean,
+  now: number = Date.now(),
+): EventStatus {
+  return deriveEventStatus({ picksOpen: true, scored, finalized: false, rounds: [round] }, now)
+}
+
 /** Statuses the player Dashboard surfaces — Waiting (not released) and Closed (finalized) drop off. */
 export const SHOWN_ON_DASHBOARD: readonly EventStatus[] = ['OPEN', 'IN_PROGRESS', 'AWAITING', 'SCORED']
 
@@ -65,12 +80,52 @@ export function isShownOnDashboard(status: EventStatus): boolean {
   return SHOWN_ON_DASHBOARD.includes(status)
 }
 
-/** Label + Tailwind color classes (border/bg/text) per status; layout/sizing is the caller's. */
-export const EVENT_STATUS_META: Record<EventStatus, { label: string; className: string }> = {
-  WAITING: { label: 'Waiting to Open', className: 'border-line-2 bg-surface-2 text-muted' },
-  OPEN: { label: 'Picks Open', className: 'border-success/40 bg-success/10 text-success' },
-  IN_PROGRESS: { label: 'In Progress', className: 'border-warn/40 bg-warn/10 text-warn' },
-  AWAITING: { label: 'Awaiting Results', className: 'border-line-2 bg-surface-2 text-ink-2' },
-  SCORED: { label: 'Scored', className: 'border-line-3 bg-ink/10 text-ink' },
-  CLOSED: { label: 'Final', className: 'border-line-2 bg-surface-2 text-muted' },
+/**
+ * Label + Tailwind color classes (border/bg/text) per status; layout/sizing is the caller's.
+ *
+ * `dotClassName` is the fill for the leading dot pills carry, and `hex` the same colour as a raw
+ * value for surfaces that can't use a class — the share card draws to a canvas, where Tailwind does
+ * not reach. Both are derived from the same row as `className` so a status cannot wear one colour in
+ * the DOM and another in an exported image.
+ */
+export const EVENT_STATUS_META: Record<
+  EventStatus,
+  { label: string; className: string; dotClassName: string; hex: string }
+> = {
+  WAITING: {
+    label: 'Waiting to Open',
+    className: 'border-line-2 bg-surface-2 text-muted',
+    dotClassName: 'bg-muted-2',
+    hex: '#8a8f98',
+  },
+  OPEN: {
+    label: 'Picks Open',
+    className: 'border-success/40 bg-success/10 text-success',
+    dotClassName: 'bg-success',
+    hex: '#2dd4bf',
+  },
+  IN_PROGRESS: {
+    label: 'In Progress',
+    className: 'border-warn/40 bg-warn/10 text-warn',
+    dotClassName: 'bg-warn',
+    hex: '#ff9e2c',
+  },
+  AWAITING: {
+    label: 'Awaiting Results',
+    className: 'border-line-2 bg-surface-2 text-ink-2',
+    dotClassName: 'bg-ink-2',
+    hex: '#c8ccd2',
+  },
+  SCORED: {
+    label: 'Scored',
+    className: 'border-line-3 bg-ink/10 text-ink',
+    dotClassName: 'bg-ink',
+    hex: '#ffffff',
+  },
+  CLOSED: {
+    label: 'Final',
+    className: 'border-line-2 bg-surface-2 text-muted',
+    dotClassName: 'bg-muted',
+    hex: '#8a8f98',
+  },
 }

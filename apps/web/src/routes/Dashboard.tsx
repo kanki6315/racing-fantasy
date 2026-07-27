@@ -796,9 +796,15 @@ function PicksRow({
           <span className="font-mono text-[11px] uppercase tracking-[0.08em] text-muted">Round missed</span>
         ) : (
           <Link
-            // A scored round's lineup belongs on the results page, which shows what each pick earned
+            // A locked round's lineup belongs on the results page, which shows what each pick earned
             // and its Q/R breakdown — not on the pick board, which is an editor with nothing to edit.
-            to={showResults ? `/standings/team/${reg.id}/round/${round.id}` : `/pick/${round.id}`}
+            //
+            // The cutover is `locked`, not `showResults`: a lineup that is locked but not yet scored
+            // used to land on the pick board too, and that page is the same dead editor there. It is
+            // also the only route to the round's share card, and a standings round board does not
+            // exist until scoring runs — so before this, a locked-but-unscored weekend had no way to
+            // reach its own lineup page at all.
+            to={locked ? `/standings/team/${reg.id}/round/${round.id}` : `/pick/${round.id}`}
             className={`flex h-[38px] w-full items-center justify-center rounded-[3px] px-[18px] font-display text-[14px] font-semibold uppercase tracking-[0.04em] transition-colors pointer-coarse:h-11 sm:w-auto ${
               isPrimary
                 ? 'bg-brand font-bold italic text-ink hover:bg-brand-2'
@@ -807,7 +813,7 @@ function PicksRow({
                   : 'border border-line-2 text-ink-2 hover:border-line-3 hover:text-ink'
             }`}
           >
-            {showResults ? 'View Results →' : locked ? 'View Lineup' : picks > 0 ? 'Edit Picks' : 'Make Picks →'}
+            {showResults ? 'View Results →' : locked ? 'View Lineup →' : picks > 0 ? 'Edit Picks' : 'Make Picks →'}
           </Link>
         )}
       </div>
