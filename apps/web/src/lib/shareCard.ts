@@ -197,6 +197,24 @@ function fitStepped(
   return { value: fit(ctx, value, font, maxWidth, tracking), font, tracking }
 }
 
+/**
+ * How far a string's glyphs actually reach above and below their baseline.
+ *
+ * Vertical alignment between two columns of different type sizes cannot be done from baselines
+ * alone: an 88px numeral carries ~63px of cap above its baseline where a 24px line carries ~17px, so
+ * two blocks sharing a baseline do not share a centre. `actualBoundingBox*` gives the real inked
+ * extent, which is the optical measure this needs. Falls back to cap/descender ratios on an engine
+ * that doesn't report it, where the alignment degrades to approximate rather than breaking.
+ */
+function vMetrics(ctx: Ctx, value: string, font: string, size: number) {
+  ctx.font = font
+  const m = ctx.measureText(value)
+  return {
+    asc: Number.isFinite(m.actualBoundingBoxAscent) ? m.actualBoundingBoxAscent : size * 0.72,
+    desc: Number.isFinite(m.actualBoundingBoxDescent) ? m.actualBoundingBoxDescent : size * 0.2,
+  }
+}
+
 function measure(ctx: Ctx, value: string, font: string, tracking = 0): number {
   ctx.font = font
   let w = 0
@@ -289,18 +307,6 @@ function drawHeader(ctx: Ctx, m: ShareCardModel) {
   const endW = measure(ctx, 'ENDURANCE', wm, -1)
   text(ctx, 'FANTASY', PAD + endW, 90, { font: wm, fill: C.brand, tracking: -1 })
 
-  // The hero figure claims the right edge first, so the team name knows how much room is left. Both
-  // sit on one baseline: the card's subject and its result, read as a single line.
-  //
-  // That baseline moved from 272 to 288, and the label above it from 198 to 190. The gap between the
-  // two was being measured from the label's baseline rather than from the hero's cap-top, and an
-  // 88px numeral has ~63px of cap above its baseline: the figure's top landed at y≈209 against
-  // descenders reaching y≈203. Six pixels, which read as the two lines colliding. It is ~30px now.
-  const heroFont = mono(88, 700)
-  text(ctx, m.heroValue, RIGHT, 288, { font: heroFont, fill: C.ink, align: 'right' })
-  text(ctx, m.heroUnit, RIGHT, 324, { font: mono(20, 500), fill: C.muted, align: 'right', tracking: track(20) })
-  const heroW = Math.max(measure(ctx, m.heroValue, heroFont), measure(ctx, m.heroUnit, mono(20, 500), track(20)))
-
   // "WeatherTech SportsCar Championship · Sahlen's Six Hours of the Glen" is 68 characters; a real
   // championship-plus-round line steps down rather than losing the round name to an ellipsis.
   const label = `${m.championship} · ${m.roundName}`.toUpperCase()
@@ -309,13 +315,46 @@ function drawHeader(ctx: Ctx, m: ShareCardModel) {
   const head = fitStepped(ctx, label, [22, 20, 18, 16], (s) => mono(s, 500), CARD_W - PAD * 2, 0.08)
   text(ctx, head.value, PAD, 190, { font: head.font, fill: C.muted, tracking: head.tracking })
 
+  // The hero's width is measured before anything is drawn, because the team name's available width
+  // depends on it — but its vertical position depends on the *left* column, so nothing is committed
+  // to the canvas until both are known.
+  const heroSize = 88
+  const unitSize = 20
+  const heroFont = mono(heroSize, 700)
+  const unitFont = mono(unitSize, 500)
+  const heroW = Math.max(measure(ctx, m.heroValue, heroFont), measure(ctx, m.heroUnit, unitFont, track(unitSize)))
+
   // The ladder runs to 34px. It used to stop at 44, where a 29-character team name — "Bartholomew
   // Racing Collective", nothing exotic — still needed 638px against the 611px the hero figure left
   // it, and got cut to "BARTHOLOMEW RACING COLLE…". The team name is the one element that says whose
   // card this is; truncating it defeats the artifact, and 34px is still 1.6× the body size, so the
   // hierarchy holds long before legibility does.
   const nameMax = RIGHT - heroW - 40 - PAD
-  const name = fitStepped(ctx, m.teamName.toUpperCase(), [66, 58, 50, 44, 38, 34], (s) => display(s), nameMax)
+  const nameSizes = [66, 58, 50, 44, 38, 34]
+  const name = fitStepped(ctx, m.teamName.toUpperCase(), nameSizes, (s) => display(s), nameMax)
+  const nameSize = nameSizes.find((s) => display(s) === name.font) ?? 34
+
+  // THE HERO IS CENTRED ON THE LEFT COLUMN, not baselined with the team name.
+  //
+  // Sharing a baseline is right when both sides are one line. The left column is now three — team,
+  // circuit + date, spend — so a two-line hero pinned to the top baseline sat visibly high against
+  // it, top-heavy on the right and bottom-heavy on the left. Centring the hero block against the
+  // full left block fixes it for every case rather than by a tuned constant: the offset falls out of
+  // the real glyph extents, so it self-corrects when the team name steps down a size, when there is
+  // no circuit, and on a lineup card, whose left column is two lines and needs almost no shift.
+  const nameV = vMetrics(ctx, name.value, name.font, nameSize)
+  const leftTop = 288 - nameV.asc
+  let leftBottom = 288 + nameV.desc
+  if (m.circuit) leftBottom = 328 + vMetrics(ctx, m.circuit, sans(24), 24).desc
+  if (m.spend) leftBottom = 360 + vMetrics(ctx, m.spend, mono(21, 500), 21).desc
+
+  const heroTop = 288 - vMetrics(ctx, m.heroValue, heroFont, heroSize).asc
+  const heroBottom = 324 + vMetrics(ctx, m.heroUnit, unitFont, unitSize).desc
+  const dy = Math.round((leftTop + leftBottom) / 2 - (heroTop + heroBottom) / 2)
+
+  text(ctx, m.heroValue, RIGHT, 288 + dy, { font: heroFont, fill: C.ink, align: 'right' })
+  text(ctx, m.heroUnit, RIGHT, 324 + dy, { font: unitFont, fill: C.muted, align: 'right', tracking: track(unitSize) })
+
   text(ctx, name.value, PAD, 288, { font: name.font, fill: C.ink })
 
   if (m.circuit) {
