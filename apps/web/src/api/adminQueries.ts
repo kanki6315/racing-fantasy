@@ -514,6 +514,30 @@ export type ParserEntryList = components['schemas']['ParserEntryList']
 export type EntryListImportResult = components['schemas']['EntryListImportResult']
 
 /**
+ * Parse an entry-list PDF server-side (the pitpass-parser sidecar) into the same ParserEntryList
+ * shape a hand-supplied JSON file holds. Parse-only: nothing is written, so no invalidations —
+ * the result feeds the normal dryRun/commit import flow.
+ */
+export function useParseEntryListPdf(roundId: number) {
+  return useMutation({
+    mutationFn: async (f: File) => {
+      const { data, error } = await api.POST('/rounds/{roundId}/entry-list/parse-pdf', {
+        params: { path: { roundId } },
+        // The generated type calls the binary part a string; hand fetch a FormData instead.
+        body: { file: f as unknown as string },
+        bodySerializer: () => {
+          const fd = new FormData()
+          fd.append('file', f)
+          return fd
+        },
+      })
+      if (error) throw error
+      return data! as ParserEntryList
+    },
+  })
+}
+
+/**
  * Import a parser-produced entry-list JSON into a round. dryRun=true returns the same result shape
  * as a preview without writing; the commit re-sends the file with dryRun=false. Classes the
  * championship doesn't have yet are created (name = class_code, order = class_order).

@@ -1789,6 +1789,49 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/rounds/{roundId}/entry-list/parse-pdf": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    roundId: number;
+                };
+                cookie?: never;
+            };
+            requestBody: {
+                content: {
+                    "multipart/form-data": {
+                        file: components["schemas"]["IFormFile"];
+                    };
+                };
+            };
+            responses: {
+                /** @description OK */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["ParserEntryList"];
+                    };
+                };
+            };
+        };
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/rounds/{roundId}/entry-list/import": {
         parameters: {
             query?: never;
@@ -3534,6 +3577,8 @@ export interface components {
             /** Format: int32 */
             leagues: number;
         };
+        /** Format: binary */
+        IFormFile: string;
         ImagePresignResponse: {
             key: string;
             uploadUrl: string;
@@ -3678,6 +3723,7 @@ export interface components {
             hometown: null | string;
             is_tbd: null | boolean;
             markers: null | string[];
+            unparsed: null | boolean;
         };
         ParserEntry: {
             class_name: null | string;

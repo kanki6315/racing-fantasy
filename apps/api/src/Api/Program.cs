@@ -5,6 +5,7 @@ using EnduranceFantasy.Api.Common;
 using EnduranceFantasy.Api.Email;
 using EnduranceFantasy.Api.Endpoints;
 using EnduranceFantasy.Api.Images;
+using EnduranceFantasy.Api.Parsing;
 using EnduranceFantasy.Api.Workers;
 using EnduranceFantasy.Infrastructure;
 using Microsoft.AspNetCore.HttpOverrides;
@@ -27,6 +28,7 @@ builder.Services.AddHostedService<LockSweepService>();
 builder.Services.AddScoped<EnduranceFantasy.Api.Scoring.ScoringService>();
 builder.Services.AddAuth(builder.Configuration);
 builder.Services.AddImageStorage(builder.Configuration);
+builder.Services.AddEntryListParser(builder.Configuration);
 
 // Picks-reminder emails (ADR-0009): config-bound options. The SES sender + worker are registered
 // below; both no-op until configured/enabled.
