@@ -15,6 +15,7 @@ import { fmtMoney, fmtPts, fmtTotal, hasScored, makePointsFormat, sourceLabel, s
 import { fmtRaceDate } from '../lib/datetime'
 import { deriveEventStatus, deriveRoundStatus, EVENT_STATUS_META } from '../lib/eventStatus'
 import { lastName } from '../lib/driverName'
+import { useAuth } from '../auth/AuthContext'
 import type { ShareCardModel, ShareCardPick } from '../lib/shareCard'
 import { EntityThumb } from '../components/EntityThumb'
 import { DriverLineup } from '../components/DriverLineup'
@@ -42,6 +43,18 @@ export function TeamPicks() {
   const events = useEvents()
   const roundBoard = useRoundLeaderboard(rid)
   const seasonBoard = useSeasonLeaderboard(round.data?.seasonId)
+
+  // Sharing is limited to your own team. `/auth/me` already carries the signed-in user's
+  // registrations (it is fetched at app boot and cached), so ownership is a local comparison rather
+  // than another request — the same check the dashboard's league rows already make. Matching on the
+  // registration id is exact, so a player registered across six championships needs no season logic.
+  //
+  // This is a UX gate, not a security boundary, and it is worth being clear about which: the page
+  // itself still renders any team's lineup, because GET .../picks has no ownership check by design
+  // (that is the opponent-picks feature). It is lock-gated, not owner-gated. Anyone determined to
+  // have a rival's card can screenshot the page. What this removes is the app *offering* to make one.
+  const { user } = useAuth()
+  const isOwnTeam = user?.registrations.some((r) => r.id === regId) ?? false
 
   // Join picks (entity refs + scores) with the price board for display names + lineups + thumbnails,
   // exactly as the pick page does.
@@ -80,6 +93,10 @@ export function TeamPicks() {
   const stageMeta = EVENT_STATUS_META[stage]
 
   const shareModel = useMemo<ShareCardModel | null>(() => {
+    // Gated here rather than at the button so a rival's page also skips building the model and the
+    // eager canvas render — measured at three renders per page load — instead of doing that work and
+    // then declining to show the result. `ShareCardButton` already renders nothing for a null model.
+    if (!isOwnTeam) return null
     const data = picks.data
     if (!data || !round.data || data.main.length === 0) return null
     const variant = scoredData ? 'scorecard' : 'lineup'
@@ -183,6 +200,7 @@ export function TeamPicks() {
       siteUrl: window.location.host,
     }
   }, [
+    isOwnTeam,
     picks.data,
     round.data,
     rules.data,
