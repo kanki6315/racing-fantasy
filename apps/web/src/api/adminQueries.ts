@@ -521,7 +521,7 @@ export type EntryListImportResult = components['schemas']['EntryListImportResult
 export function useParseEntryListPdf(roundId: number) {
   return useMutation({
     mutationFn: async (f: File) => {
-      const { data, error } = await api.POST('/rounds/{roundId}/entry-list/parse-pdf', {
+      const res = await api.POST('/rounds/{roundId}/entry-list/parse-pdf', {
         params: { path: { roundId } },
         // The generated type calls the binary part a string; hand fetch a FormData instead.
         body: { file: f as unknown as string },
@@ -531,8 +531,8 @@ export function useParseEntryListPdf(roundId: number) {
           return fd
         },
       })
-      if (error) throw error
-      return data! as ParserEntryList
+      // unwrap, not `if (error)`: a parser 502/504 with an empty body has a falsy `error`.
+      return unwrap(res)!
     },
   })
 }

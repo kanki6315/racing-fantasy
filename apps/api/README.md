@@ -74,26 +74,11 @@ dotnet user-secrets list
 
 ## Entry-list PDF parser sidecar
 
-`POST /rounds/{id}/entry-list/parse-pdf` shells out to the `parse-entry-list`
-console command from the **pitpass-parser** package (the parser lives in the
-broadcast-helper repo under `parser/`; see its SCHEMA.md for the contract and
-compatibility policy). Unconfigured, the endpoint 503s and the JSON import
-keeps working — the parser is optional per environment.
-
-Local setup (editable install, so parser edits in broadcast-helper are live
-here without reinstalling):
-
-```bash
-python3 -m venv ~/.venvs/pitpass-parser
-~/.venvs/pitpass-parser/bin/pip install -e ../../../broadcast-helper/parser
-cd src/Api
-dotnet user-secrets set "EntryListParser:Command" "$HOME/.venvs/pitpass-parser/bin/parse-entry-list"
-```
-
-In production the [Dockerfile](Dockerfile) bakes a venv and pip-installs the
-package from the broadcast-helper repo at the `PARSER_REF` tag; the build needs
-`GH_PARSER_TOKEN` (fine-grained PAT, read-only Contents on broadcast-helper) as
-a Railway service variable. To pick up a new parser release, bump `PARSER_REF`.
+The optional pitpass-parser sidecar (entry-list PDF → JSON) is documented in
+[AGENTS.md](../../AGENTS.md) — see "Entry-list PDF parse" in the API surface for
+the endpoint/deploy story and "Run the backend locally" for the venv +
+`EntryListParser:Command` user-secret setup. Unconfigured, the parse-pdf
+endpoint 503s and the JSON import keeps working.
 
 The admin allowlist (`Authentication:AdminSubjects`) is intentionally **not** a secret —
 it's a list of Google `sub`s checked into `appsettings.Development.json`; for production set

@@ -48,7 +48,16 @@ public static class EntryListImportEndpoints
                 });
 
             await using var pdf = file.OpenReadStream();
-            var run = await parser.RunAsync(pdf, file.FileName, ct);
+            ParserRunResult run;
+            try
+            {
+                run = await parser.RunAsync(pdf, file.FileName, ct);
+            }
+            catch (InvalidOperationException e) // configured command missing/unstartable
+            {
+                return Results.Problem(title: "PDF parser could not be started", detail: e.Message,
+                    statusCode: StatusCodes.Status503ServiceUnavailable);
+            }
 
             if (run.TimedOut)
                 return Results.Problem(title: "PDF parser timed out",
@@ -93,12 +102,21 @@ public static class EntryListImportEndpoints
             // mismatches (wrong file dropped on the wrong round) instead of guessing.
             if (file.Event is { } ev)
             {
-                if (!string.IsNullOrWhiteSpace(ev.Series)
-                    && !string.Equals(ev.Series, season.Championship.Slug, StringComparison.OrdinalIgnoreCase))
+                if (string.IsNullOrWhiteSpace(ev.Series))
+                    warnings.Add("file carries no series code (renamed PDF? the parser reads it from the " +
+                                 "filename) — could not verify this file belongs to this championship");
+                else if (!string.Equals(ev.Series, season.Championship.Slug, StringComparison.OrdinalIgnoreCase))
                     warnings.Add($"file is for series '{ev.Series}' but the round belongs to " +
                                  $"'{season.Championship.Name}' (slug '{season.Championship.Slug}') — check the target round");
                 if (DateOnly.TryParse(ev.StartDate, out var start) && start.Year != season.Year)
                     warnings.Add($"file event starts {ev.StartDate} but the round's season is {season.Year}");
+                if (ev.TotalEntries is int total && total != file.Entries.Count)
+                    warnings.Add($"file header says {total} entries but {file.Entries.Count} were parsed — " +
+                                 "the parser may have dropped some; compare against the PDF before importing");
+            }
+            else
+            {
+                warnings.Add("file has no event block — could not verify series or season");
             }
 
             // ---- Lookups: classes / cars keyed by class NAME so not-yet-saved classes (id 0) work ----

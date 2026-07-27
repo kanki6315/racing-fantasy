@@ -44,8 +44,18 @@ public sealed class EntryListParser(EntryListParserOptions o)
                 RedirectStandardError = true,
             };
             psi.ArgumentList.Add(pdfPath);
-            using var proc = Process.Start(psi)
-                ?? throw new InvalidOperationException($"Could not start parser '{o.Command}'.");
+            Process proc;
+            try
+            {
+                // A missing/stale Command path surfaces as Win32Exception, not a null return.
+                proc = Process.Start(psi)
+                    ?? throw new InvalidOperationException($"Could not start parser '{o.Command}'.");
+            }
+            catch (System.ComponentModel.Win32Exception e)
+            {
+                throw new InvalidOperationException($"Could not start parser '{o.Command}': {e.Message}", e);
+            }
+            using var _ = proc;
 
             // Drain both pipes concurrently: the parser writes JSON to stdout and its summary to
             // stderr, and waiting before reading can deadlock once either pipe's buffer fills.
