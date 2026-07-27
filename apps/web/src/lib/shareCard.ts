@@ -57,7 +57,9 @@ const ROW_L = 150
  *  the row's left padding is already 44px, so a 0px right padding read as a misprint. Every row's
  *  figure uses it, marked or not, so the column stays aligned to the digit. */
 const FIG_R = RIGHT - 20
-const HEADER_BOTTOM = 360
+/** Divider under the header. The spend line is scorecard-only, so the band grows only when it is
+ *  there rather than reserving a dead 32px strip on every lineup card. */
+const headerBottom = (hasSpend: boolean) => (hasSpend ? 392 : 360)
 const FOOTER_TOP = 1186
 
 export type ShareCardVariant = 'lineup' | 'scorecard'
@@ -70,6 +72,9 @@ export type ShareCardPick = {
   /** Right-hand figure: points once scored, price before. Pre-formatted by the caller so the card
    *  and the page beneath it can never print the same value in two dialects. */
   figure: string
+  /** What the pick cost, under its points — scorecard only, where `figure` is points rather than
+   *  price. Null on a lineup card, whose figure already IS the price. */
+  price: string | null
   /** `QUALI +48.0   RACE +364.0` — scorecard only. Spelled out, not the app's `Q`/`R`: see
    *  `sourceLabelLong`. */
   breakdown: string | null
@@ -89,6 +94,9 @@ export type ShareCardModel = {
   heroValue: string
   /** `PTS` / `OF $35.0M` */
   heroUnit: string
+  /** `$34.5M OF $35.0M CAP` — the budget the result was bought with. Scorecard only: a lineup card
+   *  already spends its hero on exactly this figure, so repeating it there would say it twice. */
+  spend: string | null
   stageLabel: string
   stageHex: string
   picks: ShareCardPick[]
@@ -314,7 +322,16 @@ function drawHeader(ctx: Ctx, m: ShareCardModel) {
     text(ctx, fit(ctx, m.circuit, sans(24), nameMax), PAD, 328, { font: sans(24), fill: C.muted })
   }
 
-  hairline(ctx, PAD, RIGHT, HEADER_BOTTOM)
+  // The budget the result was bought with, on its own line under the circuit.
+  //
+  // It sits in the left "context" column rather than under the hero, because the right column is
+  // already a stack — figure, then unit — and a third entry there would read as part of the score.
+  // Mono, because it is data; muted, because the points are the headline and this qualifies them.
+  if (m.spend) {
+    text(ctx, m.spend, PAD, 360, { font: mono(21, 500), fill: C.muted, tracking: track(21) })
+  }
+
+  hairline(ctx, PAD, RIGHT, headerBottom(!!m.spend))
 }
 
 function drawPitLane(ctx: Ctx, m: ShareCardModel, top: number, bottom: number) {
@@ -382,7 +399,13 @@ function drawPitLane(ctx: Ctx, m: ShareCardModel, top: number, bottom: number) {
     slash(ctx, ROW_L + 14, ty + (rowH - slashH) / 2, 5, slashH, p.classHex)
 
     const figureFont = mono(compact ? 34 : 44, 700)
-    const figureW = measure(ctx, p.figure, figureFont)
+    // The wider of the two stacked figures reserves the column, so a long price can never be run
+    // into by the text to its left even when the points value above it is short.
+    const priceFont = mono(compact ? 16 : 19, 500)
+    const figureW = Math.max(
+      measure(ctx, p.figure, figureFont),
+      p.price ? measure(ctx, p.price, priceFont, track(compact ? 16 : 19)) : 0,
+    )
     const textL = ROW_L + 44
     const textR = FIG_R - figureW - 28
     const maxText = textR - textL
@@ -438,13 +461,20 @@ function drawPitLane(ctx: Ctx, m: ShareCardModel, top: number, bottom: number) {
       baseline += lines[li + 1]?.lh ?? 0
     })
 
-    // No per-row unit. The header states it once, and eight stacked `PTS` labels under eight figures
-    // in the same column is a caption repeated for every row of a table that has one heading.
-    text(ctx, p.figure, FIG_R, ty + rowH / 2 + (compact ? 11 : 15), {
-      font: figureFont,
-      fill: C.ink,
-      align: 'right',
-    })
+    // The slot under the figure holds the pick's price, not a `PTS` caption. Eight stacked `PTS`
+    // labels were the same word repeated under every row of a column that has one heading; a price
+    // is different data on every row, and it is the other half of the game — a salary-cap league is
+    // played on points per dollar, so a scorecard that shows only points describes half the decision.
+    const figY = ty + rowH / 2 + (compact ? 11 : 15) - (p.price ? (compact ? 8 : 10) : 0)
+    text(ctx, p.figure, FIG_R, figY, { font: figureFont, fill: C.ink, align: 'right' })
+    if (p.price) {
+      text(ctx, p.price, FIG_R, figY + (compact ? 22 : 28), {
+        font: priceFont,
+        fill: C.muted,
+        align: 'right',
+        tracking: track(compact ? 16 : 19),
+      })
+    }
 
     if (idx < picks.length - 1) hairline(ctx, ROW_L, RIGHT, ty + rowH - 1)
   })
@@ -572,12 +602,13 @@ export async function renderShareCard(model: ShareCardModel): Promise<Blob> {
 
   drawHeader(ctx, model)
 
+  const headTop = headerBottom(!!model.spend)
   const bonusH = model.bonuses.length > 0 ? 32 + model.bonuses.length * 62 : 0
   const laneBottom = FOOTER_TOP - bonusH
   if (model.picks.length > 0) {
-    drawPitLane(ctx, model, HEADER_BOTTOM, laneBottom)
+    drawPitLane(ctx, model, headTop, laneBottom)
   } else {
-    text(ctx, 'NO LINEUP SET', CARD_W / 2, (HEADER_BOTTOM + laneBottom) / 2, {
+    text(ctx, 'NO LINEUP SET', CARD_W / 2, (headTop + laneBottom) / 2, {
       font: display(40, 800),
       fill: C.line3,
       align: 'center',
