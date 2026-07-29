@@ -552,52 +552,10 @@ for (let frame = 0; frame < FPS * DURATION; frame += 1) {
 }
 await browser.close()
 
-// Original UI sound design: low pulse + click confirmations + end sting.
-const sampleRate = 48000
-const samples = sampleRate * DURATION
-const pcm = Buffer.alloc(samples * 4)
-const hits = [0.05, 1, 2.05, 2.4, 3.12, 3.7, 4.08, 4.82, 5.04, 5.8, 6.04, 6.82, 7.6, 8.7, 9.5, 10.85, 11.32, 12.6]
-for (let i = 0; i < samples; i += 1) {
-  const t = i / sampleRate
-  let v = .012 * Math.sin(2 * Math.PI * 55 * t) * (.3 + .7 * Math.pow(Math.max(0, Math.sin(2 * Math.PI * 2 * t)), 10))
-  for (const hit of hits) {
-    const dt = t - hit
-    if (dt >= 0 && dt < .16) {
-      const env = Math.exp(-dt * 31)
-      v += .055 * env * Math.sin(2 * Math.PI * 720 * dt)
-      v += .023 * env * Math.sin(2 * Math.PI * 94 * dt)
-    }
-  }
-  if (t > 12.6 && t < 14.7) {
-    const dt = t - 12.6
-    const env = Math.min(1, dt * 3) * Math.min(1, (14.7 - t) * 2)
-    v += .025 * env * Math.sin(2 * Math.PI * (180 + dt * 65) * dt)
-  }
-  const s = Math.max(-1, Math.min(1, v * 3))
-  const n = Math.round(s * 32767)
-  pcm.writeInt16LE(n, i * 4)
-  pcm.writeInt16LE(n, i * 4 + 2)
-}
-
-const wav = Buffer.alloc(44 + pcm.length)
-wav.write('RIFF', 0)
-wav.writeUInt32LE(36 + pcm.length, 4)
-wav.write('WAVEfmt ', 8)
-wav.writeUInt32LE(16, 16)
-wav.writeUInt16LE(1, 20)
-wav.writeUInt16LE(2, 22)
-wav.writeUInt32LE(sampleRate, 24)
-wav.writeUInt32LE(sampleRate * 4, 28)
-wav.writeUInt16LE(4, 32)
-wav.writeUInt16LE(16, 34)
-wav.write('data', 36)
-wav.writeUInt32LE(pcm.length, 40)
-pcm.copy(wav, 44)
-fs.writeFileSync(path.join(OUTPUT, 'sound-design.wav'), wav)
-
 const videoOnly = path.join(OUTPUT, 'video-only.mp4')
 const finalVideo = path.join(OUTPUT, 'endurance-fantasy-promo-vertical.mp4')
 const poster = path.join(OUTPUT, 'endurance-fantasy-promo-poster.png')
+const soundtrack = path.join(ROOT, 'audio', 'on-the-trail-preview.mp3')
 
 const encode = spawnSync('ffmpeg', [
   '-y', '-framerate', String(FPS), '-i', path.join(FRAMES, '%04d.png'),
@@ -607,7 +565,8 @@ const encode = spawnSync('ffmpeg', [
 if (encode.status !== 0) process.exit(encode.status ?? 1)
 
 const mux = spawnSync('ffmpeg', [
-  '-y', '-i', videoOnly, '-i', path.join(OUTPUT, 'sound-design.wav'),
+  '-y', '-i', videoOnly, '-i', soundtrack,
+  '-map', '0:v:0', '-map', '1:a:0',
   '-c:v', 'copy', '-c:a', 'aac', '-b:a', '192k', '-shortest', '-movflags', '+faststart', finalVideo,
 ], { stdio: 'inherit' })
 if (mux.status !== 0) process.exit(mux.status ?? 1)

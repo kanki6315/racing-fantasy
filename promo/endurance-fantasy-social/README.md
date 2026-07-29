@@ -23,6 +23,10 @@ The illustrated lineup totals exactly $35.0M.
 The font assets are the same production Google Fonts requested by `apps/web/index.html`:
 Saira Semi Condensed (500–800), Saira, and Spline Sans Mono.
 
+The only audio is `audio/on-the-trail-preview.mp3`, supplied from “On the Trail” by Christian
+Nanzell. The renderer trims the track to the 15-second video; it does not generate or layer any
+additional sound effects or music.
+
 ## Render
 
 ```bash
@@ -35,7 +39,6 @@ Outputs:
 
 - `output/endurance-fantasy-promo-vertical.mp4`
 - `output/endurance-fantasy-promo-poster.png`
-- `output/sound-design.wav`
 
 The MP4 is H.264/AAC with fast-start enabled and is suitable for Instagram Reels, TikTok, and
 YouTube Shorts.

@@ -82,7 +82,6 @@ docs/*-handoff.zip
 # Social promo render cache and intermediate media. Final MP4/poster stay tracked.
 promo/endurance-fantasy-social/frames-png/
 promo/endurance-fantasy-social/output/video-only.mp4
-promo/endurance-fantasy-social/output/sound-design.wav
 
 # ───────────────────────────── Logs ───────────────────────────
 *.log
