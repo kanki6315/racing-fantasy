@@ -17,6 +17,9 @@ The car thumbnails use the exact class-tinted fallback icon from `EntityThumb`. 
 the application’s mobile navigation, event hero, header band, class requirement pills, pit-lane rows,
 modifier panel, button geometry, status vocabulary, and 2–4px corner language.
 
+Prices and the $35.0M cap mirror the live production WeatherTech board for Road America (round 7).
+The illustrated lineup totals exactly $35.0M.
+
 The font assets are the same production Google Fonts requested by `apps/web/index.html`:
 Saira Semi Condensed (500–800), Saira, and Spline Sans Mono.
 

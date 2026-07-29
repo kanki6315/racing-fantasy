@@ -47,10 +47,10 @@ const classes = [
 ]
 
 const picks = [
-  { number: '31', team: 'CADILLAC WHELEN', cls: classes[0], price: 15, drivers: ['AITKEN', 'BAMBER', 'VESTI'] },
-  { number: '11', team: 'TDS RACING', cls: classes[1], price: 8.5, drivers: ['LUTKE', 'BECHE', 'HANSSON'] },
-  { number: '4', team: 'CORVETTE RACING', cls: classes[2], price: 8.5, drivers: ['MILNER', 'CATSBURG'] },
-  { number: '80', team: 'LONE STAR RACING', cls: classes[3], price: 3, drivers: ['ANDREWS', 'HODENIUS', 'ROE'] },
+  { number: '31', team: 'CADILLAC WHELEN', cls: classes[0], price: 14, drivers: ['AITKEN', 'BAMBER', 'VESTI'] },
+  { number: '11', team: 'TDS RACING', cls: classes[1], price: 8.25, drivers: ['LUTKE', 'BECHE', 'HANSSON'] },
+  { number: '62', team: 'RISI COMPETIZIONE', cls: classes[2], price: 8, drivers: ['SERRA', 'RIGON'] },
+  { number: '80', team: 'LONE STAR RACING', cls: classes[3], price: 4.75, drivers: ['ANDREWS', 'HODENIUS', 'ROE'] },
 ]
 
 const clamp = (v, lo = 0, hi = 1) => Math.max(lo, Math.min(hi, v))
@@ -149,6 +149,8 @@ function landingScene(t) {
   const opened = t >= 1
   const press = easeOut((t - 1.75) / .28) * (1 - easeOut((t - 2.15) / .25))
   const heroOpacity = easeOut(t / .45)
+  const countdownMinutes = Math.max(0, 3 - Math.floor(t / .3))
+  const countdown = `2d  00h  ${String(countdownMinutes).padStart(2, '0')}m`
   const statusFill = opened ? C.brand : C.line
   const statusText = opened ? 'PICKS OPEN' : 'COMING SOON'
   return `
@@ -180,8 +182,8 @@ function landingScene(t) {
       <rect x="44" y="1066" width="992" height="266" rx="8" fill="${C.black}" stroke="${C.line}" stroke-width="3"/>
       <rect x="90" y="1114" width="11" height="34" fill="${C.brand}" transform="skewX(-14)"/>
       ${display(122, 1143, 'PICKS LOCK IN', 30, { fill: C.muted, weight: 500, spacing: 4.5 })}
-      ${mono(90, 1245, opened ? '5d  13h  09m' : '5d  13h  09m', 91, { fill: C.ink, weight: 700, spacing: 1 })}
-      ${mono(90, 1294, 'FRI · JUL 31 · 12:30 PM', 28, { spacing: 3 })}
+      ${mono(90, 1245, countdown, 91, { fill: C.ink, weight: 700, spacing: 1 })}
+      ${mono(90, 1294, 'SAT · AUG 01 · 4:25 PM ET', 28, { spacing: 3 })}
 
       <rect x="${44 + press * 8}" y="${1372 + press * 5}" width="${992 - press * 16}" height="${126 - press * 10}" rx="8" fill="${C.brand}"/>
       ${display(540, 1453 + press * 2, 'SET YOUR LINEUP →', 47, { anchor: 'middle', weight: 700, italic: true, spacing: 2.5 })}
@@ -230,7 +232,7 @@ function pickHeader(chosen, bonus = false, saving = false, saved = false, press 
     ${requirementPills(chosen, bonus)}
     <rect x="844" y="511" width="192" height="42" rx="8" fill="${C.surface2}" stroke="${C.line2}" stroke-width="2"/>
     <circle cx="866" cy="532" r="7" fill="${C.brand}"/>
-    ${mono(884, 540, 'LOCKS 5d', 24, { fill: C.brand3, weight: 600, spacing: 0 })}
+    ${mono(884, 540, 'SAT 4:25 ET', 22, { fill: C.brand3, weight: 600, spacing: 0 })}
     <rect x="${844 + press * 5}" y="${565 + press * 4}" width="${192 - press * 10}" height="${64 - press * 8}" rx="8" fill="${ready ? C.brand : '#3a1614'}" opacity="${ready ? 1 : .6}"/>
     ${display(940, 608 + press * 2, saving ? 'SAVING…' : 'SAVE LINEUP', 31, { anchor: 'middle', weight: 700, italic: true, spacing: 1.5 })}
     ${saved ? `<rect y="651" width="${W}" height="70" fill="${C.success}" fill-opacity=".10"/>${sans(44, 698, 'Lineup saved.', 34, { fill: C.success })}` : ''}
@@ -282,14 +284,17 @@ function pickCard(pick, i, local) {
 }
 
 function boardEntry(pick, y, selected = false, pulse = 0) {
-  const initials = pick.drivers.map((driver) => driver.slice(0, 2)).join(' · ')
+  const driverNames = pick.drivers.join(' · ')
+  const driverSize = driverNames.length > 24 ? 17 : 20
+  const title = `#${pick.number} ${pick.team}`
+  const titleSize = title.length > 24 ? 27 : 34
   return `
     <rect x="44" y="${y}" width="992" height="150" fill="${selected ? `${C.success}0d` : C.surface3}" stroke="${selected ? C.success : C.line}" stroke-width="${selected ? 3 : 2}"/>
     ${appCarThumb(70, y + 29, pick.cls.color, 166)}
     <rect x="260" y="${y + 26}" width="78" height="35" rx="4" fill="${pick.cls.color}14" stroke="${pick.cls.color}66" stroke-width="2"/>
     ${mono(299, y + 51, pick.cls.label, 20, { fill: pick.cls.color, anchor: 'middle', weight: 700, spacing: 0 })}
-    ${display(260, y + 96, `#${pick.number} ${pick.team}`, 34, { weight: 700 })}
-    ${mono(260, y + 128, initials, 20, { fill: C.muted, spacing: 1 })}
+    ${display(260, y + 96, title, titleSize, { weight: 700 })}
+    ${display(260, y + 128, driverNames, driverSize, { fill: C.muted, weight: 600, spacing: .8 })}
     ${mono(864, y + 91, `$${pick.price.toFixed(1)}M`, 31, { fill: C.ink, anchor: 'end', weight: 700, spacing: 0 })}
     <circle cx="974" cy="${y + 75}" r="${31 - pulse * 4}" fill="${selected ? C.success : pulse > 0 ? C.ink2 : C.surface}" stroke="${selected ? C.success : pulse > 0 ? C.ink : C.line3}" stroke-width="3"/>
     <path d="${selected ? `M962 ${y + 75}h24` : `M974 ${y + 62}v26M961 ${y + 75}h26`}" stroke="${selected || pulse > 0 ? C.bg : C.ink2}" stroke-width="4"/>
@@ -330,9 +335,9 @@ function selectionScene(t) {
   const selected = t >= 1.34
   const board = [
     picks[0],
-    { number: '6', team: 'PORSCHE PENSKE', cls: classes[0], price: 14.5, drivers: ['CAMERON', 'CAMPBELL'] },
-    { number: '7', team: 'PORSCHE PENSKE', cls: classes[0], price: 14, drivers: ['NASR', 'TANDY'] },
-    { number: '24', team: 'BMW M TEAM RLL', cls: classes[0], price: 13.5, drivers: ['ENG', 'WITTMANN'] },
+    { number: '93', team: 'ACURA MEYER SHANK RACING', cls: classes[0], price: 13.25, drivers: ['VAN DER ZANDE', 'YELLOLY'] },
+    { number: '7', team: 'PORSCHE PENSKE MOTORSPORT', cls: classes[0], price: 12.5, drivers: ['NASR', 'ANDLAUER'] },
+    { number: '6', team: 'PORSCHE PENSKE MOTORSPORT', cls: classes[0], price: 12, drivers: ['VANTHOOR', 'ESTRE'] },
   ]
   return `
     <rect width="${W}" height="${H}" fill="${C.bg}"/>
@@ -347,7 +352,7 @@ function selectionScene(t) {
 
     <rect y="758" width="${W}" height="1162" fill="#0d0f11"/>
     ${display(44, 816, 'TEAMS', 33, { weight: 700, spacing: 2 })}
-    ${mono(159, 814, '· 4 OF 18', 22, { spacing: 1 })}
+    ${mono(159, 814, '· 11 OF 54', 22, { spacing: 1 })}
     <rect x="44" y="844" width="992" height="66" rx="5" fill="${C.surface2}" stroke="${C.line2}" stroke-width="2"/>
     <circle cx="80" cy="877" r="12" fill="none" stroke="${C.muted}" stroke-width="3"/>
     <path d="M89 886l12 12" stroke="${C.muted}" stroke-width="3"/>
@@ -444,7 +449,7 @@ function bonusScene(t) {
       ${chip(132, 1055, '#31 CADILLAC WHELEN', selected, 360)}
       ${tapMarker(312, 1087, t - .62, C.bonus)}
       ${chip(516, 1055, '#11 TDS RACING', false, 290)}
-      ${chip(132, 1140, '#4 CORVETTE RACING', false, 330)}
+      ${chip(132, 1140, '#62 RISI COMPETIZIONE', false, 330)}
       ${chip(486, 1140, '#80 LONE STAR RACING', false, 360)}
       ${selected ? `
         <rect x="132" y="1265" width="816" height="116" rx="8" fill="${C.bonus}" fill-opacity=".10" stroke="${C.bonus}" stroke-width="2"/>
@@ -523,14 +528,27 @@ const page = await browser.newPage({ viewport: { width: W, height: H }, deviceSc
 await page.setContent(`<style>${fontCss}</style><div id="stage"></div>`)
 await page.evaluate(() => document.fonts.ready)
 
+let previousSvg = null
+let previousFramePath = null
 for (let frame = 0; frame < FPS * DURATION; frame += 1) {
   const svg = frameSvg(frame)
+  const framePath = path.join(FRAMES, `${String(frame).padStart(4, '0')}.png`)
+  if (svg === previousSvg && previousFramePath) {
+    fs.copyFileSync(previousFramePath, framePath)
+    previousFramePath = framePath
+    continue
+  }
   await page.evaluate((markup) => { document.querySelector('#stage').innerHTML = markup }, svg)
+  await page.evaluate(() => new Promise((resolve) => {
+    requestAnimationFrame(() => requestAnimationFrame(resolve))
+  }))
   await page.screenshot({
-    path: path.join(FRAMES, `${String(frame).padStart(4, '0')}.png`),
+    path: framePath,
     type: 'png',
     animations: 'disabled',
   })
+  previousSvg = svg
+  previousFramePath = framePath
 }
 await browser.close()
 
