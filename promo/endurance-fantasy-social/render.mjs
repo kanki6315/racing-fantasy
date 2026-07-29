@@ -149,8 +149,8 @@ function landingScene(t) {
   const opened = t >= 1
   const press = easeOut((t - 1.75) / .28) * (1 - easeOut((t - 2.15) / .25))
   const heroOpacity = easeOut(t / .45)
-  const countdownMinutes = Math.max(0, 3 - Math.floor(t / .3))
-  const countdown = `2d  00h  ${String(countdownMinutes).padStart(2, '0')}m`
+  const countdownSeconds = Math.max(0, 2 - Math.floor(t))
+  const countdown = `2d  00h  00m  ${String(countdownSeconds).padStart(2, '0')}s`
   const statusFill = opened ? C.brand : C.line
   const statusText = opened ? 'PICKS OPEN' : 'COMING SOON'
   return `
@@ -182,7 +182,7 @@ function landingScene(t) {
       <rect x="44" y="1066" width="992" height="266" rx="8" fill="${C.black}" stroke="${C.line}" stroke-width="3"/>
       <rect x="90" y="1114" width="11" height="34" fill="${C.brand}" transform="skewX(-14)"/>
       ${display(122, 1143, 'PICKS LOCK IN', 30, { fill: C.muted, weight: 500, spacing: 4.5 })}
-      ${mono(90, 1245, countdown, 91, { fill: C.ink, weight: 700, spacing: 1 })}
+      ${mono(90, 1245, countdown, 80, { fill: C.ink, weight: 700, spacing: 1 })}
       ${mono(90, 1294, 'SAT · AUG 01 · 4:25 PM ET', 28, { spacing: 3 })}
 
       <rect x="${44 + press * 8}" y="${1372 + press * 5}" width="${992 - press * 16}" height="${126 - press * 10}" rx="8" fill="${C.brand}"/>
