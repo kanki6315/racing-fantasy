@@ -3,6 +3,7 @@ using EnduranceFantasy.Domain;
 using EnduranceFantasy.Infrastructure;
 using Microsoft.AspNetCore.Authentication.Cookies;
 using Microsoft.AspNetCore.Authentication.OpenIdConnect;
+using Microsoft.AspNetCore.DataProtection;
 using Microsoft.EntityFrameworkCore;
 
 namespace EnduranceFantasy.Api.Auth;
@@ -21,6 +22,14 @@ public static class AuthSetup
 
     public static IServiceCollection AddAuth(this IServiceCollection services, IConfiguration config)
     {
+        // Persist the Data Protection key ring in Postgres so session cookies survive redeploys —
+        // Railway containers start with a fresh filesystem, and freshly generated keys can't
+        // decrypt existing cookies (every deploy would log everyone out). The explicit application
+        // name keeps the key ring independent of the content-root path the container happens to use.
+        services.AddDataProtection()
+            .SetApplicationName("EnduranceFantasy")
+            .PersistKeysToDbContext<FantasyDbContext>();
+
         var clientId = config["Authentication:Google:ClientId"];
         var clientSecret = config["Authentication:Google:ClientSecret"];
 

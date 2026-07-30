@@ -268,6 +268,10 @@ pnpm build          # tsc typecheck + production build
   cookie without Google (optional `&name=&email=` mirror the Google claims; defaults synthesized).
   `subject=dev-admin` is an admin. ⚠️ Running dev-login with a *real* Google account's subject (no
   name/email) overwrites that user's profile with synthesized defaults — don't.
+- **Sessions survive deploys:** the Data Protection key ring is persisted in Postgres
+  (`data_protection_key` table, `PersistKeysToDbContext` in `AuthSetup`), so redeploys don't
+  invalidate `endurance.session` cookies. Without it, Railway's fresh container filesystem would
+  regenerate the keys and log everyone out on every deploy.
 - **Auth endpoints:** `GET /auth/login` (Google challenge), `GET /auth/me`, `POST /auth/logout`.
 - **Authorization tiers** (ADR-0004/0005):
   - *Public:* leaderboards, `GET /rounds/{id}/prices`, **catalog reads** (`GET` on championships /

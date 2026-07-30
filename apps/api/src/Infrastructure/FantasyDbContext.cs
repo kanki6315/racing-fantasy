@@ -1,10 +1,12 @@
 using System.Text.RegularExpressions;
 using EnduranceFantasy.Domain;
+using Microsoft.AspNetCore.DataProtection.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore;
 
 namespace EnduranceFantasy.Infrastructure;
 
-public partial class FantasyDbContext(DbContextOptions<FantasyDbContext> options) : DbContext(options)
+public partial class FantasyDbContext(DbContextOptions<FantasyDbContext> options)
+    : DbContext(options), IDataProtectionKeyContext
 {
     // Catalog / structure
     public DbSet<Championship> Championships => Set<Championship>();
@@ -50,6 +52,10 @@ public partial class FantasyDbContext(DbContextOptions<FantasyDbContext> options
     public DbSet<EventReminder> EventReminders => Set<EventReminder>();
     public DbSet<EmailEvent> EmailEvents => Set<EmailEvent>();
     public DbSet<EmailPreference> EmailPreferences => Set<EmailPreference>();
+
+    // ASP.NET Core Data Protection key ring — persisted so session cookies survive redeploys
+    // (Railway containers get a fresh filesystem, which would otherwise regenerate the keys).
+    public DbSet<DataProtectionKey> DataProtectionKeys => Set<DataProtectionKey>();
 
     protected override void OnModelCreating(ModelBuilder b)
     {
