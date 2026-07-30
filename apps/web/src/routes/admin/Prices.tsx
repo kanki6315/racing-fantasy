@@ -5,6 +5,7 @@ import { PrimaryButton, ClassSwatch, EmptyState } from '../../admin/ui'
 import { useCarEntries, useAdminClasses, useSavePrices, useEntryDrivers, useDrivers } from '../../api/adminQueries'
 import { usePrices, useRosterRules } from '../../api/queries'
 import { classMeta } from '../../lib/classMeta'
+import { fmtMoney } from '../../lib/scoreFormat'
 import {
   defaultAnchors,
   defaultStep,
@@ -531,7 +532,7 @@ export function Prices() {
             </button>
           ))}
         </div>
-        <Stat label="Salary Cap" value={`$${cap.toFixed(1)}M`} />
+        <Stat label="Salary Cap" value={fmtMoney(cap)} />
         <Stat label="Priced" value={`${pricedCount}/${rows.length}`} />
         <Stat
           label="Unsaved"
@@ -677,12 +678,12 @@ export function Prices() {
               ) : (
                 <>
                   <span className={`font-mono text-[13px] ${driftOk ? 'text-success' : 'text-warn'}`}>
-                    ${expectedCost.toFixed(1)}M
-                    <span className="text-muted"> / target ${budgetTarget.toFixed(1)}M</span>
+                    {fmtMoney(expectedCost)}
+                    <span className="text-muted"> / target {fmtMoney(budgetTarget)}</span>
                   </span>
                   <span className="font-mono text-[10px] text-muted">
-                    all class tops ${starRosterCost(curveInputs()).toFixed(1)}M
-                    <span className="text-muted"> / ${(suggest.star * cap).toFixed(1)}M</span>
+                    all class tops {fmtMoney(starRosterCost(curveInputs()))}
+                    <span className="text-muted"> / {fmtMoney(suggest.star * cap)}</span>
                   </span>
                 </>
               )}
@@ -802,7 +803,7 @@ export function Prices() {
                   )}
                   <span className="ml-auto flex items-center gap-3">
                     {suggest.on && ladder.length > 1 && <Ladder values={ladder} />}
-                    {avg != null && <span className="font-mono text-[10px] text-muted">avg ${avg.toFixed(1)}M</span>}
+                    {avg != null && <span className="font-mono text-[10px] text-muted">avg {fmtMoney(avg)}</span>}
                   </span>
                 </div>
 

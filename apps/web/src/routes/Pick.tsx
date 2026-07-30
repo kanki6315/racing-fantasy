@@ -178,7 +178,7 @@ export function Pick() {
     if (notOpen) return "Picks for this event aren't open yet"
     if (locked) return 'Picks are locked'
     if (!hasRules) return 'This round has no roster rules yet'
-    if (remaining < 0) return `$${Math.abs(remaining).toFixed(1)}M over the cap — drop or swap a pick`
+    if (remaining < 0) return `${fmtMoney(Math.abs(remaining))} over the cap — drop or swap a pick`
     const excess = composition.find((c) => c.have > c.max)
     if (excess) return `Remove a ${classMeta(excess.name, excess.color).label} pick`
     const missing = composition.find((c) => c.have < c.min)
@@ -490,13 +490,13 @@ export function Pick() {
                 the whole sum once, so the label doesn't depend on which half is on screen. */}
             <div
               className="flex shrink-0 items-center gap-2 lg:block lg:w-[260px]"
-              aria-label={`Budget: $${spent.toFixed(1)}M spent of a $${cap.toFixed(1)}M cap, ${
-                remaining < 0 ? `$${Math.abs(remaining).toFixed(1)}M over` : `$${remaining.toFixed(1)}M left`
+              aria-label={`Budget: ${fmtMoney(spent)} spent of a ${fmtMoney(cap)} cap, ${
+                remaining < 0 ? `${fmtMoney(Math.abs(remaining))} over` : `${fmtMoney(remaining)} left`
               }`}
             >
               <div className="lg:mb-1 lg:flex lg:items-baseline lg:justify-between lg:gap-3">
                 <span aria-hidden="true" className="hidden font-sans text-[12px] text-muted lg:inline">
-                  Spent ${spent.toFixed(1)}M of ${cap.toFixed(1)}M
+                  Spent {fmtMoney(spent)} of {fmtMoney(cap)}
                 </span>
                 <span
                   aria-hidden="true"
@@ -506,7 +506,7 @@ export function Pick() {
                 >
                   {/* "$-3.0M left" was a raw float through a template — nobody has negative three
                       million left. Over-cap gets its own sentence. */}
-                  {remaining < 0 ? `$${Math.abs(remaining).toFixed(1)}M over` : `$${remaining.toFixed(1)}M left`}
+                  {remaining < 0 ? `${fmtMoney(Math.abs(remaining))} over` : `${fmtMoney(remaining)} left`}
                 </span>
               </div>
               <div className="h-[6px] w-[52px] shrink-0 overflow-hidden rounded-full bg-line lg:h-2 lg:w-full">
@@ -587,7 +587,7 @@ export function Pick() {
             changes on every pick, which is exactly when it should be heard. */}
         <p aria-live="polite" className="sr-only">
           {selected.length} {selected.length === 1 ? 'pick' : 'picks'},{' '}
-          {remaining < 0 ? `$${Math.abs(remaining).toFixed(1)}M over the cap` : `$${remaining.toFixed(1)}M left`}
+          {remaining < 0 ? `${fmtMoney(Math.abs(remaining))} over the cap` : `${fmtMoney(remaining)} left`}
           {blockedReason ? `. ${blockedReason}` : '. Lineup ready to save'}
         </p>
 
@@ -621,7 +621,7 @@ export function Pick() {
               : err.error === 'not_open'
                 ? "Picks for this event aren’t open yet, so nothing was saved."
                 : err.error === 'cap_exceeded'
-                  ? `$${(spent - cap).toFixed(1)}M over the cap — drop or swap a pick, then save again.`
+                  ? `${fmtMoney(spent - cap)} over the cap — drop or swap a pick, then save again.`
                   : err.error === 'composition'
                     ? 'Your lineup doesn’t meet the class requirements — check the slots above.'
                     : err.error === 'modifier'
@@ -871,7 +871,7 @@ function PitLane({
                       <div className="mt-1 flex min-w-0 items-center justify-between gap-2 sm:mt-[7px] sm:block">
                         <DriverLineup drivers={pick.drivers} variant={isSm ? 'full' : 'compact'} />
                         <span className="shrink-0 font-mono text-[13px] text-ink-2 sm:mt-[7px] sm:block">
-                          ${pick.price.toFixed(1)}M
+                          {fmtMoney(pick.price)}
                         </span>
                       </div>
                     </div>
@@ -1191,7 +1191,7 @@ function SelectionPanel({
                   </div>
                   <DriverLineup drivers={p.drivers} variant="compact" className="mt-[3px]" />
                 </div>
-                <div className="shrink-0 font-mono text-[14px] font-bold text-ink">${p.price.toFixed(1)}M</div>
+                <div className="shrink-0 font-mono text-[14px] font-bold text-ink">{fmtMoney(p.price)}</div>
                 <button
                   type="button"
                   disabled={locked}
