@@ -63,20 +63,13 @@ export function ShareCardButton({ model, fileSlug, className = '' }: Props) {
   const deliver = useCallback(
     async (blob: Blob) => {
       const file = new File([blob], fileName, { type: 'image/png' })
-      // THIS TEXT IS THE IMAGE'S ONLY ALT TEXT. Once the PNG leaves the app it is pure pixels — a
-      // share sheet has no field for alt text, and a recipient using a screen reader gets nothing
-      // from the file itself. So the accompanying text is written as a standalone summary of what
-      // the card shows, not as a caption that assumes you can see it.
-      const where = `${model?.roundName}`
-      const shareData = {
-        files: [file],
-        title: model?.teamName ?? 'Endurance Fantasy',
-        text: lineup
-          ? `${model?.teamName} — lineup locked for ${where}, ${model?.heroValue} of the salary cap spent. Endurance Fantasy.`
-          : `${model?.teamName} scored ${model?.heroValue} points at ${where}${
-              model?.roundRank ? `, P${model.roundRank.rank} of ${model.roundRank.of} this round` : ''
-            }. Endurance Fantasy.`,
-      }
+      // THE PAYLOAD IS THE FILE AND NOTHING ELSE, and the omission is load-bearing. This used to
+      // carry a title and a caption written as the image's alt text — and the share sheet turned
+      // that multi-item payload into a pasteboard mess: its Copy row copies every item it was
+      // handed, and players pasted the card twice. One File in, one thing for every share-sheet
+      // action to operate on. The alt-text duty the caption carried is a real loss; if a target
+      // ever grows a caption field worth filling, revisit against the Copy behaviour first.
+      const shareData = { files: [file] }
       if (navigator.canShare?.(shareData)) {
         try {
           await navigator.share(shareData)
@@ -102,7 +95,7 @@ export function ShareCardButton({ model, fileSlug, className = '' }: Props) {
       // their browser puts files.
       setMessage(`${noun[0].toUpperCase()}${noun.slice(1)} saved to your downloads.`)
     },
-    [fileName, lineup, model, noun],
+    [fileName, noun],
   )
 
   const onClick = useCallback(() => {

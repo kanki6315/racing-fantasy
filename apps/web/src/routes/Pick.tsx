@@ -1,12 +1,14 @@
-import { useEffect, useMemo, useRef, useState } from 'react'
+import { useEffect, useMemo, useRef, useState, type ReactNode } from 'react'
 import { useParams, Link } from 'react-router-dom'
 import { useAuth } from '../auth/AuthContext'
 import {
+  useEvents,
   usePrices,
   useRosterRules,
   useRound,
   useRoster,
   useSaveRoster,
+  useSeasonLeaderboard,
   type PriceItem,
   type RosterError,
 } from '../api/queries'
@@ -14,9 +16,14 @@ import { classMeta } from '../lib/classMeta'
 import { modMeta } from '../lib/modifierMeta'
 import { useCountdown, useIsLocked } from '../lib/useCountdown'
 import { useMediaQuery, SM } from '../lib/useMediaQuery'
-import { fmtLockTime, fmtLockTimeLong } from '../lib/datetime'
+import { fmtLockTime, fmtLockTimeLong, fmtRaceDate } from '../lib/datetime'
+import { fmtMoney } from '../lib/scoreFormat'
+import { deriveEventStatus, deriveRoundStatus, EVENT_STATUS_META } from '../lib/eventStatus'
+import { lastName } from '../lib/driverName'
+import type { ShareCardModel, ShareCardPick } from '../lib/shareCard'
 import { EntityThumb } from '../components/EntityThumb'
 import { DriverLineup } from '../components/DriverLineup'
+import { ShareCardButton } from '../components/ShareCardButton'
 
 const key = (p: { entityType: string; entityId: number }) => `${p.entityType}:${p.entityId}`
 
@@ -48,6 +55,12 @@ export function Pick() {
   const registration = user?.registrations.find((r) => r.seasonId === round.data?.seasonId)
   const roster = useRoster(registration?.id, rid)
   const save = useSaveRoster(registration?.id ?? 0, rid)
+  // Context for the share card only: the events list names the championship and carries the flags
+  // the stage pill derives from, and the season board supplies the "P4 OVERALL" footer line. Both
+  // are public boards other screens already cache, and both are optional — if either is missing its
+  // line simply drops off the card.
+  const events = useEvents()
+  const seasonBoard = useSeasonLeaderboard(round.data?.seasonId)
 
   // Draft roster: the Main picks keyed by entity (entityType:entityId, globally unique) — a class may
   // hold several picks (min..max), so we key by pick, not class — plus selected bonuses; each modifier
@@ -172,6 +185,113 @@ export function Pick() {
     if (missing) return `Add a ${classMeta(missing.name, missing.color).label} pick`
     return null
   })()
+
+  // The pre-lock share card (the social ask: fans want to post their picks before the race, not
+  // just their score after it). Built from the DRAFT — the lineup on screen — not the saved roster,
+  // because the card must show what the player is looking at when they hit Share; a stale saved
+  // lineup under a fresh edit would be the one genuinely surprising output. Always the `lineup`
+  // variant: this page never has scores, and the scored card already ships from the standings
+  // drill-in. Null while the pit lane is empty, which keeps the button out of the DOM entirely.
+  const shareEvent = useMemo(
+    () => events.data?.find((e) => e.rounds.some((r) => r.roundId === rid)) ?? null,
+    [events.data, rid],
+  )
+  const champName = shareEvent?.rounds.find((r) => r.roundId === rid)?.championshipName ?? null
+  // Same precedence as everywhere else: the event derivation when the weekend is in the cached
+  // list, the round-level fallback otherwise. Pre-lock this lands on OPEN, so the card's pill says
+  // PICKS OPEN — a card shared before qualifying should read as an entry, not a result.
+  const stage = shareEvent
+    ? deriveEventStatus(shareEvent)
+    : round.data
+      ? deriveRoundStatus(round.data, false)
+      : 'OPEN'
+  const stageMeta = EVENT_STATUS_META[stage]
+
+  const shareModel = useMemo<ShareCardModel | null>(() => {
+    if (!round.data || !registration || selected.length === 0) return null
+
+    const bonusTargets = new Map(
+      [...effectiveModifiers.entries()].map(
+        ([kind, t]) => [key(t), kind === 'CAPTAIN' ? 'CAPTAIN' : '2× POINTS'] as const,
+      ),
+    )
+
+    // Ordered by the round's own class order, so the card reads GTP-down like every board in the
+    // app rather than in whatever order the picks were clicked.
+    const order = new Map((rules.data?.classes ?? []).map((c, i) => [c.classId, i]))
+    const ordered = [...selected].sort(
+      (a, b) => (order.get(a.classId) ?? 99) - (order.get(b.classId) ?? 99),
+    )
+
+    const cardPicks: ShareCardPick[] = ordered.map((p) => {
+      const cls = rules.data?.classes.find((c) => c.classId === p.classId)
+      const m = classMeta(cls?.name, cls?.color)
+      const bonus = bonusTargets.get(key(p))
+      return {
+        classLabel: m.label,
+        classHex: m.hex,
+        name: p.displayName ?? `#${p.entityId}`,
+        drivers: (p.drivers ?? []).map((d) => lastName(d.fullName)),
+        figure: fmtMoney(p.price),
+        price: null,
+        breakdown: null,
+        chips: bonus ? [{ text: bonus, tone: 'bonus' }] : [],
+        marked: bonus != null,
+      }
+    })
+
+    const bonuses = [...effectiveModifiers.entries()].map(([kind, t]) => ({
+      label: modMeta(kind).label,
+      target: main.get(key(t))?.displayName ?? null,
+      points: null,
+    }))
+
+    const mySeason = seasonBoard.data?.entries.find((e) => e.registrationId === registration.id)
+
+    return {
+      variant: 'lineup',
+      championship: champName ?? 'Endurance Fantasy',
+      roundName: round.data.name,
+      circuit: [round.data.circuit, fmtRaceDate(round.data.startsAt ?? round.data.qualiStart)]
+        .filter(Boolean)
+        .join(' · '),
+      teamName: registration.teamName,
+      heroValue: fmtMoney(spent),
+      heroUnit: `OF ${fmtMoney(cap)}`,
+      spend: null,
+      stageLabel: stageMeta.label.toUpperCase(),
+      stageHex: stageMeta.hex,
+      picks: cardPicks,
+      bonuses,
+      // No round rank before the round has run; the season line alone carries the footer.
+      roundRank: null,
+      seasonRank: mySeason ? { rank: mySeason.rank, movement: mySeason.movement ?? null } : null,
+      siteUrl: window.location.host,
+    }
+  }, [
+    round.data,
+    registration,
+    selected,
+    effectiveModifiers,
+    main,
+    rules.data,
+    champName,
+    stageMeta,
+    seasonBoard.data,
+    spent,
+    cap,
+  ])
+
+  const fileSlug = useMemo(
+    () =>
+      [registration?.teamName, round.data?.name]
+        .filter(Boolean)
+        .join('-')
+        .toLowerCase()
+        .replace(/[^a-z0-9]+/g, '-')
+        .replace(/^-|-$/g, '') || 'round',
+    [registration?.teamName, round.data?.name],
+  )
 
   const maxForClass = (classId: number) =>
     (rules.data?.classes ?? []).find((c) => c.classId === classId)?.max ?? 1
@@ -556,6 +676,13 @@ export function Pick() {
             modifiers={effectiveModifiers}
             mainPicks={selected}
             onToggleModifier={toggleModifier}
+            footer={
+              <ShareCardButton
+                model={shareModel}
+                fileSlug={fileSlug}
+                className="mt-6"
+              />
+            }
           />
         </div>
         <div
@@ -657,6 +784,7 @@ function PitLane({
   modifiers,
   mainPicks,
   onToggleModifier,
+  footer,
 }: {
   classes: { classId: number; name: string | null; color?: string | null; min: number; max: number }[]
   main: Map<string, PriceItem>
@@ -668,6 +796,9 @@ function PitLane({
   modifiers: Map<string, Target>
   mainPicks: PriceItem[]
   onToggleModifier: (kind: string, item: PriceItem) => void
+  /** Rendered inside the lane's measure, after the bonuses panel — the share action lives here so it
+   *  sits with the lineup it exports rather than in the already-crowded status band. */
+  footer?: ReactNode
 }) {
   // The pick row was designed for the 560px desktop column and reused verbatim on a phone, where
   // the stacked driver chips pushed it to ~168px — 2.6 of them fit an iPhone SE, so the tab whose
@@ -826,6 +957,7 @@ function PitLane({
           </div>
         </div>
       )}
+      {footer}
       </div>
     </div>
   )
