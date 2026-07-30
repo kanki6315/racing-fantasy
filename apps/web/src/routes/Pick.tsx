@@ -408,7 +408,11 @@ export function Pick() {
       <div className="flex flex-col items-center gap-3 py-32 text-center">
         <h1 className="font-display text-[22px] font-bold uppercase text-ink">Register first</h1>
         <p className="max-w-[42ch] font-sans text-[13px] text-muted">
-          You need a team in this season before you can set a lineup for {round.data.name}.
+          {/* Lead with the SERIES — event names are shared across every series racing the weekend,
+              so naming only the event can't tell the player which championship they're missing. */}
+          {champName
+            ? `You need to register for ${champName} before you can set a lineup for the "${round.data.name}".`
+            : `You need to register for this season before you can set a lineup for the "${round.data.name}".`}
         </p>
         <Link
           to="/"
