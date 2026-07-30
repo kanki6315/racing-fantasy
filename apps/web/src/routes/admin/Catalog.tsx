@@ -47,6 +47,7 @@ import {
   type RosterModifierRuleDto,
 } from '../../api/adminQueries'
 import { classMeta } from '../../lib/classMeta'
+import { fmtMoney } from '../../lib/scoreFormat'
 import { MODIFIER_FORMATS, modMeta } from '../../lib/modifierMeta'
 
 const TABS = [
@@ -408,7 +409,7 @@ function RoundsTab() {
                   <div className="font-display text-[14px] font-semibold uppercase text-ink">{r.name}</div>
                   <div className="font-mono text-[10px] text-muted">{r.circuit ?? '—'}</div>
                 </div>
-                <span className="font-mono text-[11px] text-ink-2">${r.salaryCap.toFixed(1)}M</span>
+                <span className="font-mono text-[11px] text-ink-2">{fmtMoney(r.salaryCap)}</span>
               </ListRow>
             ))
         )}

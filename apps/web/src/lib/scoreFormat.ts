@@ -74,8 +74,18 @@ export function makePointsFormat(values: number[]) {
   }
 }
 
-/** Salary in the pick page's exact dialect (`$12.8M`) — a budget must not read two ways. */
-export const fmtMoney = (n: number) => `$${n.toFixed(1)}M`
+/**
+ * Salary in the pick page's exact dialect (`$12.8M`, `$8.75M`) — a budget must not read two ways.
+ *
+ * One decimal only when the value actually sits on a $0.1M step. The price board deals in quarter
+ * steps (the suggestion engine emits `8.75`, `5.25`), and a flat `toFixed(1)` rounded each row
+ * independently — a lineup the server verified at exactly the $35.0M cap displayed rows summing to
+ * $35.1M. Rounding through cents so float noise can't misclassify a value near a step boundary.
+ */
+export const fmtMoney = (n: number) => {
+  const cents = Math.round(n * 100)
+  return `$${(cents / 100).toFixed(cents % 10 === 0 ? 1 : 2)}M`
+}
 
 /**
  * A season-long total, as the standings board sets it: thousands separated, and a decimal only when
