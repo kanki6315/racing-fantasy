@@ -10,6 +10,8 @@ const API_TARGET = process.env.VITE_DEV_API_TARGET ?? 'http://localhost:5239'
 export default defineConfig({
   plugins: [react(), tailwindcss()],
   server: {
+    // Honor a harness-assigned port (e.g. a second dev server while 5173 is taken); default otherwise.
+    port: process.env.PORT ? Number(process.env.PORT) : undefined,
     proxy: {
       '/api': {
         target: API_TARGET,
