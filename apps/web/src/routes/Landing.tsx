@@ -10,7 +10,14 @@ import { fmtLockTime } from '../lib/datetime'
 import { deriveEventStatus, type EventStatus } from '../lib/eventStatus'
 
 /** One weekend on the unified calendar (ADR-0007), driven by the Event API — every series racing it. */
-type CalSeries = { name: string; order: number; isActive: boolean }
+type CalSeries = {
+  name: string
+  order: number
+  isActive: boolean
+  roundId: number // this series' own round this weekend — every series is a routable destination
+  seasonId: number // matched against the user's registrations to pick the right lineup door
+  qualiStart: string // this series' own lock (a weekend locks per series, not all at once)
+}
 type CalItem = {
   key: string
   seq?: number // the active championship's round number this weekend, if it races (cosmetic label)
@@ -91,12 +98,20 @@ export function Landing() {
       if (evRounds.length === 0) continue
       const qualis = evRounds.map((r) => +new Date(r.qualiStart))
       const mine = active ? evRounds.find((r) => r.championshipId === active.championship.id) : undefined
-      // Unique series racing this weekend, ordered by the championship sort key.
-      const byName = new Map<string, number>()
-      for (const r of evRounds) if (!byName.has(r.championshipName)) byName.set(r.championshipName, r.championshipOrder)
-      const series = [...byName.entries()]
-        .sort((a, b) => a[1] - b[1] || a[0].localeCompare(b[0]))
-        .map(([name, order]) => ({ name, order, isActive: !!active && name === active.championship.name }))
+      // Unique series racing this weekend, ordered by the championship sort key. Each carries its OWN
+      // round id + season id + quali, so every series — not just the headline one — is routable.
+      const byName = new Map<string, CalSeries>()
+      for (const r of evRounds)
+        if (!byName.has(r.championshipName))
+          byName.set(r.championshipName, {
+            name: r.championshipName,
+            order: r.championshipOrder,
+            isActive: !!active && r.championshipId === active.championship.id,
+            roundId: r.roundId,
+            seasonId: r.seasonId,
+            qualiStart: r.qualiStart,
+          })
+      const series = [...byName.values()].sort((a, b) => a.order - b.order || a.name.localeCompare(b.name))
       items.push({
         key: `e${e.id}`,
         seq: mine ? seqByRoundId.get(mine.roundId) : undefined,
@@ -142,14 +157,34 @@ export function Landing() {
   const hasAnyRegistration = (user?.registrations.length ?? 0) > 0
   const needsRegistration = isAuthenticated && !!active && !hasAnyRegistration
 
+  // The hero weekend's rounds in series the player is registered for — the CTA routes by THESE, not
+  // by the headline championship. A support-series player used to be sent to the WeatherTech pick
+  // screen and dead-end on "Register first"; a multi-series player has more than one lineup to set.
+  const regSeasonIds = useMemo(
+    () => new Set((user?.registrations ?? []).map((r) => r.seasonId)),
+    [user?.registrations],
+  )
+  const heroMyRounds = (nextEvent?.series ?? []).filter((s) => regSeasonIds.has(s.seasonId))
+
   const onHeroCta = () => {
     if (!isAuthenticated) loginWithGoogle()
     else if (needsRegistration) setModalOpen(true)
-    // Straight to the lineup when the hero has an active-championship round — the CTA says
-    // "Set Your Lineup", so land on it (the pick page handles not-open/locked states itself).
-    else if (nextEvent?.activeRoundId) navigate(`/pick/${nextEvent.activeRoundId}`)
+    // Straight to the lineup when exactly one of the player's series races this weekend — the CTA
+    // says "Set Your Lineup", so land on it (the pick page handles not-open/locked states itself).
+    else if (heroMyRounds.length === 1) navigate(`/pick/${heroMyRounds[0].roundId}`)
+    // Several lineups to set (or none of their series racing) → the dashboard, which lists a
+    // lineup row per registered series for the weekend.
     else navigate('/dashboard')
   }
+  const heroCtaLabel = !isAuthenticated
+    ? 'Sign in to Play'
+    : needsRegistration
+      ? 'Register to Set Lineup'
+      : heroMyRounds.length > 1
+        ? 'Set Your Lineups →'
+        : heroMyRounds.length === 1
+          ? 'Set Your Lineup →'
+          : 'View Your Dashboard →'
 
   // The hero band IS the calendar's top entry, promoted — so its status pill derives from the same
   // lifecycle as the rows, and the rows below start at the event after it (no duplication).
@@ -242,16 +277,33 @@ export function Landing() {
                 {heroWhere && <div className="mt-[10px] font-sans text-[14px] text-muted">{heroWhere}</div>}
                 {heroSeries.length > 0 && (
                   <div className="mt-[10px] flex flex-wrap items-center gap-[6px]">
-                    {heroSeries.map((s) => (
-                      <span
-                        key={s.name}
-                        className={`rounded-[2px] border px-[7px] py-[2px] font-sans text-[11px] ${
-                          s.isActive ? 'border-line-3 bg-surface-2 font-medium text-ink' : 'border-line-2 bg-surface-2 text-ink-2'
-                        }`}
-                      >
-                        {s.name}
-                      </span>
-                    ))}
+                    {/* Each series racing this weekend is its own door: while its board is open (and
+                        the viewer has a team to set lineups with), the pill links to THAT series'
+                        pick screen — the only route to a support series' board from the landing.
+                        A door says where it goes (the trailing arrow); closed boards stay inert. */}
+                    {heroSeries.map((s) => {
+                      const pillClass = `rounded-[2px] border px-[7px] py-[2px] font-sans text-[11px] ${
+                        s.isActive ? 'border-line-3 bg-surface-2 font-medium text-ink' : 'border-line-2 bg-surface-2 text-ink-2'
+                      }`
+                      const open =
+                        !!nextEvent?.picksOpen && +new Date(s.qualiStart) > now && isAuthenticated && !needsRegistration
+                      return open ? (
+                        <Link
+                          key={s.name}
+                          to={`/pick/${s.roundId}`}
+                          aria-label={`Set your ${s.name} lineup`}
+                          // A door never costs the tap target: on a coarse pointer the pill grows
+                          // toward the 44px row rather than staying a 23px text chip.
+                          className={`${pillClass} transition-colors hover:border-brand-3/60 hover:text-ink pointer-coarse:py-[9px]`}
+                        >
+                          {s.name} <span aria-hidden="true">→</span>
+                        </Link>
+                      ) : (
+                        <span key={s.name} className={pillClass}>
+                          {s.name}
+                        </span>
+                      )
+                    })}
                   </div>
                 )}
                 {!isAuthenticated && (
@@ -295,7 +347,7 @@ export function Landing() {
                       </svg>
                     )}
                     <span className={`font-display text-[17px] font-bold tracking-[0.06em] uppercase ${needsRegistration ? '' : 'italic'}`}>
-                      {!isAuthenticated ? 'Sign in to Play' : needsRegistration ? 'Register to Set Lineup' : 'Set Your Lineup →'}
+                      {heroCtaLabel}
                     </span>
                   </button>
                 </div>
@@ -338,6 +390,7 @@ export function Landing() {
                   item={item}
                   champId={active?.championship.id}
                   seasonId={active?.season.id}
+                  regSeasonIds={regSeasonIds}
                 />
               ))
             )}
@@ -409,10 +462,12 @@ function CalendarRow({
   item,
   champId,
   seasonId,
+  regSeasonIds,
 }: {
   item: CalItem
   champId?: number
   seasonId?: number
+  regSeasonIds: ReadonlySet<number>
 }) {
   // Count down to the first series' quali (the next lock). useCountdown re-renders every second, so the
   // derived status below stays live as the weekend crosses into IN_PROGRESS.
@@ -444,11 +499,26 @@ function CalendarRow({
     return q ? `/standings?${q}` : '/standings'
   }
   const canDeepLink = (status === 'SCORED' || status === 'CLOSED') && item.activeRoundId != null
+  // Which of this weekend's series the viewer actually plays in. An open weekend routes by THOSE:
+  // one registered series → straight to its pick board (whichever series it is, not just the
+  // headline one); several → the dashboard, which lists a lineup row per series. No registered
+  // series racing (or signed out) → the headline round if there is one, as before.
+  const myRounds = item.series.filter((s) => regSeasonIds.has(s.seasonId))
+  const pickTarget =
+    myRounds.length === 1 ? `/pick/${myRounds[0].roundId}`
+    : myRounds.length > 1 ? '/dashboard'
+    : item.activeRoundId != null ? `/pick/${item.activeRoundId}`
+    : null
   const href =
-    status === 'OPEN' && item.activeRoundId != null
-      ? `/pick/${item.activeRoundId}`
-      : standingsHref(canDeepLink ? item.activeRoundId : undefined)
-  const action = hi && item.activeRoundId != null ? 'Set lineup' : canDeepLink ? 'View results' : 'View standings'
+    status === 'OPEN' && pickTarget != null ? pickTarget : standingsHref(canDeepLink ? item.activeRoundId : undefined)
+  const action =
+    hi && pickTarget != null
+      ? myRounds.length > 1
+        ? 'Set lineups'
+        : 'Set lineup'
+      : canDeepLink
+        ? 'View results'
+        : 'View standings'
   const label = item.seq != null ? `R${String(item.seq).padStart(2, '0')}` : '·'
   const date = fmtDate(new Date(item.dateMs).toISOString()).toUpperCase()
   const pillClass = `inline-block rounded-[2px] px-[9px] py-[3px] font-display text-[11px] tracking-[0.06em] ${statusStyle[status]}`

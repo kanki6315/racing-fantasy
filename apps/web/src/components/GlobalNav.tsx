@@ -3,7 +3,7 @@ import { Logo } from './Logo'
 import { useAuth, type Me } from '../auth/AuthContext'
 import { useActiveSeason } from '../api/queries'
 
-const links = [
+const baseLinks = [
   { to: '/', label: 'Home', end: true },
   { to: '/standings', label: 'Standings' },
   { to: '/stats', label: 'Stats' },
@@ -34,8 +34,15 @@ const linkClass = (isActive: boolean, accent = false, compact = false) => {
 export function GlobalNav() {
   const { user, isAuthenticated, isAdmin, loginWithGoogle, logout, devLogin } = useAuth()
   const { data: active } = useActiveSeason()
-  const notRegistered =
-    !!user && !!active && !user.registrations.some((r) => r.seasonId === active.season.id)
+  // "Registered" means a team in ANY series (same semantics as the Landing's call-out) — a player
+  // who only runs a support series was being told NOT REGISTERED by the app chrome on every page.
+  const notRegistered = !!user && !!active && user.registrations.length === 0
+
+  // Signed-in players get a named door to their dashboard. The avatar link below still works, but
+  // an identity block is not an obvious route to "my picks + my leagues" — a labelled section link is.
+  const links = isAuthenticated
+    ? [baseLinks[0], { to: '/dashboard', label: 'My Team' }, ...baseLinks.slice(1)]
+    : baseLinks
 
   const sectionNav = (className: string, compact = false) => (
     <nav className={`${className} font-display text-[14px] font-semibold tracking-[0.08em] uppercase`}>
@@ -72,7 +79,8 @@ export function GlobalNav() {
               <span className="font-mono text-[9px] tracking-[0.06em] text-warn">NOT REGISTERED</span>
             </span>
           )}
-          {/* The identity block is the way into the dashboard. Its text half is the widest, least
+          {/* The identity block doubles as a door to the dashboard (the My Team nav link is the
+              primary route). Its text half is the widest, least
               load-bearing piece, so it only shows where there's room: below sm (no avatar, and only
               when the NOT REGISTERED pill isn't already using that slot) and again at xl. In
               between, the initials avatar carries the identity on its own. */}
