@@ -8,9 +8,13 @@
   </PropertyGroup>
 
   <ItemGroup>
+    <PackageReference Include="Microsoft.AspNetCore.DataProtection.EntityFrameworkCore" Version="10.0.3" />
     <PackageReference Include="Microsoft.EntityFrameworkCore" Version="10.0.3" />
     <PackageReference Include="Microsoft.EntityFrameworkCore.Relational" Version="10.0.3" />
     <PackageReference Include="Npgsql.EntityFrameworkCore.PostgreSQL" Version="10.0.0" />
+    <!-- Overrides the vulnerable 10.0.3 transitive from DataProtection.EntityFrameworkCore
+         (NU1904: GHSA-9mv3-2cwr-p262; also brings the patched System.Security.Cryptography.Xml). -->
+    <PackageReference Include="Microsoft.AspNetCore.DataProtection" Version="10.0.10" />
   </ItemGroup>
 
   <ItemGroup>
