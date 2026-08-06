@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import { useAdmin } from '../../admin/AdminContext'
 import { AdminPageHeader } from '../../admin/AdminPageHeader'
 import { PrimaryButton, ClassSwatch, EmptyState } from '../../admin/ui'
@@ -218,13 +218,16 @@ export function Prices() {
   /**
    * Ranking for a class, self-repairing: drop vanished keys, append new rows at the bottom.
    * Scratched rows are excluded — they hold no rank and don't exist for the curve or budget.
+   * The state is a parameter so setSuggest updaters (rapid-fire during a drag) read their own
+   * batch's order, not a stale closure.
    */
-  const ranksFor = (classId: number): string[] => {
+  const ranksIn = (s: SuggestState, classId: number): string[] => {
     const classKeys = rows.filter((r) => r.classId === classId).map(rowKey)
-    const stored = (suggest.ranks[classId] ?? []).filter((k) => rowByKey.has(k) && rowByKey.get(k)!.classId === classId)
+    const stored = (s.ranks[classId] ?? []).filter((k) => rowByKey.has(k) && rowByKey.get(k)!.classId === classId)
     const missing = classKeys.filter((k) => !stored.includes(k))
-    return [...stored, ...missing].filter((k) => !suggest.scratched[k])
+    return [...stored, ...missing].filter((k) => !s.scratched[k])
   }
+  const ranksFor = (classId: number): string[] => ranksIn(suggest, classId)
 
   const curveInputs = (): ClassBudgetInput[] =>
     byClass.map((cl) => ({
@@ -353,6 +356,7 @@ export function Prices() {
   // drivers by normalized name, seed the ranking from official positions. Unmatched rows warn
   // and stay put (bottom of the ranking) — never guessed.
   const onImportFiles = async (files: File[]) => {
+    if (files.length === 0) return // a row drag dropped on the import zone carries no files
     const notes: string[] = []
     const newPoints: Record<string, RowPoints> = {}
     const rankUpdates: Record<number, string[]> = {}
@@ -449,7 +453,7 @@ export function Prices() {
 
   const moveRank = (classId: number, k: string, dir: -1 | 1) => {
     setSuggest((s) => {
-      const order = ranksFor(classId)
+      const order = ranksIn(s, classId)
       const i = order.indexOf(k)
       const j = i + dir
       if (i < 0 || j < 0 || j >= order.length) return s
@@ -457,6 +461,46 @@ export function Prices() {
       ;[next[i], next[j]] = [next[j], next[i]]
       return { ...s, ranks: { ...s.ranks, [classId]: next } }
     })
+  }
+
+  // Drag-to-rank (HTML5 DnD). The whole row is the drag source; a drag whose press began on an
+  // interactive child (price input, ▲▼, ◇…) is suppressed so text selection and clicks still work.
+  // Hovering another row of the same class reorders live — the row lands exactly where it's
+  // dropped; ▲▼ stays for keyboard.
+  const [dragKey, setDragKey] = useState<string | null>(null)
+  const suppressDrag = useRef(false)
+
+  const onRowPointerDown = (e: React.PointerEvent) => {
+    suppressDrag.current = !!(e.target as HTMLElement).closest('input,button,select,label,a')
+  }
+  const onRankDragStart = (e: React.DragEvent, k: string) => {
+    if (suppressDrag.current) {
+      e.preventDefault()
+      return
+    }
+    e.dataTransfer.effectAllowed = 'move'
+    e.dataTransfer.setData('text/plain', k) // Firefox won't start a drag without data
+    setDragKey(k)
+  }
+  const onRankDragOver = (e: React.DragEvent, classId: number, overKey: string) => {
+    if (!dragKey || rowByKey.get(dragKey)?.classId !== classId) return
+    e.preventDefault()
+    e.dataTransfer.dropEffect = 'move'
+    if (dragKey === overKey) return
+    setSuggest((s) => {
+      const order = ranksIn(s, classId)
+      const from = order.indexOf(dragKey)
+      const to = order.indexOf(overKey)
+      if (from < 0 || to < 0 || from === to) return s
+      const next = [...order]
+      next.splice(from, 1)
+      next.splice(to, 0, dragKey)
+      return { ...s, ranks: { ...s.ranks, [classId]: next } }
+    })
+  }
+  const endRankDrag = () => {
+    setDragKey(null)
+    suppressDrag.current = false
   }
 
   const togglePin = (k: string) => {
@@ -496,7 +540,7 @@ export function Prices() {
   const drift = expectedCost - budgetTarget
   const driftOk = budgetTarget > 0 && Math.abs(drift) <= budgetTarget * 0.03
   const gridCols = suggest.on
-    ? 'grid-cols-[3.1rem_2.6rem_minmax(7rem,1fr)_4rem_8rem_6.5rem_2.5rem]'
+    ? 'grid-cols-[4.4rem_2.6rem_minmax(7rem,1fr)_4rem_8rem_6.5rem_2.5rem]'
     : 'grid-cols-[3rem_1fr_5rem_8rem_4rem]'
 
   return (
@@ -746,8 +790,8 @@ export function Prices() {
             </ul>
           )}
           <p className="mt-3 font-mono text-[9px] uppercase tracking-[0.06em] text-muted">
-            Rank with ▲▼ · click ◇ to pin an exact price (the ladder bends through pins) · suggestions fill
-            the inputs, Save All persists
+            Drag a row to rank (▲▼ nudges one step) · click ◇ to pin an exact price (the ladder bends
+            through pins) · suggestions fill the inputs, Save All persists
           </p>
         </div>
       )}
@@ -833,8 +877,23 @@ export function Prices() {
                   return (
                     <div
                       key={k}
+                      draggable={suggest.on && !scratched}
+                      onPointerDown={onRowPointerDown}
+                      onDragStart={(e) => onRankDragStart(e, k)}
+                      onDragOver={(e) => onRankDragOver(e, cl.id, k)}
+                      onDrop={(e) => {
+                        e.preventDefault()
+                        endRankDrag()
+                      }}
+                      onDragEnd={endRankDrag}
                       className={`grid ${gridCols} items-center gap-x-3 border-b border-line px-4 py-2 last:border-b-0 ${
-                        invalid ? 'bg-danger/[0.06]' : dirty ? 'bg-warn/[0.05]' : ''
+                        dragKey === k
+                          ? 'bg-brand/[0.07]'
+                          : invalid
+                            ? 'bg-danger/[0.06]'
+                            : dirty
+                              ? 'bg-warn/[0.05]'
+                              : ''
                       } ${scratched ? 'opacity-55' : ''}`}
                     >
                       {suggest.on && (
@@ -850,6 +909,13 @@ export function Prices() {
                             </button>
                           ) : (
                             <>
+                              <span
+                                title={`Drag ${r.label} to rank`}
+                                aria-hidden
+                                className="cursor-grab touch-none select-none px-[2px] font-mono text-[11px] leading-none text-muted hover:text-ink active:cursor-grabbing"
+                              >
+                                ⠿
+                              </span>
                               <button
                                 onClick={() => moveRank(cl.id, k, -1)}
                                 disabled={idx === 0}
