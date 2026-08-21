@@ -8,15 +8,20 @@ import { EmailPreferenceControls, prefsFromList, type EmailPrefs, type ReminderK
 const MIN = 3
 const MAX = 32 // design caps at 32 (backend allows ≤40); '@' is rejected (it's the public identifier)
 
-/** Team-name registration modal. POST /registrations → refetch /auth/me → go to dashboard. */
+/** Team-name registration modal. POST /registrations → refetch /auth/me → go to dashboard,
+ * unless `onRegistered` is given — the pick page registers in place and stays on the round. */
 export function RegisterModal({
   seasonId,
   open,
   onOpenChange,
+  onRegistered,
+  confirmLabel = 'Confirm & Go to Dashboard',
 }: {
   seasonId: number
   open: boolean
   onOpenChange: (v: boolean) => void
+  onRegistered?: () => void
+  confirmLabel?: string
 }) {
   const [name, setName] = useState('')
   const [touched, setTouched] = useState(false)
@@ -57,7 +62,8 @@ export function RegisterModal({
         ],
       })
       onOpenChange(false)
-      navigate('/dashboard')
+      if (onRegistered) onRegistered()
+      else navigate('/dashboard')
     } catch {
       /* surfaced via register.isError below */
     }
@@ -160,7 +166,7 @@ export function RegisterModal({
               }`}
             >
               <span className="font-display text-[16px] font-bold italic tracking-[0.05em] uppercase text-ink">
-                {register.isPending ? 'Creating team…' : 'Confirm & Go to Dashboard'}
+                {register.isPending ? 'Creating team…' : confirmLabel}
               </span>
               {!register.isPending && (
                 <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#fff" strokeWidth="2.4">
