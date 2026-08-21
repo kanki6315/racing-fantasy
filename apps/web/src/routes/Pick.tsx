@@ -22,6 +22,7 @@ import { deriveEventStatus, deriveRoundStatus, EVENT_STATUS_META } from '../lib/
 import { lastName } from '../lib/driverName'
 import type { ShareCardModel, ShareCardPick } from '../lib/shareCard'
 import { EntityThumb } from '../components/EntityThumb'
+import { RegisterModal } from '../components/RegisterModal'
 import { DriverLineup } from '../components/DriverLineup'
 import { ShareCardButton } from '../components/ShareCardButton'
 
@@ -73,6 +74,9 @@ export function Pick() {
   // Class filter for the selection board, lifted here so an empty pit-lane slot can drive it: clicking
   // an "Add a … pick" prompt focuses the board on that class (and, on mobile, flips to the board tab).
   const [classFilter, setClassFilter] = useState<number | null>(null)
+  // Register-first screen's modal — registers for THIS round's season in place (no navigation), so
+  // the board appears as soon as /auth/me refetches with the new registration.
+  const [registerOpen, setRegisterOpen] = useState(false)
   const focusClass = (classId: number) => {
     setClassFilter(classId)
     setMobileTab('board')
@@ -414,12 +418,22 @@ export function Pick() {
             ? `You need to register for ${champName} before you can set a lineup for the "${round.data.name}".`
             : `You need to register for this season before you can set a lineup for the "${round.data.name}".`}
         </p>
-        <Link
-          to="/"
-          className="mt-2 flex h-11 items-center rounded-[3px] bg-brand px-5 font-display text-[14px] font-bold uppercase text-ink transition-colors hover:bg-brand-2"
+        <button
+          type="button"
+          onClick={() => setRegisterOpen(true)}
+          className="mt-2 flex h-11 cursor-pointer items-center rounded-[3px] bg-brand px-5 font-display text-[14px] font-bold uppercase text-ink transition-colors hover:bg-brand-2"
         >
           Claim your team
-        </Link>
+        </button>
+        <RegisterModal
+          seasonId={round.data.seasonId}
+          open={registerOpen}
+          onOpenChange={setRegisterOpen}
+          confirmLabel="Confirm & Set Lineup"
+          // Stay on this round — the /auth/me refetch surfaces the new registration and the board
+          // replaces this screen, instead of the default bounce to the dashboard.
+          onRegistered={() => {}}
+        />
       </div>
     )
   }
