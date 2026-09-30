@@ -22,7 +22,7 @@ FROM mcr.microsoft.com/dotnet/aspnet:10.0 AS runtime
 # Railway service variable (Railway passes service variables to Dockerfile builds as matching ARGs).
 # ARG values used in RUN are recorded in image history — acceptable for this narrowly-scoped token.
 ARG GH_PARSER_TOKEN
-ARG PARSER_REF=parser-v1.0.0
+ARG PARSER_REF=parser-v1.0.1
 # Npgsql probes for GSSAPI/Kerberos at connect time; without this lib it logs a noisy (non-fatal)
 # "libgssapi_krb5.so.2: cannot open shared object file" on every startup.
 # python3/venv host the entry-list parser sidecar (pitpass-parser, pip-installed from the
